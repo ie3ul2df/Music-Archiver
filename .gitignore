@@ -1,0 +1,27 @@
+# Virtual environment
+venv/
+
+# Python cache/bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local database
+db.sqlite3
+
+# Django stuff
+*.log
+*.pot
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Media (user uploads, if you don’t want them in repo)
+media/
