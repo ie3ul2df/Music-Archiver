@@ -1,0 +1,23 @@
+/* Highlight active link */
+.navbar .nav-link.active {
+  font-weight: bold;
+}
+
+/* Navbar brand styling */
+.navbar-brand {
+  font-size: 1.3rem;
+}
+
+/* Highlight the Premium card */
+.pricing-card.bg-light {
+  border: 2px solid #000000 !important;
+}
+
+/* Card hover effect */
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
