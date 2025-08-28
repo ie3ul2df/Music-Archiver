@@ -1,0 +1,25 @@
+{% extends "base.html" %} {% block content %}
+<h2>My Playlists</h2>
+<a href="{% url 'playlist_create' %}" class="btn btn-primary">Create Playlist</a>
+<hr />
+<ul>
+  {% for playlist in playlists %}
+  <li>
+    <h4>{{ playlist.name }}</h4>
+    <p>{{ playlist.description }}</p>
+    <strong>Tracks:</strong>
+    <ul>
+      {% for track in playlist.tracks.all %}
+      <li>{{ track.name }} — <a href="{{ track.url }}" target="_blank">▶ Play</a></li>
+      {% empty %}
+      <li>No tracks in this playlist.</li>
+      {% endfor %}
+    </ul>
+    <a href="{% url 'playlist_update' playlist.pk %}">Edit</a> |
+    <a href="{% url 'playlist_delete' playlist.pk %}">Delete</a>
+  </li>
+  {% empty %}
+  <p>No playlists yet. Create one above!</p>
+  {% endfor %}
+</ul>
+{% endblock %}

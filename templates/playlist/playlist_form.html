@@ -1,0 +1,8 @@
+{% extends "base.html" %} {% load crispy_forms_tags %} {% block content %}
+<h2>{% if form.instance.pk %}Edit Playlist{% else %}Create Playlist{% endif %}</h2>
+<form method="post">
+  {% csrf_token %} {{ form|crispy }}
+  <button type="submit" class="btn btn-success">Save</button>
+  <a href="{% url 'playlist_list' %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}
