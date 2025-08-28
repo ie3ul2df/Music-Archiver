@@ -1,0 +1,16 @@
+{% extends "base.html" %} {% block content %}
+<h2>My Tracks</h2>
+<a href="{% url 'track_create' %}" class="btn btn-primary">Add New Track</a>
+<hr />
+<ul>
+  {% for track in tracks %}
+  <li>
+    <strong>{{ track.name }}</strong>
+    <a href="{{ track.url }}" target="_blank">▶ Play</a> | <a href="{% url 'track_update' track.pk %}">Edit</a> |
+    <a href="{% url 'track_delete' track.pk %}">Delete</a>
+  </li>
+  {% empty %}
+  <p>No tracks yet. Add one above!</p>
+  {% endfor %}
+</ul>
+{% endblock %}
