@@ -39,6 +39,9 @@
         <div class="collapse navbar-collapse" id="mainNavbar">
           <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
             <li class="nav-item">
+              <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'home' %}">🏠 Home</a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link {% if request.resolver_match.url_name == 'track_list' %}active{% endif %}" href="{% url 'track_list' %}">🎵 Tracks</a>
             </li>
             <li class="nav-item">
@@ -52,6 +55,21 @@
                 🛒 Basket ({{ basket_count }}) - £{{ basket_total }}
               </a>
             </li>
+            {% if user.is_authenticated %}
+            <li class="nav-item">
+              <a class="nav-link" href="#">Hi, {{ user.username }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'account_logout' %}">🚪 Logout</a>
+            </li>
+            {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'account_signup' %}">📝 Register</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'account_login' %}">🔑 Login</a>
+            </li>
+            {% endif %}
           </ul>
         </div>
       </div>

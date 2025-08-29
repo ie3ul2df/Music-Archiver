@@ -1,0 +1,44 @@
+{% extends "base.html" %} {% block content %}
+<div class="container mt-5">
+  <!-- Hero Section -->
+  <div class="text-center p-5 bg-light rounded shadow-sm">
+    <h1 class="display-4 fw-bold">🎶 Welcome to Music Archiver</h1>
+    <p class="lead">Organise your tracks, build playlists, and upgrade with premium plans.</p>
+    <a href="{% url 'track_list' %}" class="btn btn-primary btn-lg">Start Managing Tracks</a>
+    <a href="{% url 'plan_list' %}" class="btn btn-success btn-lg">View Plans</a>
+  </div>
+
+  <!-- Features Section -->
+  <div class="row text-center mt-5">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm p-3">
+        <h3>🎵 Track Manager</h3>
+        <p>Add music links, edit them, and play directly.</p>
+        <a href="{% url 'track_list' %}" class="btn btn-outline-primary">My Tracks</a>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm p-3">
+        <h3>📂 Playlists</h3>
+        <p>Create playlists, shuffle songs, and enjoy your music collection.</p>
+        <a href="{% url 'playlist_list' %}" class="btn btn-outline-primary">My Playlists</a>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm p-3">
+        <h3>💸 Premium Plans</h3>
+        <p>Unlock unlimited playlists and storage with affordable plans.</p>
+        <a href="{% url 'plan_list' %}" class="btn btn-outline-success">Upgrade Now</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Call to Action -->
+  <div class="text-center mt-5">
+    <h2 class="fw-bold">Ready to get started?</h2>
+    <p>Sign up and start building your ultimate music library.</p>
+    <a href="{% url 'account_signup' %}" class="btn btn-primary btn-lg">Register</a>
+    <a href="{% url 'account_login' %}" class="btn btn-secondary btn-lg">Login</a>
+  </div>
+</div>
+{% endblock %}
