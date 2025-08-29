@@ -6,4 +6,5 @@ urlpatterns = [
     path('tracks/', include('tracks.urls')),
     path('playlist/', include('playlist.urls')),
     path('plans/', include('plans.urls')),
+    path('basket/', include('basket.urls')),
 ]
