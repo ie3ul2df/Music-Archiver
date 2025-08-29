@@ -33,6 +33,7 @@
     </div>
   </div>
 
+  {% if not user.is_authenticated %}
   <!-- Call to Action -->
   <div class="text-center mt-5">
     <h2 class="fw-bold">Ready to get started?</h2>
@@ -41,4 +42,4 @@
     <a href="{% url 'account_login' %}" class="btn btn-secondary btn-lg">Login</a>
   </div>
 </div>
-{% endblock %}
+{% endif %} {% endblock %}
