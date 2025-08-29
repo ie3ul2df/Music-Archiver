@@ -15,7 +15,7 @@
             <li>{% if plan.is_unlimited_playlists %}✅ Unlimited Playlists{% else %}❌ Limited Playlists{% endif %}</li>
           </ul>
           {% if user.is_authenticated %}
-          <a href="{% url 'subscribe' plan.id %}" class="btn btn-success w-100 mt-auto">Choose Plan</a>
+          <a href="{% url 'add_to_basket' plan.id %}" class="btn btn-success">Add to Basket</a>
           {% else %}
           <a href="{% url 'account_login' %}" class="btn btn-outline-primary w-100 mt-auto">Login to Subscribe</a>
           {% endif %}
