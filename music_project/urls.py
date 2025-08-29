@@ -9,4 +9,5 @@ urlpatterns = [
     path('plans/', include('plans.urls')),
     path('basket/', include('basket.urls')),
     path('accounts/', include('allauth.urls')),
+    path('profile/', include('profile_page.urls')),
 ]
