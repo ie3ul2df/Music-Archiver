@@ -24,3 +24,20 @@ def create_default_plans(sender, **kwargs):
             is_unlimited_tracks=True,
             is_unlimited_playlists=True
         )
+        
+        # storage plans
+        Plan.objects.create(
+            name="1GB Storage",
+            price=7.00,
+            description="Get 1GB cloud storage for your music data."
+        )
+        Plan.objects.create(
+            name="5GB Storage",
+            price=15.00,
+            description="Get 5GB cloud storage for your music data."
+        )
+        Plan.objects.create(
+            name="10GB Storage",
+            price=20.00,
+            description="Get 10GB cloud storage for your music data."
+        )
