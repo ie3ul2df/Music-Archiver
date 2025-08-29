@@ -9,12 +9,16 @@
 
       {% if profile.profile_image %}
       <img src="{{ profile.profile_image.url }}" alt="Profile image" class="rounded-circle mb-3" style="width: 120px; height: 120px; object-fit: cover" />
-      {% else %}
-      <img src="https://via.placeholder.com/120" class="rounded-circle mb-3" alt="default profile" />
-      {% endif %}
+      {% else %} <span class="display-1">🖼️</span> {% endif %}
 
       <form method="post" enctype="multipart/form-data">
-        {% csrf_token %} {{ form|crispy }}
+        {% csrf_token %}
+        <h5>Account Details</h5>
+        {{ user_form|crispy }}
+
+        <h5 class="mt-4">Profile Details</h5>
+        {{ profile_form|crispy }}
+
         <button type="submit" class="btn btn-primary w-100 mt-3">Save Changes</button>
       </form>
     </div>

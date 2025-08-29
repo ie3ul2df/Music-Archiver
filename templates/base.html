@@ -58,7 +58,16 @@
 
             {% if user.is_authenticated %}
             <li class="nav-item">
-              <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'profile' %}">👤 Profile</a>
+              <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'profile' %}">
+                {% if profile.profile_image %}
+                <img
+                  src="{{ profile.profile_image.url }}"
+                  alt="Profile image"
+                  class="rounded-circle mb-3"
+                  style="width: 25px; height: 25px; object-fit: cover"
+                />
+                {% else %} <span>👤</span>{% endif %} Profile
+              </a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="{% url 'account_logout' %}">🚪 Logout</a>
@@ -70,7 +79,6 @@
             <li class="nav-item">
               <a class="nav-link" href="{% url 'account_signup' %}">📝 Register</a>
             </li>
-
             {% endif %}
           </ul>
         </div>
