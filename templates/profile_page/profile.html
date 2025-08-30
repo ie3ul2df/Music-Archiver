@@ -1,6 +1,6 @@
 {% extends "base.html" %} {% load crispy_forms_tags %} {% block content %}
 
-<h2 class="text-center" href="#">Hi, {{ user.username }}</h2>
+<h2 class="text-center">Hi, {{ user.username }}</h2>
 
 <div class="container mt-5" style="max-width: 600px">
   <div class="card shadow-sm">
@@ -9,7 +9,9 @@
 
       {% if profile.profile_image %}
       <img src="{{ profile.profile_image.url }}" alt="Profile image" class="rounded-circle mb-3" style="width: 120px; height: 120px; object-fit: cover" />
-      {% else %} <span class="display-1">🖼️</span> {% endif %}
+      {% else %}
+      <span class="display-1">🖼️</span>
+      {% endif %}
 
       <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
@@ -21,6 +23,23 @@
 
         <button type="submit" class="btn btn-primary w-100 mt-3">Save Changes</button>
       </form>
+
+      <!-- Purchased Plans -->
+      <div class="mt-5">
+        <h4>🛒 Purchased Plans</h4>
+        {% if purchased_items %}
+        <ul class="list-group">
+          {% for item in purchased_items %}
+          <li class="list-group-item">
+            {{ item.plan.name }} — £{{ item.plan.price }} <br />
+            <small>Order: {{ item.order.order_number }} ({{ item.order.date|date:"M d, Y H:i" }})</small>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p>You haven’t purchased any plans yet.</p>
+        {% endif %}
+      </div>
     </div>
   </div>
 </div>
