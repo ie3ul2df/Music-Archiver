@@ -1,6 +1,18 @@
 from pathlib import Path
 import environ, os
 from decouple import config
+from dotenv import load_dotenv
+from django.contrib.messages import constants as messages
+
+MESSAGE_TAGS = {
+    messages.ERROR: 'danger'
+}
+
+#----------------- Add stipe payment
+load_dotenv()
+
+STRIPE_PUBLIC_KEY = os.environ.get("STRIPE_PUBLIC_KEY")
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -52,6 +64,7 @@ INSTALLED_APPS = [
     'basket',
     'home_page',
     'profile_page',
+    'checkout',
 ]
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
@@ -178,3 +191,4 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
