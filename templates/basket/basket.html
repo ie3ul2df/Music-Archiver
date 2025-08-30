@@ -1,16 +1,27 @@
 {% extends "base.html" %} {% block content %}
 <div class="container">
   <h2>Your Basket</h2>
+
   {% if basket_plans %}
   <ul class="list-group">
-    {% for plan in basket_plans %}
+    {% for item in basket_items %}
     <li class="list-group-item d-flex justify-content-between align-items-center">
-      {{ plan.name }} - £{{ plan.price }}
-      <a href="{% url 'remove_from_basket' plan.id %}" class="btn btn-sm btn-danger">Remove</a>
+      {{ item.plan.name }} — £{{ item.plan.price }} × {{ item.qty }} = £{{ item.subtotal }}
+      <div>
+        {% if item.plan.period == "4-Years" %}
+        <a href="{% url 'decrement_basket' item.plan.id %}" class="btn btn-sm btn-outline-danger">−</a>
+        <span class="mx-2">{{ item.qty }}</span>
+        <a href="{% url 'increment_basket' item.plan.id %}" class="btn btn-sm btn-outline-success">+</a>
+        {% endif %}
+        <a href="{% url 'remove_from_basket' item.plan.id %}" class="btn btn-sm btn-danger">Remove</a>
+      </div>
     </li>
     {% endfor %}
   </ul>
+
   <h4 class="mt-3">Total: £{{ basket_total }}</h4>
+  <a href="{% url 'checkout' %}" class="btn btn-success mt-3">Go to Checkout</a>
+
   {% else %}
   <p>Your basket is empty.</p>
   {% endif %}
