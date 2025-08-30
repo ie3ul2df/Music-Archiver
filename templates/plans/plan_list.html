@@ -5,23 +5,35 @@
   <div class="row g-4">
     {% for plan in plans %}
     <div class="col-12 col-sm-6 col-md-4">
-      <div class="plan-card h-100 shadow-sm border-0">
+      <div class="card h-100 shadow-sm border-0">
         <div class="card-body d-flex flex-column text-center p-4">
+          <!-- Plan Name & Price -->
           <h3 class="card-title fw-bold">{{ plan.name }}</h3>
-          <h4 class="text-success mb-3">£{{ plan.price }} <small class="text-muted">/ month</small></h4>
+          <h4 class="text-success mb-3">
+            £{{ plan.price }}
+            <small class="text-muted">{{ plan.period }}</small>
+          </h4>
+
+          <!-- Description -->
           <p class="text-muted">{{ plan.description }}</p>
+
+          <!-- Features -->
           <ul class="list-unstyled flex-grow-1 mb-4">
             <li>{% if plan.is_unlimited_tracks %}✅ Unlimited Tracks{% else %}❌ Limited Tracks{% endif %}</li>
             <li>{% if plan.is_unlimited_playlists %}✅ Unlimited Playlists{% else %}❌ Limited Playlists{% endif %}</li>
           </ul>
+
+          <!-- CTA -->
           {% if user.is_authenticated %}
-          <a href="{% url 'add_to_basket' plan.id %}" class="btn btn-success">Add to Basket</a>
+          <a href="{% url 'add_to_basket' plan.id %}" class="btn btn-success w-100 mt-auto"> Add to Basket </a>
           {% else %}
-          <a href="{% url 'account_login' %}" class="btn btn-outline-primary w-100 mt-auto">Login to Subscribe</a>
+          <a href="{% url 'account_login' %}" class="btn btn-outline-primary w-100 mt-auto"> Login to Subscribe </a>
           {% endif %}
         </div>
       </div>
     </div>
+    {% empty %}
+    <p class="text-center text-muted">🎉 You’ve already subscribed to all available plans!</p>
     {% endfor %}
   </div>
 </div>
