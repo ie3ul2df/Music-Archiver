@@ -1,0 +1,18 @@
+{# templates/album/public_album_detail.html #} {% extends "base.html" %} {% block content %}
+<div class="container py-4">
+  <h2>{{ album.name }}</h2>
+  {% if album.description %}
+  <p class="text-muted">{{ album.description }}</p>
+  {% endif %}
+  <ol class="list-group list-group-numbered">
+    {% for at in tracks %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <span>{{ at.track.title }}</span>
+      <a href="{{ at.track.url }}" class="btn btn-sm btn-outline-primary">Play</a>
+    </li>
+    {% empty %}
+    <li class="list-group-item">No tracks yet.</li>
+    {% endfor %}
+  </ol>
+</div>
+{% endblock %}
