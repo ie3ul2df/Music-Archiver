@@ -1,142 +1,117 @@
-{% extends "base.html" %} {% load crispy_forms_tags %} {% block content %}
+{% extends "base.html" %} {% load static %} {% block content %}
 <div class="container py-4">
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <h2>Your Tracks</h2>
-    <form action="{% url 'track_create' %}" method="post" enctype="multipart/form-data" class="d-flex gap-2">
-      {% csrf_token %}
-      <input name="name" class="form-control" placeholder="Track name" required />
-      <input name="source_url" class="form-control" placeholder="https://link-to-audio.mp3" />
-      <input type="file" name="audio_file" accept="audio/*" class="form-control" />
-      <button class="btn btn-primary">Add</button>
-    </form>
-  </div>
-
-  <p class="text-muted">Tip: drag the handle (⋮⋮) to reorder. Click a track to play.</p>
-
-  <ul id="track-list" class="list-group mb-4">
-    {% for t in tracks %}
-    <li class="list-group-item d-flex align-items-center gap-3" draggable="true" data-id="{{ t.id }}">
-      <span class="drag-handle" style="cursor: grab">⋮⋮</span>
-      <button class="btn btn-sm btn-outline-secondary play-btn" data-src="{% if t.audio_file %}{{ t.audio_file.url }}{% else %}{{ t.source_url }}{% endif %}">
-        ▶
-      </button>
-      <span class="flex-grow-1">{{ t.name }}</span>
-      {% if t.audio_file %}
-      <span class="badge bg-success">upload</span>
-      {% else %}
-      <span class="badge bg-info text-dark">link</span>
-      {% endif %}
-    </li>
-    {% empty %}
-    <li class="list-group-item">No tracks yet.</li>
-    {% endfor %}
-  </ul>
-
-  <!-- Player -->
-  <div class="card p-3">
-    <audio id="player" preload="none"></audio>
-    <div class="d-flex gap-2">
-      <button id="prev" class="btn btn-outline-secondary">⏮</button>
-      <button id="playpause" class="btn btn-primary">▶ Play</button>
-      <button id="next" class="btn btn-outline-secondary">⏭</button>
-      <button id="shuffle" class="btn btn-outline-secondary">🔀</button>
-      <span id="nowplaying" class="ms-3 text-muted"></span>
+  <div class="card p-3 mb-4 shadow-sm sticky-top bg-light" style="top: 70px; z-index: 100">
+    <div class="d-flex align-items-center justify-content-between">
+      <h5 class="mb-0">🎵 Music Player</h5>
+      <div class="d-flex gap-2">
+        <button id="prev" class="btn btn-outline-secondary btn-sm">⏮</button>
+        <button id="playpause" class="btn btn-primary btn-sm">▶ Play</button>
+        <button id="next" class="btn btn-outline-secondary btn-sm">⏭</button>
+        <button id="shuffle" class="btn btn-outline-dark btn-sm">🔀</button>
+      </div>
     </div>
+    <audio id="player" class="w-100 mt-2" preload="none" controls></audio>
+    <div class="small text-muted mt-1" id="nowplaying"></div>
   </div>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Your Albums</h4>
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'album_list' %}">Manage Albums</a>
+  </div>
+
+  {% for album in albums %}
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>{{ album.name }}</span>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'album_detail' album.pk %}">Open</a>
+    </div>
+    <ul class="list-group list-group-flush">
+      {% for t in album.tracks.all %} {% if t.audio_file or t.source_url %}
+      <li class="list-group-item d-flex align-items-center justify-content-between">
+        <span>{{ t.name }}</span>
+        <button
+          class="btn btn-sm btn-outline-success play-btn"
+          data-src="{% if t.audio_file %}{{ t.audio_file.url }}{% else %}{{ t.source_url }}{% endif %}"
+          data-name="{{ t.name }}"
+        >
+          ▶
+        </button>
+      </li>
+      {% endif %} {% empty %}
+      <li class="list-group-item text-muted">No tracks in this album.</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% empty %}
+  <p>No albums yet.</p>
+  {% endfor %}
 </div>
 
 <script>
   (function () {
-    // Build playlist from DOM
-    let tracks = Array.from(document.querySelectorAll("#track-list li")).map((li) => ({
-      id: parseInt(li.dataset.id),
-      name: li.querySelector("span.flex-grow-1").textContent.trim(),
-      src: li.querySelector(".play-btn").dataset.src,
-    }));
-    let index = 0;
-    let shuffled = false;
-
+    let tracks = [];
     const audio = document.getElementById("player");
-    const now = document.getElementById("nowplaying");
-    const playBtn = document.getElementById("playpause");
+    const np = document.getElementById("nowplaying");
+    const playpause = document.getElementById("playpause");
+
+    // Load all tracks for player
+    fetch("{% url 'tracks_json' %}")
+      .then((r) => r.json())
+      .then((data) => {
+        tracks = data.tracks || [];
+        if (tracks.length) {
+          audio.src = tracks[0].src;
+          np.textContent = "Ready: " + tracks[0].name;
+        }
+      });
+
+    let idx = 0,
+      shuffled = false;
 
     function load(i) {
-      index = i;
-      audio.src = tracks[index].src;
-      now.textContent = "Now playing: " + tracks[index].name;
-    }
-    function play() {
+      idx = i;
+      audio.src = tracks[idx].src;
+      np.textContent = "Now: " + tracks[idx].name;
       audio.play();
-      playBtn.textContent = "⏸ Pause";
-    }
-    function pause() {
-      audio.pause();
-      playBtn.textContent = "▶ Play";
+      playpause.textContent = "⏸ Pause";
     }
     function next() {
-      if (shuffled) {
-        index = Math.floor(Math.random() * tracks.length);
-      } else {
-        index = (index + 1) % tracks.length;
-      }
-      load(index);
-      play();
+      if (!tracks.length) return;
+      idx = shuffled ? Math.floor(Math.random() * tracks.length) : (idx + 1) % tracks.length;
+      load(idx);
     }
     function prev() {
-      index = (index - 1 + tracks.length) % tracks.length;
-      load(index);
-      play();
+      if (!tracks.length) return;
+      idx = (idx - 1 + tracks.length) % tracks.length;
+      load(idx);
     }
 
-    playBtn.addEventListener("click", () => (audio.paused ? play() : pause()));
     document.getElementById("next").addEventListener("click", next);
     document.getElementById("prev").addEventListener("click", prev);
     document.getElementById("shuffle").addEventListener("click", () => {
       shuffled = !shuffled;
     });
-
+    playpause.addEventListener("click", () => {
+      if (audio.paused) {
+        audio.play();
+        playpause.textContent = "⏸ Pause";
+      } else {
+        audio.pause();
+        playpause.textContent = "▶ Play";
+      }
+    });
     audio.addEventListener("ended", next);
 
-    // Click a row ▶
-    document.querySelectorAll(".play-btn").forEach((btn, i) => {
-      btn.addEventListener("click", () => {
-        load(i);
-        play();
+    // play buttons in lists
+    document.querySelectorAll(".play-btn").forEach((b) => {
+      b.addEventListener("click", () => {
+        const src = b.dataset.src,
+          name = b.dataset.name;
+        audio.src = src;
+        np.textContent = "Now: " + name;
+        audio.play();
+        playpause.textContent = "⏸ Pause";
       });
-    });
-
-    // Drag & Drop ordering → POST to /tracks/reorder/
-    const list = document.getElementById("track-list");
-    let dragging;
-
-    list.addEventListener("dragstart", (e) => {
-      dragging = e.target.closest("li");
-      e.dataTransfer.effectAllowed = "move";
-    });
-    list.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      const li = e.target.closest("li");
-      if (!li || li === dragging) return;
-      const rect = li.getBoundingClientRect();
-      const after = e.clientY - rect.top > rect.height / 2;
-      list.insertBefore(dragging, after ? li.nextSibling : li);
-    });
-    list.addEventListener("drop", () => {
-      const order = Array.from(list.querySelectorAll("li")).map((li) => parseInt(li.dataset.id));
-      fetch("{% url 'reorder_tracks' %}", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
-        body: JSON.stringify({ order }),
-      })
-        .then((r) => r.json())
-        .then(() => {
-          // Update local playlist ordering for the player too
-          tracks = Array.from(list.querySelectorAll("li")).map((li) => ({
-            id: parseInt(li.dataset.id),
-            name: li.querySelector("span.flex-grow-1").textContent.trim(),
-            src: li.querySelector(".play-btn").dataset.src,
-          }));
-        });
     });
   })();
 </script>
