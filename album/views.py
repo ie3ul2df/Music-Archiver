@@ -3,8 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
-from .models import Playlist as Album, PlaylistTrack as AlbumTrack
-from .forms import PlaylistForm as AlbumForm
+from .models import Album as Album, AlbumTrack as AlbumTrack
+from .forms import AlbumForm as AlbumForm
 from tracks.models import Track
 import json
 
@@ -12,11 +12,11 @@ import json
 # ---------- Helpers for limits / safe fallbacks ----------
 def _can_add_album(user):
     """
-    Uses plans.utils.can_add_playlist if available; otherwise enforces a free limit of 1 album.
+    Uses plans.utils.can_add_album if available; otherwise enforces a free limit of 1 album.
     Returns (ok: bool, reason: Optional[str]).
     """
     try:
-        from plans.utils import can_add_playlist as _cap  # type: ignore
+        from plans.utils import can_add_album as _cap  # type: ignore
         return _cap(user)
     except Exception:
         count = Album.objects.filter(user=user).count()
@@ -96,7 +96,7 @@ def album_detail(request, pk):
     """Show a single album with its ordered tracks and allow adding tracks."""
     album = get_object_or_404(Album, pk=pk, user=request.user)
     items = (
-        AlbumTrack.objects.filter(playlist=album)  # playlist= is still correct because of model definition
+        AlbumTrack.objects.filter(album)  
         .select_related("track")
         .order_by("position", "id")
     )
@@ -121,14 +121,14 @@ def album_add_track(request, pk):
     track = get_object_or_404(Track, pk=tid, user=request.user)
 
     # If it already exists, do nothing.
-    exists = AlbumTrack.objects.filter(playlist=album, track=track).exists()
+    exists = AlbumTrack.objects.filter(album, track=track).exists()
     if exists:
         messages.info(request, "Track is already in this album.")
         return redirect("album_detail", pk=pk)
 
-    last = AlbumTrack.objects.filter(playlist=album).order_by("-position").first()
+    last = AlbumTrack.objects.filter(album).order_by("-position").first()
     pos = (last.position + 1) if last else 0
-    AlbumTrack.objects.create(playlist=album, track=track, position=pos)
+    AlbumTrack.objects.create(album, track=track, position=pos)
     messages.success(request, "Added to album.")
     return redirect("album_detail", pk=pk)
 
@@ -138,7 +138,7 @@ def album_add_track(request, pk):
 def album_remove_track(request, pk, item_id):
     """Remove a specific track from the album."""
     album = get_object_or_404(Album, pk=pk, user=request.user)
-    item = get_object_or_404(AlbumTrack, pk=item_id, playlist=album)
+    item = get_object_or_404(AlbumTrack, pk=item_id, album)
     item.delete()
     messages.success(request, "Removed from album.")
     return redirect("album_detail", pk=pk)
@@ -160,7 +160,7 @@ def album_reorder_tracks(request, pk):
 
     # Only reorder items that belong to this album
     valid_ids = set(
-        AlbumTrack.objects.filter(playlist=album, id__in=id_list).values_list("id", flat=True)
+        AlbumTrack.objects.filter(album, id__in=id_list).values_list("id", flat=True)
     )
 
     pos = 0
