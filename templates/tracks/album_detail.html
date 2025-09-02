@@ -1,0 +1,39 @@
+{% extends "base.html" %} {% load crispy_forms_tags %} {% block content %}
+<div class="container py-4">
+  <h3>{{ album.name }}</h3>
+
+  <form method="post" enctype="multipart/form-data" class="row g-2 my-3">
+    {% csrf_token %}
+    <div class="col-md-3">
+      <input name="name" class="form-control" placeholder="Track name" required />
+    </div>
+    <div class="col-md-4">
+      <input name="source_url" class="form-control" placeholder="https://audio-link.mp3" />
+    </div>
+    {% if has_storage %}
+    <div class="col-md-3">
+      <input type="file" name="audio_file" accept="audio/*" class="form-control" />
+    </div>
+    {% endif %}
+    <div class="col-md-2 d-grid">
+      <button class="btn btn-primary">Add Track</button>
+    </div>
+  </form>
+  <p class="text-muted">Provide a link OR upload a file{% if not has_storage %} (upload requires a storage plan){% endif %}.</p>
+
+  <ul class="list-group">
+    {% for t in tracks %}
+    <li class="list-group-item d-flex justify-content-between align-items-center" data-id="{{ t.id }}">
+      <span class="track-name">{{ t.name }}</span>
+      <div class="btn-group">
+        <button class="btn btn-sm btn-outline-secondary rename-track-btn">✏</button>
+        <button class="btn btn-sm btn-outline-danger delete-track-btn">🗑</button>
+      </div>
+    </li>
+
+    {% empty %}
+    <li class="list-group-item">No tracks yet.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
