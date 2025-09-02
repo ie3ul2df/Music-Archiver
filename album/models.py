@@ -1,38 +1,67 @@
+# ----------------------- album/models.py ----------------------- #
 from django.db import models
 from django.conf import settings
+from django.utils.text import slugify
+import uuid
 
 
 class Album(models.Model):
-    user = models.ForeignKey(
+    """Music album belonging to a user, grouping tracks in order."""
+
+    owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="albums"
+        related_name="albums",
     )
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
+    name = models.CharField(max_length=150)
+    description = models.TextField(blank=True)
+    is_public = models.BooleanField(default=False)
+    slug = models.SlugField(max_length=180, unique=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["name"]
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["slug"])]
+
+    def _make_unique_slug(self) -> str:
+        """
+        Generate a unique slug for the album based on its name.
+        Falls back to a UUID snippet if too many conflicts.
+        """
+        base = slugify(self.name) or "album"
+        slug = base
+        i = 1
+        Model = self.__class__
+
+        while Model.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+            i += 1
+            slug = f"{base}-{i}"
+            if i > 30:  # safety fallback
+                slug = f"{base}-{uuid.uuid4().hex[:8]}"
+                break
+        return slug
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = self._make_unique_slug()
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.name} ({self.user.username})"
-
+        return f"{self.name} ({self.owner.username})"
 
 
 class AlbumTrack(models.Model):
-    """
-    Explicit through model to preserve per-album track order.
-    """
+    """Through model linking albums and tracks, with explicit ordering."""
+
     album = models.ForeignKey(
         Album,
         on_delete=models.CASCADE,
-        related_name="items",
+        related_name="album_tracks",
     )
     track = models.ForeignKey(
         "tracks.Track",
         on_delete=models.CASCADE,
-        related_name="album_items",
+        related_name="track_albums",
     )
     position = models.PositiveIntegerField(default=0, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -40,6 +69,25 @@ class AlbumTrack(models.Model):
     class Meta:
         unique_together = (("album", "track"),)
         ordering = ["position", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["album", "position"],
+                name="uniq_album_position",
+            )
+        ]
+        indexes = [models.Index(fields=["album", "position"])]
+
+    def save(self, *args, **kwargs):
+        # Auto-assign position if not explicitly set
+        if not self.position:
+            last = (
+                AlbumTrack.objects.filter(album=self.album)
+                .order_by("-position")
+                .first()
+            )
+            self.position = (last.position + 1) if last else 1
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.album.name} → {self.track.name} (#{self.position})"
+        track_label = getattr(self.track, "title", None) or getattr(self.track, "name", None) or str(self.track)
+        return f"{self.album.name} → {track_label} (#{self.position})"
