@@ -1,4 +1,5 @@
-# tracks/urls.py
+# ----------------------- tracks/urls.py ----------------------- #
+
 from django.urls import path
 from . import views
 
@@ -15,4 +16,10 @@ urlpatterns = [
     path("albums/add/", views.ajax_add_album, name="ajax_add_album"),
     path("albums/<int:pk>/rename/", views.ajax_rename_album, name="ajax_rename_album"),
     path("albums/<int:pk>/delete/", views.ajax_delete_album, name="ajax_delete_album"),
+    # RecentTracks (and play)
+    path("<int:pk>/play/", views.play_track, name="play_track"),
+    path("recent/", views.recently_played, name="recently_played"),
+    #Favorites
+    path("<int:pk>/fav/", views.toggle_favorite, name="toggle_favorite"),
+    path("favorites/", views.favorites_list, name="favorites_list"),
 ]
