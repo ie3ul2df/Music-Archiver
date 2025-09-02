@@ -1,9 +1,9 @@
 from django import forms
-from .models import Playlist
+from .models import Album
 
-class PlaylistForm(forms.ModelForm):
+class AlbumForm(forms.ModelForm):
     class Meta:
-        model = Playlist
+        model = Album
         fields = ['name', 'description', 'tracks']
         widgets = {
             'tracks': forms.CheckboxSelectMultiple,  # lets you tick tracks to add
