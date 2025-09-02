@@ -1,20 +1,21 @@
-# tracks/views.py
+# ----------------------- tracks/views.py ----------------------- #
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.contrib import messages
-
-from .models import Track
+from django.utils import timezone
+from django.db import IntegrityError
+from .models import Track, Favorite
 from .forms import TrackForm
-from album.models import Album
+from album.models import Album, AlbumTrack
 from plans.utils import (
     can_add_track,
     can_add_album,
     can_upload_file,
     user_has_storage_plan,
 )
-
 import json
 
 
@@ -25,22 +26,33 @@ def track_list(request):
     - Sticky player on top (template)
     - Albums listed underneath with their tracks
     """
-    # Ensure there's a Default Album for new users (so they always see one)
-    if not Album.objects.filter(user=request.user).exists():
-        Album.objects.create(user=request.user, name="Default Album")
+    # Ensure there's a Default Album for new users
+    if not Album.objects.filter(owner=request.user).exists():
+        Album.objects.create(owner=request.user, name="Default Album")
 
-    albums = Album.objects.filter(user=request.user).prefetch_related("tracks")
+    # Prefetch through model and related tracks for efficiency
+    albums = (
+        Album.objects.filter(owner=request.user)
+        .prefetch_related("album_tracks__track")
+        .order_by("-created_at")
+    )
+
     storage = user_has_storage_plan(request.user)
-    return render(request, "tracks/track_list.html", {
-        "albums": albums,
-        "has_storage": storage,
-    })
+
+    return render(
+        request,
+        "tracks/track_list.html",
+        {
+            "albums": albums,
+            "has_storage": storage,
+        },
+    )
 
 
 @login_required
 def album_list(request):
     """Album page: list albums; add album if allowed."""
-    albums = Album.objects.filter(user=request.user).order_by("name")
+    albums = Album.objects.filter(owner=request.user).order_by("name")
 
     if request.method == "POST":
         ok, reason = can_add_album(request.user)
@@ -53,7 +65,7 @@ def album_list(request):
             messages.error(request, "Album name is required.")
             return redirect("album_list")
 
-        Album.objects.create(user=request.user, name=name)
+        Album.objects.create(owner=request.user, name=name)
         messages.success(request, "Album created.")
         return redirect("album_list")
 
@@ -62,51 +74,33 @@ def album_list(request):
 
 @login_required
 def album_detail(request, pk):
-    """
-    Show an album and allow adding tracks into it (respect plan limits).
-    """
-    album = get_object_or_404(Album, pk=pk, user=request.user)
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
+
     if request.method == "POST":
-        # Gate by plan
-        ok, reason = can_add_track(request.user, album)
-        if not ok:
-            messages.error(request, reason)
-            return redirect("album_detail", pk=album.pk)
-
-        form = TrackForm(request.POST, request.FILES, user=request.user)
+        form = TrackForm(request.POST, request.FILES, owner=request.user)
         if form.is_valid():
-            t = form.save(commit=False)
-            t.user = request.user
-            t.album = album  # force into this album
-
-            # If uploading a file, check storage quota
-            if t.audio_file and hasattr(t.audio_file, "size"):
-                ok, reason = can_upload_file(request.user, t.audio_file.size)
-                if not ok:
-                    messages.error(request, reason)
-                    return redirect("album_detail", pk=album.pk)
-
-            last = (Track.objects
-                    .filter(user=request.user, album=album)
-                    .order_by("-position")
-                    .first())
-            t.position = (last.position + 1) if last else 0
-            t.save()
+            track = form.save()  # already assigns owner
+            AlbumTrack.objects.create(album=album, track=track)
             messages.success(request, "Track added to album.")
             return redirect("album_detail", pk=album.pk)
         else:
             messages.error(request, "Fix the errors and try again.")
     else:
-        form = TrackForm(user=request.user)
+        form = TrackForm(owner=request.user)
 
-    tracks = Track.objects.filter(user=request.user, album=album).order_by("position", "id")
+    tracks = (
+        AlbumTrack.objects
+        .filter(album=album)
+        .select_related("track")
+        .order_by("position", "id")
+    )
+
     return render(request, "tracks/album_detail.html", {
         "album": album,
-        "tracks": tracks,
+        "tracks": [at.track for at in tracks],  # pass actual Track objects to template
         "form": form,
         "has_storage": user_has_storage_plan(request.user),
     })
-
 
 @login_required
 @require_POST
@@ -123,7 +117,7 @@ def reorder_tracks(request):
         return HttpResponseBadRequest("Invalid JSON payload.")
 
     user_ids = list(
-        Track.objects.filter(user=request.user, id__in=id_list).values_list("id", flat=True)
+        Track.objects.filter(owner=request.user, id__in=id_list).values_list("id", flat=True)
     )
 
     pos = 0
@@ -141,18 +135,18 @@ def tracks_json(request):
     JSON feed for the sticky player (all user's tracks, ordered).
     """
     items = []
-    for t in Track.objects.filter(user=request.user).order_by("position", "id"):
+    tracks = Track.objects.filter(owner=request.user).order_by("position", "id")
+    for t in tracks:
         src = t.audio_file.url if t.audio_file else t.source_url
         if not src:
             continue
         items.append({
             "id": t.id,
             "name": t.name,
-            "album": t.album.name if t.album else "",
             "src": src,
-            "type": "file" if t.audio_file else "link",
         })
     return JsonResponse({"tracks": items})
+
 
 @login_required
 @require_POST
@@ -162,7 +156,7 @@ def ajax_add_album(request):
     if not name:
         return JsonResponse({"ok": False, "error": "Album name required."}, status=400)
 
-    album = Album.objects.create(user=request.user, name=name)
+    album = Album.objects.create(owner=request.user, name=name)
     return JsonResponse({
         "ok": True,
         "id": album.id,
@@ -173,7 +167,7 @@ def ajax_add_album(request):
 @login_required
 @require_POST
 def ajax_rename_album(request, pk):
-    album = get_object_or_404(Album, pk=pk, user=request.user)
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
     new_name = (request.POST.get("name") or "").strip()
     if not new_name:
         return JsonResponse({"ok": False, "error": "Name cannot be empty."}, status=400)
@@ -186,6 +180,43 @@ def ajax_rename_album(request, pk):
 @login_required
 @require_POST
 def ajax_delete_album(request, pk):
-    album = get_object_or_404(Album, pk=pk, user=request.user)
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
     album.delete()
     return JsonResponse({"ok": True, "id": pk})
+
+@login_required
+def play_track(request, pk):
+    track = get_object_or_404(Track, pk=pk, owner=request.user)
+    track.play_count = (track.play_count or 0) + 1
+    track.last_played_at = timezone.now()
+    track.save(update_fields=["play_count", "last_played_at"])
+    return redirect(track.url)  # simple redirect to the URL you store
+
+@login_required
+def recently_played(request):
+    items = (
+        Track.objects.filter(owner=request.user, last_played_at__isnull=False)
+        .order_by("-last_played_at")[:25]
+    )
+    return render(request, "tracks/recently_played.html", {"tracks": items})
+
+
+@login_required
+def toggle_favorite(request, pk):
+    track = get_object_or_404(Track, pk=pk, owner=request.user)
+    existing = Favorite.objects.filter(owner=request.user, track=track)
+    if existing.exists():
+        existing.delete()
+        messages.info(request, f"Removed “{track.name}” from favourites.")
+    else:
+        try:
+            Favorite.objects.create(owner=request.user, track=track)
+            messages.success(request, f"Added “{track.name}” to favourites.")
+        except IntegrityError:
+            pass
+    return redirect(request.META.get("HTTP_REFERER", "recently_played"))
+
+@login_required
+def favorites_list(request):
+    favs = Favorite.objects.filter(owner=request.user).select_related("track").order_by("-created_at")
+    return render(request, "tracks/favorites.html", {"favorites": favs})
