@@ -1,3 +1,5 @@
+# ----------------------- album/urls.py ----------------------- #
+
 from django.urls import path
 from . import views
 
@@ -16,4 +18,8 @@ urlpatterns = [
 
     # Reorder albums (top-level list)
     path("reorder/", views.albums_reorder, name="albums_reorder"),
+    
+    #share albums
+    path("p/<slug:slug>/", views.public_album_detail, name="public_album_detail"),
+    path("<int:pk>/toggle-visibility/", views.toggle_album_visibility, name="toggle_album_visibility"),
 ]
