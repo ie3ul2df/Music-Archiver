@@ -1,16 +1,143 @@
-{% extends "base.html" %} {% block content %}
-<h2>My Tracks</h2>
-<a href="{% url 'track_create' %}" class="btn btn-primary">Add New Track</a>
-<hr />
-<ul>
-  {% for track in tracks %}
-  <li>
-    <strong>{{ track.name }}</strong>
-    <a href="{{ track.url }}" target="_blank">▶ Play</a> | <a href="{% url 'track_update' track.pk %}">Edit</a> |
-    <a href="{% url 'track_delete' track.pk %}">Delete</a>
-  </li>
-  {% empty %}
-  <p>No tracks yet. Add one above!</p>
-  {% endfor %}
-</ul>
+{% extends "base.html" %} {% load crispy_forms_tags %} {% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h2>Your Tracks</h2>
+    <form action="{% url 'track_create' %}" method="post" enctype="multipart/form-data" class="d-flex gap-2">
+      {% csrf_token %}
+      <input name="name" class="form-control" placeholder="Track name" required />
+      <input name="source_url" class="form-control" placeholder="https://link-to-audio.mp3" />
+      <input type="file" name="audio_file" accept="audio/*" class="form-control" />
+      <button class="btn btn-primary">Add</button>
+    </form>
+  </div>
+
+  <p class="text-muted">Tip: drag the handle (⋮⋮) to reorder. Click a track to play.</p>
+
+  <ul id="track-list" class="list-group mb-4">
+    {% for t in tracks %}
+    <li class="list-group-item d-flex align-items-center gap-3" draggable="true" data-id="{{ t.id }}">
+      <span class="drag-handle" style="cursor: grab">⋮⋮</span>
+      <button class="btn btn-sm btn-outline-secondary play-btn" data-src="{% if t.audio_file %}{{ t.audio_file.url }}{% else %}{{ t.source_url }}{% endif %}">
+        ▶
+      </button>
+      <span class="flex-grow-1">{{ t.name }}</span>
+      {% if t.audio_file %}
+      <span class="badge bg-success">upload</span>
+      {% else %}
+      <span class="badge bg-info text-dark">link</span>
+      {% endif %}
+    </li>
+    {% empty %}
+    <li class="list-group-item">No tracks yet.</li>
+    {% endfor %}
+  </ul>
+
+  <!-- Player -->
+  <div class="card p-3">
+    <audio id="player" preload="none"></audio>
+    <div class="d-flex gap-2">
+      <button id="prev" class="btn btn-outline-secondary">⏮</button>
+      <button id="playpause" class="btn btn-primary">▶ Play</button>
+      <button id="next" class="btn btn-outline-secondary">⏭</button>
+      <button id="shuffle" class="btn btn-outline-secondary">🔀</button>
+      <span id="nowplaying" class="ms-3 text-muted"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    // Build playlist from DOM
+    let tracks = Array.from(document.querySelectorAll("#track-list li")).map((li) => ({
+      id: parseInt(li.dataset.id),
+      name: li.querySelector("span.flex-grow-1").textContent.trim(),
+      src: li.querySelector(".play-btn").dataset.src,
+    }));
+    let index = 0;
+    let shuffled = false;
+
+    const audio = document.getElementById("player");
+    const now = document.getElementById("nowplaying");
+    const playBtn = document.getElementById("playpause");
+
+    function load(i) {
+      index = i;
+      audio.src = tracks[index].src;
+      now.textContent = "Now playing: " + tracks[index].name;
+    }
+    function play() {
+      audio.play();
+      playBtn.textContent = "⏸ Pause";
+    }
+    function pause() {
+      audio.pause();
+      playBtn.textContent = "▶ Play";
+    }
+    function next() {
+      if (shuffled) {
+        index = Math.floor(Math.random() * tracks.length);
+      } else {
+        index = (index + 1) % tracks.length;
+      }
+      load(index);
+      play();
+    }
+    function prev() {
+      index = (index - 1 + tracks.length) % tracks.length;
+      load(index);
+      play();
+    }
+
+    playBtn.addEventListener("click", () => (audio.paused ? play() : pause()));
+    document.getElementById("next").addEventListener("click", next);
+    document.getElementById("prev").addEventListener("click", prev);
+    document.getElementById("shuffle").addEventListener("click", () => {
+      shuffled = !shuffled;
+    });
+
+    audio.addEventListener("ended", next);
+
+    // Click a row ▶
+    document.querySelectorAll(".play-btn").forEach((btn, i) => {
+      btn.addEventListener("click", () => {
+        load(i);
+        play();
+      });
+    });
+
+    // Drag & Drop ordering → POST to /tracks/reorder/
+    const list = document.getElementById("track-list");
+    let dragging;
+
+    list.addEventListener("dragstart", (e) => {
+      dragging = e.target.closest("li");
+      e.dataTransfer.effectAllowed = "move";
+    });
+    list.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      const li = e.target.closest("li");
+      if (!li || li === dragging) return;
+      const rect = li.getBoundingClientRect();
+      const after = e.clientY - rect.top > rect.height / 2;
+      list.insertBefore(dragging, after ? li.nextSibling : li);
+    });
+    list.addEventListener("drop", () => {
+      const order = Array.from(list.querySelectorAll("li")).map((li) => parseInt(li.dataset.id));
+      fetch("{% url 'reorder_tracks' %}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+        body: JSON.stringify({ order }),
+      })
+        .then((r) => r.json())
+        .then(() => {
+          // Update local playlist ordering for the player too
+          tracks = Array.from(list.querySelectorAll("li")).map((li) => ({
+            id: parseInt(li.dataset.id),
+            name: li.querySelector("span.flex-grow-1").textContent.trim(),
+            src: li.querySelector(".play-btn").dataset.src,
+          }));
+        });
+    });
+  })();
+</script>
 {% endblock %}

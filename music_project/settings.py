@@ -91,7 +91,11 @@ CLOUDINARY_STORAGE = {
     'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
     'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
+    # NEW: allow audio/video uploads (not just images)
+    'RESOURCE_TYPE': 'auto',
 }
+# NEW: permit non-image files via the Django storage backend
+MEDIA_ALLOW_NOT_IMAGE = True
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 

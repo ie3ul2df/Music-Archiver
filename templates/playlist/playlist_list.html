@@ -1,25 +1,23 @@
-{% extends "base.html" %} {% block content %}
-<h2>My Playlists</h2>
-<a href="{% url 'playlist_create' %}" class="btn btn-primary">Create Playlist</a>
-<hr />
-<ul>
-  {% for playlist in playlists %}
-  <li>
-    <h4>{{ playlist.name }}</h4>
-    <p>{{ playlist.description }}</p>
-    <strong>Tracks:</strong>
-    <ul>
-      {% for track in playlist.tracks.all %}
-      <li>{{ track.name }} — <a href="{{ track.url }}" target="_blank">▶ Play</a></li>
-      {% empty %}
-      <li>No tracks in this playlist.</li>
-      {% endfor %}
-    </ul>
-    <a href="{% url 'playlist_update' playlist.pk %}">Edit</a> |
-    <a href="{% url 'playlist_delete' playlist.pk %}">Delete</a>
-  </li>
-  {% empty %}
-  <p>No playlists yet. Create one above!</p>
-  {% endfor %}
-</ul>
+{% extends "base.html" %}{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between mb-3">
+    <h2>Your Playlists</h2>
+    <form action="{% url 'playlist_create' %}" method="post" class="d-flex gap-2">
+      {% csrf_token %}
+      <input name="name" class="form-control" placeholder="New playlist name" required />
+      <button class="btn btn-primary">Create</button>
+    </form>
+  </div>
+
+  <ul class="list-group">
+    {% for p in playlists %}
+    <li class="list-group-item d-flex justify-content-between">
+      <a href="{% url 'playlist_detail' p.pk %}">{{ p.name }}</a>
+      <span class="text-muted">#{{ forloop.counter }}</span>
+    </li>
+    {% empty %}
+    <li class="list-group-item">No playlists yet.</li>
+    {% endfor %}
+  </ul>
+</div>
 {% endblock %}
