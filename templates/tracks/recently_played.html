@@ -1,0 +1,16 @@
+{# templates/tracks/recently_played.html #} {% extends "base.html" %} {% block content %}
+<div class="container py-4">
+  <h2>Recently Played</h2>
+  <ul class="list-group">
+    {% for t in tracks %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <span>{{ t.title }}</span>
+      <small class="text-muted">Plays: {{ t.play_count }}</small>
+      <a href="{% url 'play_track' t.pk %}" class="btn btn-sm btn-outline-primary">Play</a>
+    </li>
+    {% empty %}
+    <li class="list-group-item">No recent plays.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
