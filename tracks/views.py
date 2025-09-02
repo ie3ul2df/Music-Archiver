@@ -1,157 +1,119 @@
+# tracks/views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.contrib import messages
-from django.db.models import F
+
 from .models import Track
 from .forms import TrackForm
+from album.models import Album
+from plans.utils import (
+    can_add_track,
+    can_add_album,
+    can_upload_file,
+    user_has_storage_plan,
+)
+
 import json
 
 
-# ---------- Helpers for limits / storage (safe fallbacks if plans.utils isn't present) ----------
-def _can_add_track(user):
-    """
-    Uses plans.utils.can_add_track if available; otherwise enforces a free limit of 10 tracks.
-    Returns (ok: bool, reason: Optional[str]).
-    """
-    try:
-        from plans.utils import can_add_track as _cat  # type: ignore
-        ok, reason = _cat(user)
-        return ok, reason
-    except Exception:
-        # Fallback: free tier → 10 tracks max
-        count = Track.objects.filter(user=user).count()
-        if count >= 10:
-            return False, "Free tier limit reached (10 tracks). Upgrade a plan to add more."
-        return True, None
-
-
-def _can_upload_file(user, size_bytes: int):
-    """
-    Uses plans.utils.can_upload_file if available; otherwise allow uploads (no quota)
-    so we don't break existing behaviour.
-    Returns (ok: bool, reason: Optional[str]).
-    """
-    try:
-        from plans.utils import can_upload_file as _cuf  # type: ignore
-        ok, reason = _cuf(user, size_bytes)
-        return ok, reason
-    except Exception:
-        return True, None  # permissive fallback
-
-
-def _has_field(model_cls, field_name: str) -> bool:
-    return any(f.name == field_name for f in model_cls._meta.fields)
-
-
-# ---------- Views ----------
 @login_required
 def track_list(request):
-    """Show all tracks belonging to the logged-in user (ordered if `position` field exists)."""
-    qs = Track.objects.filter(user=request.user)
-    if _has_field(Track, "position"):
-        tracks = qs.order_by("position", "id")
-    else:
-        # Fallback to most-recent-first if no explicit ordering field
-        tracks = qs.order_by("-created_at")
-    return render(request, "tracks/track_list.html", {"tracks": tracks})
+    """
+    Music Player page:
+    - Sticky player on top (template)
+    - Albums listed underneath with their tracks
+    """
+    # Ensure there's a Default Album for new users (so they always see one)
+    if not Album.objects.filter(user=request.user).exists():
+        Album.objects.create(user=request.user, name="Default Album")
+
+    albums = Album.objects.filter(user=request.user).prefetch_related("tracks")
+    storage = user_has_storage_plan(request.user)
+    return render(request, "tracks/track_list.html", {
+        "albums": albums,
+        "has_storage": storage,
+    })
 
 
 @login_required
-def track_create(request):
-    """Add a new track (link or file upload). Enforces free-tier limits; storage quota if available."""
+def album_list(request):
+    """Album page: list albums; add album if allowed."""
+    albums = Album.objects.filter(user=request.user).order_by("name")
+
     if request.method == "POST":
-        ok, reason = _can_add_track(request.user)
+        ok, reason = can_add_album(request.user)
         if not ok:
-            messages.error(request, reason or "You can't add more tracks.")
-            return redirect("track_list")
+            messages.error(request, reason)
+            return redirect("album_list")
 
-        form = TrackForm(request.POST, request.FILES)
+        name = (request.POST.get("name") or "").strip()
+        if not name:
+            messages.error(request, "Album name is required.")
+            return redirect("album_list")
+
+        Album.objects.create(user=request.user, name=name)
+        messages.success(request, "Album created.")
+        return redirect("album_list")
+
+    return render(request, "tracks/album_list.html", {"albums": albums})
+
+
+@login_required
+def album_detail(request, pk):
+    """
+    Show an album and allow adding tracks into it (respect plan limits).
+    """
+    album = get_object_or_404(Album, pk=pk, user=request.user)
+    if request.method == "POST":
+        # Gate by plan
+        ok, reason = can_add_track(request.user, album)
+        if not ok:
+            messages.error(request, reason)
+            return redirect("album_detail", pk=album.pk)
+
+        form = TrackForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
-            track = form.save(commit=False)
-            track.user = request.user
+            t = form.save(commit=False)
+            t.user = request.user
+            t.album = album  # force into this album
 
-            # If uploading a file, enforce storage quota (when plans.utils is present).
-            upload = getattr(track, "audio_file", None)
-            if upload:
-                ok, reason = _can_upload_file(request.user, getattr(upload, "size", 0) or 0)
+            # If uploading a file, check storage quota
+            if t.audio_file and hasattr(t.audio_file, "size"):
+                ok, reason = can_upload_file(request.user, t.audio_file.size)
                 if not ok:
-                    messages.error(request, reason or "Not enough storage to upload this file.")
-                    return redirect("track_list")
+                    messages.error(request, reason)
+                    return redirect("album_detail", pk=album.pk)
 
-            # If a 'position' field exists, append to the end.
-            if _has_field(Track, "position"):
-                last = (
-                    Track.objects.filter(user=request.user)
+            last = (Track.objects
+                    .filter(user=request.user, album=album)
                     .order_by("-position")
-                    .first()
-                )
-                track.position = (last.position + 1) if last else 0
-
-            track.save()
-            messages.success(request, "Track added successfully!")
-            return redirect("track_list")
+                    .first())
+            t.position = (last.position + 1) if last else 0
+            t.save()
+            messages.success(request, "Track added to album.")
+            return redirect("album_detail", pk=album.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Fix the errors and try again.")
     else:
-        form = TrackForm()
+        form = TrackForm(user=request.user)
 
-    return render(request, "tracks/track_form.html", {"form": form})
-
-
-@login_required
-def track_update(request, pk):
-    """Edit a track"""
-    track = get_object_or_404(Track, pk=pk, user=request.user)
-    if request.method == "POST":
-        form = TrackForm(request.POST, request.FILES, instance=track)
-        if form.is_valid():
-            updated = form.save(commit=False)
-
-            # If switching to an upload or changing the file, re-check storage
-            upload = getattr(updated, "audio_file", None)
-            if upload and hasattr(upload, "size"):
-                ok, reason = _can_upload_file(request.user, upload.size)
-                if not ok:
-                    messages.error(request, reason or "Not enough storage for this file.")
-                    return redirect("track_list")
-
-            updated.save()
-            messages.success(request, "Track updated successfully!")
-            return redirect("track_list")
-        else:
-            messages.error(request, "Please correct the errors below.")
-    else:
-        form = TrackForm(instance=track)
-    return render(request, "tracks/track_form.html", {"form": form})
-
-
-@login_required
-def track_delete(request, pk):
-    """Delete a track"""
-    track = get_object_or_404(Track, pk=pk, user=request.user)
-    if request.method == "POST":
-        track.delete()
-        messages.success(request, "Track deleted!")
-        return redirect("track_list")
-    return render(request, "tracks/track_confirm_delete.html", {"track": track})
+    tracks = Track.objects.filter(user=request.user, album=album).order_by("position", "id")
+    return render(request, "tracks/album_detail.html", {
+        "album": album,
+        "tracks": tracks,
+        "form": form,
+        "has_storage": user_has_storage_plan(request.user),
+    })
 
 
 @login_required
 @require_POST
 def reorder_tracks(request):
     """
-    Drag-and-drop ordering endpoint.
-    Accepts JSON: { "order": [track_id_1, track_id_2, ...] }
-    Requires a 'position' field on Track; otherwise returns a gentle error.
+    Drag-and-drop ordering (global). Accepts JSON: { "order": [track_id, ...] }
     """
-    if not _has_field(Track, "position"):
-        return JsonResponse(
-            {"ok": False, "error": "Ordering is not enabled for tracks."},
-            status=400,
-        )
-
     try:
         data = json.loads(request.body.decode("utf-8"))
         id_list = data.get("order", [])
@@ -160,7 +122,6 @@ def reorder_tracks(request):
     except Exception:
         return HttpResponseBadRequest("Invalid JSON payload.")
 
-    # Only allow reordering of the current user's tracks
     user_ids = list(
         Track.objects.filter(user=request.user, id__in=id_list).values_list("id", flat=True)
     )
@@ -177,44 +138,54 @@ def reorder_tracks(request):
 @login_required
 def tracks_json(request):
     """
-    Lightweight JSON feed for a frontend media player.
-    Returns user's tracks in current order with a playable src (file or link).
+    JSON feed for the sticky player (all user's tracks, ordered).
     """
-    qs = Track.objects.filter(user=request.user)
-    if _has_field(Track, "position"):
-        qs = qs.order_by("position", "id")
-    else:
-        qs = qs.order_by("-created_at")
-
     items = []
-    for t in qs:
-        src = None
-        # Prefer uploaded file if present
-        if hasattr(t, "audio_file") and t.audio_file:
-            try:
-                src = t.audio_file.url
-            except Exception:
-                src = None
-        # Fallback to link field(s)
+    for t in Track.objects.filter(user=request.user).order_by("position", "id"):
+        src = t.audio_file.url if t.audio_file else t.source_url
         if not src:
-            # Common field name in your forms/models has been 'source_url'
-            if hasattr(t, "source_url") and t.source_url:
-                src = t.source_url
-            # If you used another name like 'url' or 'link', try them too:
-            elif hasattr(t, "url") and t.url:
-                src = t.url
-            elif hasattr(t, "link") and t.link:
-                src = t.link
-
-        if not src:
-            # Skip tracks without a resolvable source
             continue
-
         items.append({
             "id": t.id,
             "name": t.name,
+            "album": t.album.name if t.album else "",
             "src": src,
-            "type": "file" if (hasattr(t, "audio_file") and t.audio_file) else "link",
+            "type": "file" if t.audio_file else "link",
         })
-
     return JsonResponse({"tracks": items})
+
+@login_required
+@require_POST
+def ajax_add_album(request):
+    """Add a new album (AJAX)."""
+    name = (request.POST.get("name") or "").strip()
+    if not name:
+        return JsonResponse({"ok": False, "error": "Album name required."}, status=400)
+
+    album = Album.objects.create(user=request.user, name=name)
+    return JsonResponse({
+        "ok": True,
+        "id": album.id,
+        "name": album.name,
+    })
+
+
+@login_required
+@require_POST
+def ajax_rename_album(request, pk):
+    album = get_object_or_404(Album, pk=pk, user=request.user)
+    new_name = (request.POST.get("name") or "").strip()
+    if not new_name:
+        return JsonResponse({"ok": False, "error": "Name cannot be empty."}, status=400)
+
+    album.name = new_name
+    album.save()
+    return JsonResponse({"ok": True, "id": album.id, "name": album.name})
+
+
+@login_required
+@require_POST
+def ajax_delete_album(request, pk):
+    album = get_object_or_404(Album, pk=pk, user=request.user)
+    album.delete()
+    return JsonResponse({"ok": True, "id": pk})
