@@ -8,23 +8,23 @@ def create_default_plans(sender, **kwargs):
         Plan.objects.create(
             name="Unlimited Tracks",
             price=10.00,
-            description="Unlimited tracks per playlist.",
+            description="Unlimited tracks per album.",
             is_unlimited_tracks=True,
             period="Life-Time"
         )
         Plan.objects.create(
-            name="Unlimited Playlists",
+            name="Unlimited albums",
             price=10.00,
-            description="Unlimited playlists, but track limit applies.",
-            is_unlimited_playlists=True,
+            description="Unlimited albums, but track limit applies.",
+            is_unlimited_albums=True,
             period="Life-Time"
         )
         Plan.objects.create(
             name="Premium",
             price=15.00,
-            description="Unlimited tracks and playlists.",
+            description="Unlimited tracks and albums.",
             is_unlimited_tracks=True,
-            is_unlimited_playlists=True,
+            is_unlimited_albums=True,
             period="Life-Time"
         )
         # storage plans
