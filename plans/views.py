@@ -21,25 +21,25 @@ def plan_list(request):
             # Hide only the last purchased non-storage plan
             plans = plans.exclude(id=last_purchase.plan.id)
 
-        # If Premium is bought OR in basket → hide unlimited tracks/playlists
+        # If Premium is bought OR in basket → hide unlimited tracks/Albums
         basket = request.session.get("basket", {})
         premium_bought = OrderItem.objects.filter(
             order__user=request.user,
             plan__is_unlimited_tracks=True,
-            plan__is_unlimited_playlists=True,
+            plan__is_unlimited_albums=True,
         ).exists()
         premium_in_basket = any(
             Plan.objects.filter(
                 id=int(pid),
                 is_unlimited_tracks=True,
-                is_unlimited_playlists=True,
+                is_unlimited_albums=True,
             ).exists()
             for pid in basket.keys()
         )
 
         if premium_bought or premium_in_basket:
-            plans = plans.exclude(is_unlimited_tracks=True, is_unlimited_playlists=False)
-            plans = plans.exclude(is_unlimited_playlists=True, is_unlimited_tracks=False)
+            plans = plans.exclude(is_unlimited_tracks=True, is_unlimited_albums=False)
+            plans = plans.exclude(is_unlimited_albums=True, is_unlimited_tracks=False)
 
     return render(request, "plans/plan_list.html", {"plans": plans})
 
