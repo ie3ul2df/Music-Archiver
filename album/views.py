@@ -1,11 +1,14 @@
+# ----------------------- album/views.py ----------------------- #
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
-from .models import Album as Album, AlbumTrack as AlbumTrack
-from .forms import AlbumForm as AlbumForm
+from .models import Album, AlbumTrack
+from .forms import AlbumForm
 from tracks.models import Track
+from tracks.forms import TrackForm  # ← TrackForm lives in tracks app
 import json
 
 
@@ -19,7 +22,8 @@ def _can_add_album(user):
         from plans.utils import can_add_album as _cap  # type: ignore
         return _cap(user)
     except Exception:
-        count = Album.objects.filter(user=user).count()
+        # Album model uses `owner` (not `user`)
+        count = Album.objects.filter(owner=user).count()
         if count >= 1:
             return False, "Free tier limit reached (1 album). Upgrade a plan to add more."
         return True, None
@@ -33,7 +37,7 @@ def _has_field(model_cls, field_name: str) -> bool:
 @login_required
 def album_list(request):
     """List all albums for the logged-in user (ordered if `position` exists)."""
-    qs = Album.objects.filter(user=request.user)
+    qs = Album.objects.filter(owner=request.user)
     if _has_field(Album, "position"):
         albums = qs.order_by("position", "id")
     else:
@@ -53,12 +57,12 @@ def album_create(request):
         form = AlbumForm(request.POST)
         if form.is_valid():
             album = form.save(commit=False)
-            album.user = request.user
+            album.owner = request.user  # ← Album has `owner`
 
             # If album has a sortable 'position' field, append at end.
             if _has_field(Album, "position"):
                 last = (
-                    Album.objects.filter(user=request.user)
+                    Album.objects.filter(owner=request.user)
                     .order_by("-position")
                     .first()
                 )
@@ -77,7 +81,7 @@ def album_create(request):
 @login_required
 def album_update(request, pk):
     """Rename/update an album (name/description only)."""
-    album = get_object_or_404(Album, pk=pk, user=request.user)
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
     if request.method == "POST":
         form = AlbumForm(request.POST, instance=album)
         if form.is_valid():
@@ -94,13 +98,14 @@ def album_update(request, pk):
 @login_required
 def album_detail(request, pk):
     """Show a single album with its ordered tracks and allow adding tracks."""
-    album = get_object_or_404(Album, pk=pk, user=request.user)
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
     items = (
-        AlbumTrack.objects.filter(album)  
+        AlbumTrack.objects.filter(album=album)  # ← fix: pass kwarg
         .select_related("track")
         .order_by("position", "id")
     )
-    user_tracks = Track.objects.filter(user=request.user).order_by("name")
+    # Track model uses `owner` and `title`
+    user_tracks = Track.objects.filter(owner=request.user).order_by("title")
     return render(
         request,
         "album/album_detail.html",
@@ -112,23 +117,22 @@ def album_detail(request, pk):
 @require_POST
 def album_add_track(request, pk):
     """Add a user's track to the album at the end (if not already present)."""
-    album = get_object_or_404(Album, pk=pk, user=request.user)
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
     tid = request.POST.get("track_id")
     if not tid:
         messages.error(request, "Select a track to add.")
         return redirect("album_detail", pk=pk)
 
-    track = get_object_or_404(Track, pk=tid, user=request.user)
+    track = get_object_or_404(Track, pk=tid, owner=request.user)
 
     # If it already exists, do nothing.
-    exists = AlbumTrack.objects.filter(album, track=track).exists()
-    if exists:
+    if AlbumTrack.objects.filter(album=album, track=track).exists():
         messages.info(request, "Track is already in this album.")
         return redirect("album_detail", pk=pk)
 
-    last = AlbumTrack.objects.filter(album).order_by("-position").first()
+    last = AlbumTrack.objects.filter(album=album).order_by("-position").first()
     pos = (last.position + 1) if last else 0
-    AlbumTrack.objects.create(album, track=track, position=pos)
+    AlbumTrack.objects.create(album=album, track=track, position=pos)  # ← named args
     messages.success(request, "Added to album.")
     return redirect("album_detail", pk=pk)
 
@@ -137,8 +141,8 @@ def album_add_track(request, pk):
 @require_POST
 def album_remove_track(request, pk, item_id):
     """Remove a specific track from the album."""
-    album = get_object_or_404(Album, pk=pk, user=request.user)
-    item = get_object_or_404(AlbumTrack, pk=item_id, album)
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
+    item = get_object_or_404(AlbumTrack, pk=item_id, album=album)  # ← kwarg
     item.delete()
     messages.success(request, "Removed from album.")
     return redirect("album_detail", pk=pk)
@@ -148,19 +152,21 @@ def album_remove_track(request, pk, item_id):
 @require_POST
 def album_reorder_tracks(request, pk):
     """Reorder tracks inside an album."""
-    album = get_object_or_404(Album, pk=pk, user=request.user)
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
 
     try:
         data = json.loads(request.body.decode("utf-8"))
         id_list = data.get("order", [])
         if not isinstance(id_list, list):
             raise ValueError
+        # coerce to ints (frontend may send strings)
+        id_list = [int(x) for x in id_list]
     except Exception:
         return HttpResponseBadRequest("Invalid JSON payload.")
 
     # Only reorder items that belong to this album
     valid_ids = set(
-        AlbumTrack.objects.filter(album, id__in=id_list).values_list("id", flat=True)
+        AlbumTrack.objects.filter(album=album, id__in=id_list).values_list("id", flat=True)
     )
 
     pos = 0
@@ -186,11 +192,12 @@ def albums_reorder(request):
         id_list = data.get("order", [])
         if not isinstance(id_list, list):
             raise ValueError
+        id_list = [int(x) for x in id_list]
     except Exception:
         return HttpResponseBadRequest("Invalid JSON payload.")
 
     user_ids = set(
-        Album.objects.filter(user=request.user, id__in=id_list).values_list("id", flat=True)
+        Album.objects.filter(owner=request.user, id__in=id_list).values_list("id", flat=True)
     )
 
     pos = 0
@@ -205,9 +212,43 @@ def albums_reorder(request):
 @login_required
 def album_delete(request, pk):
     """Delete an album."""
-    album = get_object_or_404(Album, pk=pk, user=request.user)
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
     if request.method == "POST":
         album.delete()
         messages.success(request, "Album deleted!")
         return redirect("album_list")
     return render(request, "album/album_confirm_delete.html", {"album": album})
+
+
+def public_album_detail(request, slug):
+    album = get_object_or_404(Album, slug=slug, is_public=True)
+    tracks = (
+        AlbumTrack.objects.select_related("track")
+        .filter(album=album)
+        .order_by("id")
+    )
+    return render(request, "album/public_album_detail.html", {"album": album, "tracks": tracks})
+
+
+@login_required
+def toggle_album_visibility(request, pk):
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
+    album.is_public = not album.is_public
+    album.save()
+    state = "public" if album.is_public else "private"
+    messages.success(request, f"“{album.name}” is now {state}.")
+    return redirect("album_detail", pk=album.pk)
+
+
+# (Optional) Track creation kept here for convenience, but consider moving to tracks/views.py
+@login_required
+def track_create(request):
+    if request.method == "POST":
+        form = TrackForm(request.user, request.POST)
+        if form.is_valid():
+            track = form.save()
+            messages.success(request, f'Added “{track.title}”.')
+            return redirect("recently_played")  # or your preferred page
+    else:
+        form = TrackForm(request.user)
+    return render(request, "tracks/track_form.html", {"form": form})
