@@ -43,7 +43,7 @@ def can_add_album(user):
     if ent.premium or ent.unlimited_albums:
         return True, None
     from tracks.models import Album
-    count = Album.objects.filter(user=user).count()
+    count = Album.objects.filter(owner=user).count()
     if count >= FREE_MAX_ALBUMS:
         return False, "Free tier allows only the Default album. Upgrade to add more."
     return True, None
@@ -58,7 +58,7 @@ def can_add_track(user, album):
     if ent.premium or ent.unlimited_tracks:
         return True, None
     # cap per album
-    count = Track.objects.filter(user=user, album=album).count()
+    count = Track.objects.filter(owner=user, album=album).count()
     if count >= FREE_MAX_TRACKS_PER_ALBUM:
         return False, "Album limit reached (10 tracks). Upgrade Unlimited Tracks or Premium."
     return True, None
@@ -78,7 +78,7 @@ def can_upload_file(user, file_size_bytes: int):
 
     # Compute used bytes across uploaded files
     used = 0
-    for t in Track.objects.filter(user=user).exclude(audio_file=""):
+    for t in Track.objects.filter(owner=user).exclude(audio_file=""):
         try:
             if t.audio_file and hasattr(t.audio_file, "size"):
                 used += t.audio_file.size
