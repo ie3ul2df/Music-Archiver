@@ -1,37 +1,41 @@
-# tracks/forms.py
+# ----------------------- tracks/forms.py ----------------------- #
 from django import forms
 from .models import Track
-from album.models import Album
-from plans.utils import user_has_storage_plan
+from album.models import Album, AlbumTrack
+
 
 class TrackForm(forms.ModelForm):
+    # Extra field: choose an album to drop this track into
+    album = forms.ModelChoiceField(
+        queryset=Album.objects.none(),
+        required=False,
+        label="Add to album"
+    )
+
     class Meta:
         model = Track
-        fields = ["name", "source_url", "audio_file", "album"]
+        fields = ["name", "audio_file", "source_url"]
 
-    def __init__(self, *args, **kwargs):
-        user = kwargs.pop("user", None)
+    def __init__(self, *args, owner=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.owner = owner
+        if owner:
+            self.fields["album"].queryset = Album.objects.filter(owner=owner).order_by("-created_at")
 
-        if user:
-            # Album dropdown only if they have albums; otherwise we’ll auto-assign Default.
-            albums = Album.objects.filter(user=user)
-            if albums.exists():
-                self.fields["album"].queryset = albums
-            else:
-                self.fields.pop("album")
+    def clean_source_url(self):
+        url = (self.cleaned_data.get("source_url") or "").strip()
+        if url and not (url.startswith("http://") or url.startswith("https://")):
+            raise forms.ValidationError("Enter a valid http(s) URL.")
+        return url
 
-            # Only show upload if user has a storage plan
-            if not user_has_storage_plan(user):
-                self.fields.pop("audio_file")
-
-    def clean(self):
-        data = super().clean()
-        # Must provide either a link or a file (if file field exists)
-        has_file = "audio_file" in self.fields and data.get("audio_file")
-        has_link = bool(data.get("source_url"))
-        if not has_file and not has_link:
-            raise forms.ValidationError("Provide a link or upload an audio file.")
-        if has_file and has_link:
-            raise forms.ValidationError("Choose either a link or an upload, not both.")
-        return data
+    def save(self, commit=True):
+        track = super().save(commit=False)
+        track.owner = self.owner
+        if commit:
+            track.save()
+            chosen_album = self.cleaned_data.get("album")
+            if chosen_album and not AlbumTrack.objects.filter(album=chosen_album, track=track).exists():
+                last = AlbumTrack.objects.filter(album=chosen_album).order_by("-position").first()
+                pos = (last.position if last else 0) + 1
+                AlbumTrack.objects.create(album=chosen_album, track=track, position=pos)
+        return track
