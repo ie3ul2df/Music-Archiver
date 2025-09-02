@@ -1,0 +1,18 @@
+{# templates/tracks/favorites.html #} {% extends "base.html" %} {% block content %}
+<div class="container py-4">
+  <h2>Favourites</h2>
+  <ul class="list-group">
+    {% for f in favorites %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <span>{{ f.track.title }}</span>
+      <span>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'play_track' f.track.pk %}">Play</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'toggle_favorite' f.track.pk %}">Unfavourite</a>
+      </span>
+    </li>
+    {% empty %}
+    <li class="list-group-item">No favourites yet.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
