@@ -1,3 +1,4 @@
+# //--------------------------- profile_page\context_processors.py ---------------------------//
 from .models import UserProfile
 
 def user_profile(request):
