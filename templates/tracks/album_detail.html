@@ -21,9 +21,9 @@
   </form>
   <p class="text-muted">Provide a link OR upload a file{% if not has_storage %} (upload requires a storage plan){% endif %}.</p>
 
-  <ul class="list-group">
+  <ul id="track-list" class="list-group">
     {% for t in tracks %}
-    <li class="list-group-item d-flex justify-content-between align-items-center" data-id="{{ t.id }}">
+    <li class="list-group-item d-flex justify-content-between align-items-center" data-id="{{ t.id }}" draggable="true">
       <span class="track-name">{{ t.name }}</span>
       <div class="btn-group">
         <button class="btn btn-sm btn-outline-secondary rename-track-btn">✏</button>
@@ -36,4 +36,31 @@
     {% endfor %}
   </ul>
 </div>
+<script>
+  // enable drag reordering of tracks
+  const tl = document.getElementById("track-list");
+  if (tl) {
+    let dragItem = null;
+    tl.addEventListener("dragstart", (e) => {
+      if (e.target.matches("li")) {
+        dragItem = e.target;
+        e.dataTransfer.effectAllowed = "move";
+      }
+    });
+    tl.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (!dragItem) return;
+      const items = Array.from(tl.querySelectorAll("li"));
+      const after = items.find((el) => {
+        const rect = el.getBoundingClientRect();
+        return e.clientY <= rect.top + rect.height / 2 && el !== dragItem;
+      });
+      if (!after) {
+        tl.appendChild(dragItem);
+      } else {
+        tl.insertBefore(dragItem, after);
+      }
+    });
+  }
+</script>
 {% endblock %}

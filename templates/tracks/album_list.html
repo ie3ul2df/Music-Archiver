@@ -11,7 +11,7 @@
   <ul id="album-list" class="list-group">
     {% for a in albums %}
     <li class="list-group-item d-flex justify-content-between align-items-center" data-id="{{ a.id }}">
-      <span class="album-name">{{ a.name }}</span>
+      <a href="{% url 'album_detail' a.id %}" class="album-name text-decoration-none flex-grow-1">{{ a.name }}</a>
       <div class="btn-group">
         <button class="btn btn-sm btn-outline-secondary rename-btn">✏</button>
         <button class="btn btn-sm btn-outline-danger delete-btn">🗑</button>
@@ -40,7 +40,7 @@
       const li = document.createElement("li");
       li.className = "list-group-item d-flex justify-content-between align-items-center";
       li.dataset.id = data.id;
-      li.innerHTML = `<span class="album-name">${data.name}</span>
+      li.innerHTML = `<a href="/tracks/albums/${data.id}/" class="album-name text-decoration-none flex-grow-1">${data.name}</a>
       <div class="btn-group">
         <button class="btn btn-sm btn-outline-secondary rename-btn">✏</button>
         <button class="btn btn-sm btn-outline-danger delete-btn">🗑</button>

@@ -21,40 +21,17 @@ import json
 
 
 def track_list(request):
-    tracks = Track.objects.all().order_by("name")
-
-    recent_tracks = []
-    favourite_tracks = []
-    favorite_ids = set()
-
+    """List all of the user's albums and their tracks."""
+    albums = []
+    
     if request.user.is_authenticated:
-        # Favourite IDs for quick lookup
-        favorite_ids = set(
-            Favorite.objects.filter(owner=request.user)
-            .values_list("track_id", flat=True)
+            albums = (
+            Album.objects.filter(owner=request.user)
+            .prefetch_related("album_tracks__track")
+            .order_by("name")
         )
 
-        # Recently listened: latest play time per track, ordered desc, limit 12
-        recent_ids = list(
-            Listen.objects.filter(user=request.user)
-            .values("track_id")
-            .annotate(last=Max("played_at"))
-            .order_by("-last")
-            .values_list("track_id", flat=True)[:12]
-        )
-        recent_map = {t.id: t for t in Track.objects.filter(id__in=recent_ids)}
-        recent_tracks = [recent_map[i] for i in recent_ids if i in recent_map]
-
-        # Favourites list (limit 12)
-        favourite_tracks = list(Track.objects.filter(id__in=favorite_ids)[:12])
-
-    context = {
-        "tracks": tracks,
-        "recent_tracks": recent_tracks,
-        "favourite_tracks": favourite_tracks,
-        "favorite_ids": favorite_ids,
-    }
-    return render(request, "tracks/track_list.html", context)
+    return render(request, "tracks/track_list.html", {"albums": albums})
 
 
 @login_required
