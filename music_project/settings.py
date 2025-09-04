@@ -78,13 +78,11 @@ LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "home"                       # Django auth
 ACCOUNT_LOGOUT_REDIRECT_URL = "home"               # Allauth (kept alongside)
 
-# Allauth config (keep your chosen API; add compat fallback)
+# ---------------- Allauth config ---------------- #
 ACCOUNT_EMAIL_VERIFICATION = "none"
-# Newer allauth API you used:
-ACCOUNT_LOGIN_METHODS = ["username", "email"]
-ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*"]
-# Backwards-compat with older allauth versions:
-ACCOUNT_AUTHENTICATION_METHOD = env("ACCOUNT_AUTHENTICATION_METHOD", default="username_email")
+
+# ✅ allow both username and email login
+ACCOUNT_LOGIN_METHODS = {"username", "email"}
 
 # Crispy
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"

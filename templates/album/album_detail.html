@@ -1,50 +1,41 @@
-{% extends "base.html" %}{% block content %}
+{% extends "base.html" %} {% load static %} {% load crispy_forms_tags %} {% block content %}
 <div class="container py-4">
-  <h2>{{ playlist.name }}</h2>
+  <h3>{{ album.name }}</h3>
 
-  <form action="{% url 'playlist_add_track' playlist.pk %}" method="post" class="d-flex gap-2 my-3">
+  <form method="post" enctype="multipart/form-data" class="row g-2 my-3">
     {% csrf_token %}
-    <select name="track_id" class="form-select" required>
-      <option value="">Add a track…</option>
-      {% for t in user_tracks %}
-      <option value="{{ t.id }}">{{ t.name }}</option>
-      {% endfor %}
-    </select>
-    <button class="btn btn-primary">Add</button>
+    <div class="col-md-3">
+      <input name="name" class="form-control" placeholder="Track name" required />
+    </div>
+    <div class="col-md-4">
+      <input name="source_url" class="form-control" placeholder="https://audio-link.mp3" />
+    </div>
+    {% if has_storage %}
+    <div class="col-md-3">
+      <input type="file" name="audio_file" accept="audio/*" class="form-control" />
+    </div>
+    {% endif %}
+    <div class="col-md-2 d-grid">
+      <button class="btn btn-primary">Add Track</button>
+    </div>
   </form>
 
-  <p class="text-muted">Drag to change order</p>
-  <ul id="pl-items" class="list-group">
-    {% for it in items %}
-    <li class="list-group-item" draggable="true" data-id="{{ it.id }}">{{ it.track.name }}</li>
+  <p class="text-muted">Provide a link OR upload a file{% if not has_storage %} (upload requires a storage plan){% endif %}.</p>
+
+  <ul id="track-list" class="list-group" data-reorder-url="{% url 'album:album_reorder_tracks' album.pk %}">
+    {% for at in items %}
+    <li class="list-group-item d-flex justify-content-between align-items-center" data-id="{{ at.id }}" draggable="true">
+      <span class="track-name">{{ at.track.name }}</span>
+      <div class="btn-group">
+        <button class="btn btn-sm btn-outline-secondary rename-track-btn" title="Rename">✏</button>
+        <button class="btn btn-sm btn-outline-danger delete-track-btn" title="Delete">🗑</button>
+      </div>
+    </li>
     {% empty %}
-    <li class="list-group-item">No tracks yet.</li>
+    <li class="list-group-item text-muted">No tracks yet.</li>
     {% endfor %}
   </ul>
 </div>
-<script>
-  (function () {
-    const ul = document.getElementById("pl-items");
-    let dragging;
-    ul.addEventListener("dragstart", (e) => {
-      dragging = e.target.closest("li");
-    });
-    ul.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      const li = e.target.closest("li");
-      if (!li || li === dragging) return;
-      const rect = li.getBoundingClientRect();
-      const after = e.clientY - rect.top > rect.height / 2;
-      ul.insertBefore(dragging, after ? li.nextSibling : li);
-    });
-    ul.addEventListener("drop", () => {
-      const order = Array.from(ul.querySelectorAll("li")).map((li) => parseInt(li.dataset.id));
-      fetch("{% url 'playlist_reorder' playlist.pk %}", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
-        body: JSON.stringify({ order }),
-      });
-    });
-  })();
-</script>
+{% endblock %} {% block extra_js %}
+<script src="{% static 'js/album_detail.js' %}" defer></script>
 {% endblock %}

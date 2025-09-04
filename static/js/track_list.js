@@ -10,12 +10,14 @@ document.addEventListener("change", (e) => {
 // Simple drag-and-drop sorting
 function makeSortable(container, itemSelector) {
   let dragItem = null;
+
   container.addEventListener("dragstart", (e) => {
     if (e.target.matches(itemSelector)) {
       dragItem = e.target;
       e.dataTransfer.effectAllowed = "move";
     }
   });
+
   container.addEventListener("dragover", (e) => {
     e.preventDefault();
     if (!dragItem) return;
@@ -30,6 +32,33 @@ function makeSortable(container, itemSelector) {
       container.insertBefore(dragItem, after);
     }
   });
+
+  container.addEventListener("dragend", () => {
+    if (dragItem) {
+      saveOrder(container);
+      dragItem = null;
+    }
+  });
+}
+
+function saveOrder(container) {
+  const ids = Array.from(container.querySelectorAll("li[data-id]")).map((li) => parseInt(li.dataset.id));
+
+  console.log("Saving new order:", ids);
+
+  fetch("/tracks/api/tracks/reorder/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": getCookie("csrftoken"),
+    },
+    body: JSON.stringify({ order: ids }),
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      console.log("Server response:", data);
+    })
+    .catch(console.error);
 }
 
 document.addEventListener("DOMContentLoaded", () => {

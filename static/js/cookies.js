@@ -1,15 +1,13 @@
 // ---------------- static/js/cookies.js ----------------
+// Utility to safely get a cookie by name (used for CSRF token, etc.)
 function getCookie(name) {
-  let cookieValue = null;
-  if (document.cookie && document.cookie !== "") {
-    const cookies = document.cookie.split(";");
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      if (cookie.substring(0, name.length + 1) === name + "=") {
-        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-        break;
-      }
+  if (!document.cookie) return null;
+
+  const cookies = document.cookie.split(";").map((c) => c.trim());
+  for (const cookie of cookies) {
+    if (cookie.startsWith(name + "=")) {
+      return decodeURIComponent(cookie.slice(name.length + 1));
     }
   }
-  return cookieValue;
+  return null;
 }

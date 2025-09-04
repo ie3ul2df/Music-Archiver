@@ -1,5 +1,6 @@
 # ----------------------- album/views.py ----------------------- #
 
+from django.db import transaction
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseBadRequest
@@ -97,19 +98,38 @@ def album_update(request, pk):
 
 @login_required
 def album_detail(request, pk):
-    """Show a single album with its ordered tracks and allow adding tracks."""
+    """Show a single album with its ordered tracks, allow adding, and support drag reordering."""
     album = get_object_or_404(Album, pk=pk, owner=request.user)
+
+    if request.method == "POST":
+        form = TrackForm(request.POST, request.FILES, owner=request.user)
+        if form.is_valid():
+            track = form.save()
+            last = AlbumTrack.objects.filter(album=album).order_by("-position").first()
+            pos = (last.position + 1) if last else 0
+            AlbumTrack.objects.create(album=album, track=track, position=pos)
+            messages.success(request, "Track added to album.")
+            return redirect("album_detail", pk=album.pk)
+        else:
+            messages.error(request, "Fix the errors and try again.")
+    else:
+        form = TrackForm(owner=request.user)
+
     items = (
-        AlbumTrack.objects.filter(album=album)  # ← fix: pass kwarg
+        AlbumTrack.objects.filter(album=album)
         .select_related("track")
         .order_by("position", "id")
     )
-    # Track model uses `owner` and `title`
-    user_tracks = Track.objects.filter(owner=request.user).order_by("title")
+
     return render(
         request,
         "album/album_detail.html",
-        {"album": album, "items": items, "user_tracks": user_tracks},
+        {
+            "album": album,
+            "items": items,       # AlbumTrack objects for drag reorder
+            "form": form,
+            "has_storage": True,  # or use user_has_storage_plan(request.user)
+        },
     )
 
 
@@ -148,34 +168,29 @@ def album_remove_track(request, pk, item_id):
     return redirect("album_detail", pk=pk)
 
 
+
 @login_required
 @require_POST
 def album_reorder_tracks(request, pk):
-    """Reorder tracks inside an album."""
     album = get_object_or_404(Album, pk=pk, owner=request.user)
 
     try:
         data = json.loads(request.body.decode("utf-8"))
-        id_list = data.get("order", [])
-        if not isinstance(id_list, list):
-            raise ValueError
-        # coerce to ints (frontend may send strings)
-        id_list = [int(x) for x in id_list]
+        id_list = [int(x) for x in data.get("order", [])]
     except Exception:
         return HttpResponseBadRequest("Invalid JSON payload.")
 
-    # Only reorder items that belong to this album
-    valid_ids = set(
-        AlbumTrack.objects.filter(album=album, id__in=id_list).values_list("id", flat=True)
-    )
+    items = list(AlbumTrack.objects.filter(album=album, id__in=id_list))
 
-    pos = 0
-    for iid in id_list:
-        if iid in valid_ids:
-            AlbumTrack.objects.filter(id=iid).update(position=pos)
-            pos += 1
+    item_map = {i.id: i for i in items}
 
-    return JsonResponse({"ok": True, "updated": list(valid_ids)})
+    with transaction.atomic():
+        for pos, iid in enumerate(id_list):
+            if iid in item_map:
+                item_map[iid].position = pos
+                item_map[iid].save(update_fields=["position"])
+
+    return JsonResponse({"ok": True, "updated": id_list})
 
 
 @login_required

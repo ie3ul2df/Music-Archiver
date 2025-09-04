@@ -1,12 +1,13 @@
 # ----------------------- tracks/urls.py ----------------------- #
 from django.urls import path
 from . import views
+from album import views as album_views
 
 urlpatterns = [
     # ===== Pages (HTML) =====
     path("", views.track_list, name="track_list"),
     path("albums/", views.album_list, name="album_list"),
-    path("albums/<int:pk>/", views.album_detail, name="album_detail"),
+    path("albums/<int:pk>/", album_views.album_detail, name="album_detail"),
     path("favorites/", views.favorites_list, name="favorites_list"),
     path("recent/", views.recently_played, name="recently_played"),
     path("<int:track_id>/play/", views.play_track, name="play_track"),

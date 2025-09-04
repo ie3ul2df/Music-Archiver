@@ -84,36 +84,6 @@ def album_list(request):
 
 
 @login_required
-def album_detail(request, pk):
-    album = get_object_or_404(Album, pk=pk, owner=request.user)
-
-    if request.method == "POST":
-        form = TrackForm(request.POST, request.FILES, owner=request.user)
-        if form.is_valid():
-            track = form.save()  # already assigns owner
-            AlbumTrack.objects.create(album=album, track=track)
-            messages.success(request, "Track added to album.")
-            return redirect("album_detail", pk=album.pk)
-        else:
-            messages.error(request, "Fix the errors and try again.")
-    else:
-        form = TrackForm(owner=request.user)
-
-    tracks = (
-        AlbumTrack.objects
-        .filter(album=album)
-        .select_related("track")
-        .order_by("position", "id")
-    )
-
-    return render(request, "tracks/album_detail.html", {
-        "album": album,
-        "tracks": [at.track for at in tracks],  # pass actual Track objects to template
-        "form": form,
-        "has_storage": user_has_storage_plan(request.user),
-    })
-
-@login_required
 @require_POST
 def reorder_tracks(request):
     """
