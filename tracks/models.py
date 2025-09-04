@@ -16,7 +16,7 @@ class Track(models.Model):
         related_name="tracks"
     )
 
-    name = models.CharField(max_length=200, default="Untitled Track")
+    name = models.CharField(max_length=200, default="(untitled)")
     audio_file = models.FileField(upload_to="tracks/", blank=True, null=True)
     source_url = models.URLField(blank=True, null=True)
     position = models.PositiveIntegerField(default=0)
