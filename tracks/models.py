@@ -50,3 +50,15 @@ class Favorite(models.Model):
 
     def __str__(self):
         return f"{self.owner} ♥ {self.track}"
+
+class Listen(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="listens")
+    track = models.ForeignKey("Track", on_delete=models.CASCADE, related_name="listens")
+    played_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["user", "-played_at"])]
+        ordering = ["-played_at"]
+
+    def __str__(self):
+        return f"{self.user} ▶ {self.track} @ {self.played_at:%Y-%m-%d %H:%M}"
