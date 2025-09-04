@@ -1,9 +1,12 @@
+//--------------------------- static/js/music_player.js ---------------------------//
 (function () {
   "use strict";
 
   // --- Elements ---
   const $ = (id) => document.getElementById(id);
   const audio = $("player");
+  if (!audio) return; // no player on this page
+
   const np = $("nowplaying");
   const playpause = $("playpause");
   const nextBtn = $("next");
@@ -13,12 +16,11 @@
   const vol = $("volume"); // <input type="range" ...>
   const curTimeEl = $("currenttime"); // <span id="currenttime">
   const durEl = $("duration"); // <span id="duration">
-  const playerCard = $("player-card");
+  const playerCard = $("player-card"); // holds data-* URLs for external JS
 
-  if (!audio) return;
-
-  // --- Config: where to fetch tracks JSON ---
-  const TRACKS_JSON_URL = (typeof window !== "undefined" && window.TRACKS_JSON_URL) || (playerCard && playerCard.dataset.tracksUrl) || null;
+  // --- Config from data-* attributes (NO inline <script>) ---
+  const TRACKS_JSON_URL = playerCard?.dataset.tracksUrl || null;
+  const LOG_PLAY_URL_TMPL = playerCard?.dataset.logPlayUrl || null;
 
   // --- State ---
   let tracks = [];
@@ -51,8 +53,10 @@
     btns.forEach((b) => b.classList.remove("is-playing"));
     if (idx >= 0 && tracks[idx]) {
       const t = tracks[idx];
-      const match = Array.from(btns).find((b) => b.dataset.src === t.src);
-      if (match) match.classList.add("is-playing");
+      // Try matching by src first, then by id if available
+      const bySrc = Array.from(btns).find((b) => b.dataset.src === t.src);
+      const byId = t.id != null ? Array.from(btns).find((b) => String(b.dataset.id) === String(t.id)) : null;
+      (bySrc || byId)?.classList.add("is-playing");
     }
   };
 
@@ -65,6 +69,17 @@
     const t = tracks[idx];
     np.textContent = `${prefix}: ${t.name || "Untitled"}`;
   };
+
+  const fillId = (urlTmpl, id) => (urlTmpl ? urlTmpl.replace(/\/\d+\/?$/, "/" + id + "/") : null);
+
+  function logPlay(trackId) {
+    if (!trackId || !LOG_PLAY_URL_TMPL) return;
+    const url = fillId(LOG_PLAY_URL_TMPL, trackId);
+    if (!url) return;
+    // getCookie is defined in static/js/cookies.js (ensure that file loads first)
+    const csrf = typeof getCookie === "function" ? getCookie("csrftoken") : "";
+    fetch(url, { method: "POST", headers: { "X-CSRFToken": csrf } }).catch(() => {});
+  }
 
   // --- Core ---
   function load(i, autoplay = true) {
@@ -82,6 +97,8 @@
       if (p && typeof p.catch === "function") p.catch(() => {});
     }
     setPlaypauseLabel();
+
+    if (t.id != null) logPlay(t.id);
   }
 
   function next() {
@@ -138,29 +155,37 @@
   audio.addEventListener("timeupdate", () => {
     if (curTimeEl) curTimeEl.textContent = fmt(audio.currentTime);
     if (progress && audio.duration > 0) {
-      progress.value = (audio.currentTime / audio.duration) * 100;
+      // keep a couple decimals for smooth slider but not too noisy
+      progress.value = ((audio.currentTime / audio.duration) * 100).toFixed(2);
     }
   });
 
   // --- Progress + volume ---
   if (progress) {
-    progress.addEventListener("input", () => {
+    const scrub = () => {
       if (audio.duration > 0) {
         const pct = Math.min(Math.max(parseFloat(progress.value) || 0, 0), 100);
         audio.currentTime = (pct / 100) * audio.duration;
       }
-    });
+    };
+    progress.addEventListener("input", scrub);
+    progress.addEventListener("change", scrub);
   }
 
   if (vol) {
+    const clamp01 = (v) => Math.min(Math.max(v, 0), 1);
     const savedVol = parseFloat(localStorage.getItem("player_volume"));
-    audio.volume = isFinite(savedVol) ? Math.min(Math.max(savedVol, 0), 1) : audio.volume;
-    if (typeof vol.value !== "undefined") vol.value = audio.volume;
-    vol.addEventListener("input", () => {
-      const v = Math.min(Math.max(parseFloat(vol.value) || 0, 0), 1);
+    const initial = isFinite(savedVol) ? clamp01(savedVol) : typeof vol.value !== "undefined" ? clamp01(parseFloat(vol.value) || audio.volume) : audio.volume;
+
+    audio.volume = initial;
+    if (typeof vol.value !== "undefined") vol.value = String(initial);
+    const setVol = () => {
+      const v = clamp01(parseFloat(vol.value) || 0);
       audio.volume = v;
       localStorage.setItem("player_volume", String(v));
-    });
+    };
+    vol.addEventListener("input", setVol);
+    vol.addEventListener("change", setVol);
   }
 
   // --- Keyboard shortcuts (space, arrows) ---
@@ -187,8 +212,9 @@
         const list = Array.isArray(data?.tracks) ? data.tracks : [];
         tracks = list
           .map((t) => ({
+            id: t.id != null ? t.id : null, // keep ID for logPlay / matching
             name: t.name || t.title || "Untitled",
-            src: t.src || t.file_url || "",
+            src: t.src || t.file_url || t.url || "", // flexible key support
           }))
           .filter((t) => t.src);
 
@@ -203,6 +229,8 @@
       .catch(() => {
         np && (np.textContent = "Error loading tracks");
       });
+  } else {
+    np && (np.textContent = "No data source configured");
   }
 
   // --- Play buttons in lists (event delegation) ---
@@ -212,11 +240,12 @@
 
     const src = btn.dataset.src || "";
     const name = btn.dataset.name || "Untitled";
+    const id = btn.dataset.id || null;
     if (!src) return;
 
-    let i = tracks.findIndex((t) => t.src === src);
+    let i = tracks.findIndex((t) => t.src === src || (id && String(t.id) === String(id)));
     if (i === -1) {
-      tracks.push({ name, src });
+      tracks.push({ id: id ? id : null, name, src });
       i = tracks.length - 1;
     }
     load(i, true);
