@@ -8,7 +8,7 @@
     {% for at in tracks %}
     <li class="list-group-item d-flex justify-content-between align-items-center">
       <span>{{ at.track.title }}</span>
-      <a href="{{ at.track.url }}" class="btn btn-sm btn-outline-primary">Play</a>
+      <a href="{% url 'play_track' at.track.pk %}" class="btn btn-sm btn-outline-primary">Play</a>
     </li>
     {% empty %}
     <li class="list-group-item">No tracks yet.</li>
