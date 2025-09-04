@@ -7,7 +7,8 @@ from django.http import JsonResponse, HttpResponseBadRequest
 from django.contrib import messages
 from django.utils import timezone
 from django.db import IntegrityError
-from .models import Track, Favorite
+from django.db.models import Max
+from .models import Track, Listen, Favorite 
 from .forms import TrackForm
 from album.models import Album, AlbumTrack
 from plans.utils import (
@@ -19,34 +20,41 @@ from plans.utils import (
 import json
 
 
-@login_required
 def track_list(request):
-    """
-    Music Player page:
-    - Sticky player on top (template)
-    - Albums listed underneath with their tracks
-    """
-    # Ensure there's a Default Album for new users
-    if not Album.objects.filter(owner=request.user).exists():
-        Album.objects.create(owner=request.user, name="Default Album")
+    tracks = Track.objects.all().order_by("name")
 
-    # Prefetch through model and related tracks for efficiency
-    albums = (
-        Album.objects.filter(owner=request.user)
-        .prefetch_related("album_tracks__track")
-        .order_by("-created_at")
-    )
+    recent_tracks = []
+    favourite_tracks = []
+    favorite_ids = set()
 
-    storage = user_has_storage_plan(request.user)
+    if request.user.is_authenticated:
+        # Favourite IDs for quick lookup
+        favorite_ids = set(
+            Favorite.objects.filter(owner=request.user)
+            .values_list("track_id", flat=True)
+        )
 
-    return render(
-        request,
-        "tracks/track_list.html",
-        {
-            "albums": albums,
-            "has_storage": storage,
-        },
-    )
+        # Recently listened: latest play time per track, ordered desc, limit 12
+        recent_ids = list(
+            Listen.objects.filter(user=request.user)
+            .values("track_id")
+            .annotate(last=Max("played_at"))
+            .order_by("-last")
+            .values_list("track_id", flat=True)[:12]
+        )
+        recent_map = {t.id: t for t in Track.objects.filter(id__in=recent_ids)}
+        recent_tracks = [recent_map[i] for i in recent_ids if i in recent_map]
+
+        # Favourites list (limit 12)
+        favourite_tracks = list(Track.objects.filter(id__in=favorite_ids)[:12])
+
+    context = {
+        "tracks": tracks,
+        "recent_tracks": recent_tracks,
+        "favourite_tracks": favourite_tracks,
+        "favorite_ids": favorite_ids,
+    }
+    return render(request, "tracks/track_list.html", context)
 
 
 @login_required
@@ -129,23 +137,16 @@ def reorder_tracks(request):
     return JsonResponse({"ok": True, "updated": user_ids})
 
 
-@login_required
 def tracks_json(request):
-    """
-    JSON feed for the sticky player (all user's tracks, ordered).
-    """
-    items = []
-    tracks = Track.objects.filter(owner=request.user).order_by("position", "id")
-    for t in tracks:
-        src = t.audio_file.url if t.audio_file else t.source_url
-        if not src:
-            continue
-        items.append({
-            "id": t.id,
-            "name": t.name,
-            "src": src,
-        })
-    return JsonResponse({"tracks": items})
+    # Make sure each item includes id, name, and a playable URL
+    data = []
+    for t in Track.objects.all().only("id", "name"):
+        try:
+            src = t.audio.url  # adjust if your field is different (e.g., t.file.url)
+        except Exception:
+            src = ""
+        data.append({"id": t.id, "name": t.name, "src": src})
+    return JsonResponse({"tracks": data})
 
 
 @login_required
@@ -190,7 +191,11 @@ def play_track(request, pk):
     track.play_count = (track.play_count or 0) + 1
     track.last_played_at = timezone.now()
     track.save(update_fields=["play_count", "last_played_at"])
-    return redirect(track.url)  # simple redirect to the URL you store
+    dest = track.audio_file.url if getattr(track, "audio_file", None) else track.source_url
+    if not dest:
+        # nothing to play; stay on the page or go back
+        return redirect("track_list")
+    return redirect(dest)
 
 @login_required
 def recently_played(request):
@@ -201,22 +206,38 @@ def recently_played(request):
     return render(request, "tracks/recently_played.html", {"tracks": items})
 
 
+@require_POST
 @login_required
-def toggle_favorite(request, pk):
-    track = get_object_or_404(Track, pk=pk, owner=request.user)
-    existing = Favorite.objects.filter(owner=request.user, track=track)
-    if existing.exists():
-        existing.delete()
-        messages.info(request, f"Removed “{track.name}” from favourites.")
-    else:
-        try:
-            Favorite.objects.create(owner=request.user, track=track)
-            messages.success(request, f"Added “{track.name}” to favourites.")
-        except IntegrityError:
-            pass
-    return redirect(request.META.get("HTTP_REFERER", "recently_played"))
+def toggle_favorite(request, track_id):
+    # 404 if the track doesn't exist (cleaner than DB FK error)
+    track = get_object_or_404(Track, pk=track_id)
+
+    qs = Favorite.objects.filter(owner=request.user, track=track)
+    existing = qs.first()
+
+    if existing:
+        # Unfavourite
+        qs.delete()  # deletes only the matching row(s)
+        return JsonResponse({"favorited": False})
+
+    # Favourite (guard against a rare duplicate create)
+    try:
+        Favorite.objects.create(owner=request.user, track=track)
+    except IntegrityError:
+        # If a concurrent request created it, just report favorited
+        return JsonResponse({"favorited": True})
+
+    return JsonResponse({"favorited": True})
+
 
 @login_required
 def favorites_list(request):
     favs = Favorite.objects.filter(owner=request.user).select_related("track").order_by("-created_at")
     return render(request, "tracks/favorites.html", {"favorites": favs})
+
+@require_POST
+@login_required
+def log_play(request, track_id):
+    track = get_object_or_404(Track, pk=track_id)
+    Listen.objects.create(user=request.user, track=track)
+    return JsonResponse({"ok": True})
