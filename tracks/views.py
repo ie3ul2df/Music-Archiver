@@ -80,7 +80,7 @@ def album_list(request):
         messages.success(request, "Album created.")
         return redirect("album_list")
 
-    return render(request, "tracks/album_list.html", {"albums": albums})
+    return render(request, "album/album_list.html", {"albums": albums})
 
 
 @login_required

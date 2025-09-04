@@ -42,7 +42,31 @@ function makeSortable(container, itemSelector) {
 }
 
 function saveOrder(container) {
-  const ids = Array.from(container.querySelectorAll("li[data-id]")).map((li) => parseInt(li.dataset.id));
+  const albumCard = container.closest(".album");
+
+  // If we're inside an album card with a numeric ID, reorder album tracks.
+  const albumId = albumCard ? parseInt(albumCard.dataset.id, 10) : NaN;
+  if (!isNaN(albumId)) {
+    const ids = Array.from(container.querySelectorAll("li[data-atid]")).map((li) => parseInt(li.dataset.atid, 10));
+
+    console.log("Saving album order:", ids);
+
+    fetch(`/albums/${albumId}/tracks/reorder/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken"),
+      },
+      body: JSON.stringify({ order: ids }),
+    })
+      .then((r) => r.json())
+      .then((data) => console.log("Server response:", data))
+      .catch(console.error);
+    return;
+  }
+
+  // Otherwise fall back to global track reordering
+  const ids = Array.from(container.querySelectorAll("li[data-id]")).map((li) => parseInt(li.dataset.id, 10));
 
   console.log("Saving new order:", ids);
 

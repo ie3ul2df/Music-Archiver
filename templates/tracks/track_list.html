@@ -130,9 +130,9 @@
   <h3 class="mb-3">Your Albums</h3>
   <div id="albums" class="d-flex flex-column gap-3">
     {% for album in albums %}
-    <div class="album card" data-id="{{ album.id }}" draggable="true">
+    <div class="album card" data-id="{{ album.id }}" data-reorder-url="{% url 'album:album_reorder_tracks' album.id %}" draggable="true">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <a href="{% url 'album_detail' album.id %}" class="fw-bold text-decoration-none">{{ album.name }}</a>
+        <a href="{% url 'album:album_detail' album.id %}" class="fw-bold text-decoration-none">{{ album.name }}</a>
         <div class="form-check mb-0">
           <input class="form-check-input check-all" type="checkbox" id="album-{{ album.id }}-all" />
           <label class="form-check-label" for="album-{{ album.id }}-all">Check All</label>
@@ -141,7 +141,7 @@
 
       <ul class="list-group list-group-flush tracks">
         {% for at in album.album_tracks.all %}
-        <li class="list-group-item d-flex align-items-center gap-2" data-id="{{ at.track.id }}" draggable="true">
+        <li class="list-group-item d-flex align-items-center gap-2" data-id="{{ at.track.id }}" data-atid="{{ at.id }}" draggable="true">
           <input class="form-check-input track-check" type="checkbox" id="track-{{ at.track.id }}" />
 
           <button

@@ -1,6 +1,7 @@
 # ----------------------- album/views.py ----------------------- #
 
 from django.db import transaction
+from django.db.models import Case, When, IntegerField
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseBadRequest
@@ -180,15 +181,25 @@ def album_reorder_tracks(request, pk):
     except Exception:
         return HttpResponseBadRequest("Invalid JSON payload.")
 
-    items = list(AlbumTrack.objects.filter(album=album, id__in=id_list))
+    # Ensure we only reorder items that belong to this album
+    qs = AlbumTrack.objects.filter(album=album, id__in=id_list)
+    if not qs.exists():
+        return JsonResponse({"ok": False, "updated": []})
 
-    item_map = {i.id: i for i in items}
+    # Update all positions in two steps to avoid unique constraint conflicts:
+    # move items to a safe range, then assign final positions.
+    total = qs.count()
+    temp_order = Case(
+        *[When(id=iid, then=pos + total) for pos, iid in enumerate(id_list)],
+        output_field=IntegerField(),
+    )
+    qs.update(position=temp_order)
 
-    with transaction.atomic():
-        for pos, iid in enumerate(id_list):
-            if iid in item_map:
-                item_map[iid].position = pos
-                item_map[iid].save(update_fields=["position"])
+    final_order = Case(
+        *[When(id=iid, then=pos) for pos, iid in enumerate(id_list)],
+        output_field=IntegerField(),
+    )
+    qs.update(position=final_order)
 
     return JsonResponse({"ok": True, "updated": id_list})
 

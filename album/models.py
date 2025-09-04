@@ -78,14 +78,19 @@ class AlbumTrack(models.Model):
         indexes = [models.Index(fields=["album", "position"])]
 
     def save(self, *args, **kwargs):
-        # Auto-assign position if not explicitly set
-        if not self.position:
+        """
+        Ensure newly created items get a position at the end of the album
+        if the caller doesn't provide one, but avoid interfering when
+        updating an existing object's position (e.g. via drag-and-drop
+        reordering).
+        """
+        if self._state.adding and self.position == 0:
             last = (
                 AlbumTrack.objects.filter(album=self.album)
                 .order_by("-position")
                 .first()
             )
-            self.position = (last.position + 1) if last else 1
+            self.position = (last.position + 1) if last else 0
         super().save(*args, **kwargs)
 
     def __str__(self):

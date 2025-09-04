@@ -2,7 +2,7 @@
 <div class="container py-4">
   <div class="d-flex justify-content-between mb-3">
     <h2>Your Albums</h2>
-    <form action="{% url 'album_create' %}" method="post" class="d-flex gap-2">
+    <form action="{% url 'album:album_create' %}" method="post" class="d-flex gap-2">
       {% csrf_token %}
       <input name="name" class="form-control" placeholder="New album name" required />
       <button class="btn btn-primary">Create</button>
