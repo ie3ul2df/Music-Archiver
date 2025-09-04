@@ -1,3 +1,4 @@
+// --------------------------- static/js/track_list.js ---------------------------//
 // Toggle all tracks in an album
 document.addEventListener("change", (e) => {
   if (e.target.classList.contains("check-all")) {
@@ -34,4 +35,8 @@ function makeSortable(container, itemSelector) {
 document.addEventListener("DOMContentLoaded", () => {
   makeSortable(document.getElementById("albums"), ".album");
   document.querySelectorAll(".tracks").forEach((ul) => makeSortable(ul, "li"));
+});
+
+document.addEventListener("dragend", () => {
+  // nothing here; music_player.js listens and rebuilds queue
 });

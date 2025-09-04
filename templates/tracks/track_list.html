@@ -1,7 +1,12 @@
 {% extends "base.html" %} {% load static %} {% block content %}
 <div class="container py-4">
-  <!-- simple audio player reused from previous template -->
-  <div id="player-card" data-tracks-url="{% url 'tracks_json' %}"></div>
+  <!-- Media Player -->
+  <div
+    id="player-card"
+    data-tracks-url="{% url 'tracks_json' %}"
+    data-log-play-url="{% url 'log_play' 0 %}"
+    data-toggle-fav-url="{% url 'toggle_favorite' 0 %}"
+  ></div>
 
   <div class="card shadow-sm mb-4">
     <div class="card-body d-flex flex-column gap-2">
@@ -29,33 +34,137 @@
       <audio id="player" preload="metadata"></audio>
     </div>
   </div>
- <h3 class="mb-3">Your Albums</h3>
+
+  <!-- Favourites -->
+  <h3 class="mb-3">My Favourites</h3>
+  <div class="album card mb-4" data-id="favorites" draggable="true">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>♥ Favourites</span>
+      <div class="form-check mb-0">
+        <input class="form-check-input check-all" type="checkbox" id="album-fav-all" />
+        <label class="form-check-label" for="album-fav-all">Check All</label>
+      </div>
+    </div>
+    <ul class="list-group list-group-flush tracks">
+      {% for fav in favorites %}
+      <li
+        class="list-group-item d-flex align-items-center gap-2 track-item"
+        data-id="{{ fav.track.id }}"
+        data-name="{{ fav.track.name }}"
+        data-src="{% if fav.track.audio_file %}{{ fav.track.audio_file.url }}{% elif fav.track.source_url %}{{ fav.track.source_url }}{% endif %}"
+        draggable="true"
+      >
+        <input class="form-check-input track-check" type="checkbox" id="track-fav-{{ fav.track.id }}" />
+
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary play-btn"
+          data-id="{{ fav.track.id }}"
+          data-name="{{ fav.track.name }}"
+          data-src="{% if fav.track.audio_file %}{{ fav.track.audio_file.url }}{% elif fav.track.source_url %}{{ fav.track.source_url }}{% endif %}"
+        >
+          ▶
+        </button>
+
+        <span class="flex-grow-1">{{ fav.track.name }}</span>
+
+        <button type="button" class="btn btn-sm btn-outline-danger fav-btn active" data-track="{{ fav.track.id }}" aria-pressed="true">♥</button>
+        <span class="track-playing-status ms-2"></span>
+      </li>
+      {% empty %}
+      <li class="list-group-item text-muted">No favourites yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- Recent Tracks -->
+  <h3 class="mb-3">Recently Played</h3>
+  <div class="album card mb-4" data-id="recent" draggable="true">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>⏱ Recently Played</span>
+      <div class="form-check mb-0">
+        <input class="form-check-input check-all" type="checkbox" id="album-recent-all" />
+        <label class="form-check-label" for="album-recent-all">Check All</label>
+      </div>
+    </div>
+    <ul class="list-group list-group-flush tracks">
+      {% for row in recent %}
+      <li
+        class="list-group-item d-flex align-items-center gap-2 track-item"
+        data-id="{{ row.track.id }}"
+        data-name="{{ row.track.name }}"
+        data-src="{% if row.track.audio_file %}{{ row.track.audio_file.url }}{% elif row.track.source_url %}{{ row.track.source_url }}{% endif %}"
+        draggable="true"
+      >
+        <input class="form-check-input track-check" type="checkbox" id="track-recent-{{ row.track.id }}" />
+
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary play-btn"
+          data-id="{{ row.track.id }}"
+          data-name="{{ row.track.name }}"
+          data-src="{% if row.track.audio_file %}{{ row.track.audio_file.url }}{% elif row.track.source_url %}{{ row.track.source_url }}{% endif %}"
+        >
+          ▶
+        </button>
+
+        <span class="flex-grow-1">{{ row.track.name }}</span>
+
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-danger fav-btn {% if row.track.is_favorited %}active{% endif %}"
+          data-track="{{ row.track.id }}"
+          aria-pressed="{{ row.track.is_favorited|yesno:'true,false' }}"
+        >
+          {% if row.track.is_favorited %}♥{% else %}♡{% endif %}
+        </button>
+        <span class="track-playing-status ms-2"></span>
+      </li>
+      {% empty %}
+      <li class="list-group-item text-muted">No recently played tracks.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- Albums -->
+  <h3 class="mb-3">Your Albums</h3>
   <div id="albums" class="d-flex flex-column gap-3">
     {% for album in albums %}
     <div class="album card" data-id="{{ album.id }}" draggable="true">
       <div class="card-header d-flex justify-content-between align-items-center">
         <a href="{% url 'album_detail' album.id %}" class="fw-bold text-decoration-none">{{ album.name }}</a>
         <div class="form-check mb-0">
-          <input class="form-check-input check-all" type="checkbox" id="album-{{ album.id }}-all">
+          <input class="form-check-input check-all" type="checkbox" id="album-{{ album.id }}-all" />
           <label class="form-check-label" for="album-{{ album.id }}-all">Check All</label>
         </div>
-  
       </div>
 
-       <ul class="list-group list-group-flush tracks">
+      <ul class="list-group list-group-flush tracks">
         {% for at in album.album_tracks.all %}
         <li class="list-group-item d-flex align-items-center gap-2" data-id="{{ at.track.id }}" draggable="true">
-          <input class="form-check-input track-check" type="checkbox" id="track-{{ at.track.id }}">
+          <input class="form-check-input track-check" type="checkbox" id="track-{{ at.track.id }}" />
+
           <button
             type="button"
             class="btn btn-sm btn-outline-secondary play-btn"
             data-id="{{ at.track.id }}"
             data-name="{{ at.track.name }}"
             data-src="{% if at.track.audio_file %}{{ at.track.audio_file.url }}{% elif at.track.source_url %}{{ at.track.source_url }}{% endif %}"
-            aria-label="Play {{ at.track.name }}">
+          >
             ▶
           </button>
-          <span>{{ at.track.name }}</span>
+
+          <span class="flex-grow-1">{{ at.track.name }}</span>
+
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-danger fav-btn {% if at.track.is_favorited %}active{% endif %}"
+            data-track="{{ at.track.id }}"
+            aria-pressed="{{ at.track.is_favorited|yesno:'true,false' }}"
+          >
+            {% if at.track.is_favorited %}♥{% else %}♡{% endif %}
+          </button>
+          <span class="track-playing-status ms-2"></span>
         </li>
         {% empty %}
         <li class="list-group-item text-muted">No tracks</li>
@@ -65,10 +174,11 @@
     {% empty %}
     <p class="text-muted">No albums yet.</p>
     {% endfor %}
-  </ul>
+  </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
+{% endblock %} {% block extra_js %}
+<script src="{% static 'js/cookies.js' %}" defer></script>
+<script src="{% static 'js/music_player.js' %}" defer></script>
 <script src="{% static 'js/track_list.js' %}" defer></script>
+<script src="{% static 'js/toggle_fav_btn.js' %}" defer></script>
 {% endblock %}

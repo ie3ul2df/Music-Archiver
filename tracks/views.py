@@ -7,7 +7,7 @@ from django.http import JsonResponse, HttpResponseBadRequest
 from django.contrib import messages
 from django.utils import timezone
 from django.db import IntegrityError
-from django.db.models import Max
+from django.db.models import Max, Exists, OuterRef, Prefetch
 from .models import Track, Listen, Favorite 
 from .forms import TrackForm
 from album.models import Album, AlbumTrack
@@ -20,18 +20,44 @@ from plans.utils import (
 import json
 
 
+@login_required
 def track_list(request):
-    """List all of the user's albums and their tracks."""
-    albums = []
-    
-    if request.user.is_authenticated:
-            albums = (
-            Album.objects.filter(owner=request.user)
-            .prefetch_related("album_tracks__track")
-            .order_by("name")
-        )
+    # favourites
+    favs = Favorite.objects.filter(owner=request.user).select_related("track").order_by("-created_at")[:25]
 
-    return render(request, "tracks/track_list.html", {"albums": albums})
+    # recently played (unique per track)
+    latest_per_track = (
+        Listen.objects.filter(user=request.user)
+        .values("track")
+        .annotate(last_played=Max("played_at"))
+        .order_by("-last_played")[:25]
+    )
+    track_ids = [item["track"] for item in latest_per_track]
+    tracks = Track.objects.in_bulk(track_ids)
+    recent = [
+        {"track": tracks[item["track"]], "last_played": item["last_played"]}
+        for item in latest_per_track
+    ]
+
+    # annotate albums with favourites
+    fav_subquery = Favorite.objects.filter(owner=request.user, track=OuterRef("pk"))
+    albums = (
+        Album.objects.all()
+        .prefetch_related(
+            Prefetch(
+                "album_tracks",
+                queryset=AlbumTrack.objects.select_related("track").annotate(
+                    is_favorited=Exists(fav_subquery)
+                ),
+            )
+        )
+    )
+
+    return render(request, "tracks/track_list.html", {
+        "albums": albums,
+        "favorites": favs,
+        "recent": recent,
+    })
 
 
 @login_required
@@ -117,11 +143,16 @@ def reorder_tracks(request):
 def tracks_json(request):
     # Make sure each item includes id, name, and a playable URL
     data = []
-    for t in Track.objects.all().only("id", "name"):
-        try:
-            src = t.audio.url  # adjust if your field is different (e.g., t.file.url)
-        except Exception:
-            src = ""
+    for t in Track.objects.all().only("id", "name", "audio_file", "source_url"):
+        # Prefer the uploaded file, fall back to an external URL
+        src = ""
+        if getattr(t, "audio_file", None):
+            try:
+                src = t.audio_file.url
+            except Exception:
+                src = ""
+        elif t.source_url:
+            src = t.source_url
         data.append({"id": t.id, "name": t.name, "src": src})
     return JsonResponse({"tracks": data})
 
@@ -174,13 +205,29 @@ def play_track(request, pk):
         return redirect("track_list")
     return redirect(dest)
 
+
+from django.db.models import Max
+
 @login_required
 def recently_played(request):
-    items = (
-        Track.objects.filter(owner=request.user, last_played_at__isnull=False)
-        .order_by("-last_played_at")[:25]
+    latest_per_track = (
+        Listen.objects.filter(user=request.user)
+        .values("track")  # group by track
+        .annotate(last_played=Max("played_at"))  # latest play for each
+        .order_by("-last_played")[:25]
     )
-    return render(request, "tracks/recently_played.html", {"tracks": items})
+
+    # fetch Track objects with timestamp
+    track_ids = [item["track"] for item in latest_per_track]
+    tracks = Track.objects.in_bulk(track_ids)
+
+    results = [
+        {"track": tracks[item["track"]], "last_played": item["last_played"]}
+        for item in latest_per_track
+    ]
+
+    return render(request, "tracks/recently_played.html", {"results": results})
+
 
 
 @require_POST

@@ -40,3 +40,5 @@
       .catch(console.error);
   });
 })();
+
+console.log("toggle_fav_btn.js loaded ✅");
