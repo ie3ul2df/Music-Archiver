@@ -1,23 +1,22 @@
-{% extends "base.html" %}{% block content %}
+{# templates/album/album_list.html #} {% extends "base.html" %}{% block content %}
 <div class="container py-4">
   <div class="d-flex justify-content-between mb-3">
     <h2>Your Albums</h2>
-
-    <form action="{% url 'playlist_create' %}" method="post" class="d-flex gap-2">
+    <form action="{% url 'album_create' %}" method="post" class="d-flex gap-2">
       {% csrf_token %}
-      <input name="name" class="form-control" placeholder="New playlist name" required />
+      <input name="name" class="form-control" placeholder="New album name" required />
       <button class="btn btn-primary">Create</button>
     </form>
   </div>
 
   <ul class="list-group">
-    {% for p in playlists %}
+    {% for a in albums %}
     <li class="list-group-item d-flex justify-content-between">
-      <a href="{% url 'playlist_detail' p.pk %}">{{ p.name }}</a>
+      <a href="{% url 'album_detail' a.pk %}">{{ a.name }}</a>
       <span class="text-muted">#{{ forloop.counter }}</span>
     </li>
     {% empty %}
-    <li class="list-group-item">No playlists yet.</li>
+    <li class="list-group-item">No albums yet.</li>
     {% endfor %}
   </ul>
 </div>
