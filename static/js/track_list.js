@@ -43,59 +43,60 @@ function makeSortable(container, itemSelector) {
 
 function saveOrder(container) {
   const albumCard = container.closest(".album");
+  const ids = Array.from(container.querySelectorAll("li[data-atid], li[data-id]"))
+    .map((li) => parseInt(li.dataset.atid || li.dataset.id, 10))
+    .filter((n) => !Number.isNaN(n));
 
-  // If we're inside an album card with a numeric ID, reorder album tracks
-  if (albumCard) {
-    const albumId = parseInt(albumCard.dataset.id, 10);
-    if (!isNaN(albumId)) {
-      const ids = Array.from(container.querySelectorAll("li[data-atid]")).map((li) => parseInt(li.dataset.atid, 10));
-
-      console.log("Saving album order:", ids);
-
-      let url = albumCard.dataset.reorderUrl || `/albums/${albumId}/tracks/reorder/`;
-
-      fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": getCookie("csrftoken"),
-        },
-        body: JSON.stringify({ order: ids }),
-      })
-        .then((r) => r.json())
-        .then((data) => console.log("Server response:", data))
-        .catch(console.error);
-
-      return; // stop here, no need to continue
-    }
+  if (!albumCard) {
+    // global fallback (use only if you really want to reorder Track.position)
+    fetch("/tracks/api/tracks/reorder/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") },
+      body: JSON.stringify({ order: ids }),
+    }).catch(console.error);
+    return;
   }
 
-  // Otherwise: fall back to global track reordering
-  const ids = Array.from(container.querySelectorAll("li[data-id]")).map((li) => parseInt(li.dataset.id, 10));
+  const scope = (albumCard.dataset.id || "").toString();
+  const explicitUrl = container.dataset.reorderUrl || albumCard.dataset.reorderUrl || null;
 
-  console.log("Saving new order:", ids);
+  // Numeric album -> use album endpoint
+  if (/^\d+$/.test(scope)) {
+    const url = explicitUrl || `/albums/${scope}/tracks/reorder/`;
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") },
+      body: JSON.stringify({ order: ids }),
+    }).catch(console.error);
+    return;
+  }
 
-  fetch("/tracks/api/tracks/reorder/", {
+  // Named scopes: favorites / recent -> use isolated endpoints
+  let url = explicitUrl;
+  if (!url) {
+    if (scope === "favorites") url = "/tracks/api/favorites/reorder/";
+    else if (scope === "recent") url = "/tracks/api/recent/reorder/";
+  }
+  if (!url) {
+    console.warn("No reorder endpoint for scope:", scope);
+    return;
+  }
+
+  fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRFToken": getCookie("csrftoken"),
-    },
+    headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") },
     body: JSON.stringify({ order: ids }),
-  })
-    .then((r) => r.json())
-    .then((data) => {
-      console.log("Server response:", data);
-    })
-    .catch(console.error);
+  }).catch(console.error);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  makeSortable(document.getElementById("albums"), ".album");
+  const albumsContainer = document.getElementById("albums");
+  if (albumsContainer) {
+    makeSortable(albumsContainer, ".album");
+  }
   document.querySelectorAll(".album").forEach((album) => {
-    const id = parseInt(album.dataset.id, 10);
     const list = album.querySelector(".tracks");
-    if (!isNaN(id) && list) {
+    if (list) {
       makeSortable(list, "li");
     }
   });

@@ -45,7 +45,7 @@
         <label class="form-check-label" for="album-fav-all">Check All</label>
       </div>
     </div>
-    <ul class="list-group list-group-flush tracks">
+    <ul class="list-group list-group-flush tracks" data-reorder-url="{% url 'favorites_reorder' %}">
       {% for fav in favorites %}
       <li
         class="list-group-item d-flex align-items-center gap-2 track-item"
@@ -87,7 +87,7 @@
         <label class="form-check-label" for="album-recent-all">Check All</label>
       </div>
     </div>
-    <ul class="list-group list-group-flush tracks">
+    <ul class="list-group list-group-flush tracks" data-reorder-url="{% url 'recent_reorder' %}">
       {% for row in recent %}
       <li
         class="list-group-item d-flex align-items-center gap-2 track-item"

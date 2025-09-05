@@ -22,33 +22,74 @@ import json
 
 @login_required
 def track_list(request):
-    # favourites (ordered by saved track position)
-    favs = (
-        Favorite.objects.filter(owner=request.user)
-        .select_related("track")
-        .order_by("track__position", "-created_at")[:25]
-    )
+    """
+    Main track list page showing:
+    - Favourites (user-scoped; ordered by session order if set, otherwise newest favs first)
+    - Recently Played (user-scoped; ordered by session order if set, otherwise most recent first)
+    - User's Albums with their tracks (each track annotated with is_favorited)
+    """
 
-    # recently played (unique per track, ordered by track position)
+    # ---------- FAVOURITES ----------
+    # Base favourites list (limit to 25 for UI)
+    favorites_qs = (
+        Favorite.objects
+        .filter(owner=request.user)
+        .select_related("track")
+        .order_by("-created_at")[:25]
+    )
+    favorites = list(favorites_qs)
+
+    # Apply per-user saved order from session, if available
+    fav_order = request.session.get(f"fav_order_{request.user.id}", [])
+    if fav_order:
+        fav_pos = {tid: i for i, tid in enumerate(fav_order)}
+        # Sort by saved position; unknown IDs go to the end (keep stable by created_at fallback)
+        favorites.sort(key=lambda f: (fav_pos.get(getattr(f, "track_id", None), 10**9), -f.created_at.timestamp()))
+
+    # ---------- RECENTLY PLAYED ----------
+    # Get latest play timestamp per track for this user (limit to 25)
     latest_per_track = (
-        Listen.objects.filter(user=request.user)
+        Listen.objects
+        .filter(user=request.user)
         .values("track")
         .annotate(last_played=Max("played_at"))
         .order_by("-last_played")[:25]
     )
-    track_ids = [item["track"] for item in latest_per_track]
-    tracks = Track.objects.in_bulk(track_ids)
-    recent = [
-        {"track": tracks[item["track"]], "last_played": item["last_played"]}
-        for item in latest_per_track
-    ]
 
-    recent.sort(key=lambda x: x["track"].position)
-    
-    # annotate albums with favourites
+    recent_track_ids = [row["track"] for row in latest_per_track]
+    # Fetch Track objects in one query
+    tracks_by_id = Track.objects.in_bulk(recent_track_ids)
+
+    # Build a set of ALL favorited track IDs (no limit) to mark hearts in "recent"
+    fav_all_ids = set(
+        Favorite.objects
+        .filter(owner=request.user)
+        .values_list("track_id", flat=True)
+    )
+
+    # Convert to the structure your template expects and attach is_favorited
+    recent = []
+    for row in latest_per_track:
+        tid = row["track"]
+        t = tracks_by_id.get(tid)
+        if not t:
+            continue
+        # attach .is_favorited for template heart state
+        t.is_favorited = (tid in fav_all_ids)
+        recent.append({"track": t, "last_played": row["last_played"]})
+
+    # Apply saved order from session if present, else keep most-recent-first
+    recent_order = request.session.get(f"recent_order_{request.user.id}", [])
+    if recent_order:
+        rpos = {tid: i for i, tid in enumerate(recent_order)}
+        recent.sort(key=lambda r: rpos.get(getattr(r["track"], "id", None), 10**9))
+    else:
+        recent.sort(key=lambda r: r["last_played"], reverse=True)
+
+    # ---------- ALBUMS (+ annotate is_favorited) ----------
     fav_subquery = Favorite.objects.filter(owner=request.user, track=OuterRef("pk"))
     albums = (
-        Album.objects.all()
+        Album.objects.filter(owner=request.user)
         .prefetch_related(
             Prefetch(
                 "album_tracks",
@@ -59,12 +100,15 @@ def track_list(request):
         )
     )
 
-    return render(request, "tracks/track_list.html", {
-        "albums": albums,
-        "favorites": favs,
-        "recent": recent,
-    })
-
+    return render(
+        request,
+        "tracks/track_list.html",
+        {
+            "albums": albums,
+            "favorites": favorites,
+            "recent": recent,
+        },
+    )
 
 @login_required
 def album_list(request):
@@ -205,6 +249,19 @@ def recently_played(request):
     return render(request, "tracks/recently_played.html", {"results": results})
 
 
+@require_POST
+@login_required
+def recent_reorder(request):
+    try:
+        order = json.loads(request.body or "{}").get("order", [])
+        if not isinstance(order, list):
+            raise ValueError
+    except Exception:
+        return HttpResponseBadRequest("Invalid JSON")
+    request.session[f"recent_order_{request.user.id}"] = order
+    request.session.modified = True
+    return JsonResponse({"ok": True, "scope": "recent", "order": order})
+
 
 @require_POST
 @login_required
@@ -234,6 +291,19 @@ def toggle_favorite(request, track_id):
 def favorites_list(request):
     favs = Favorite.objects.filter(owner=request.user).select_related("track").order_by("-created_at")
     return render(request, "tracks/favorites.html", {"favorites": favs})
+
+@require_POST
+@login_required
+def favorites_reorder(request):
+    try:
+        order = json.loads(request.body or "{}").get("order", [])
+        if not isinstance(order, list):
+            raise ValueError
+    except Exception:
+        return HttpResponseBadRequest("Invalid JSON")
+    request.session[f"fav_order_{request.user.id}"] = order
+    request.session.modified = True
+    return JsonResponse({"ok": True, "scope": "favorites", "order": order})
 
 @require_POST
 @login_required
