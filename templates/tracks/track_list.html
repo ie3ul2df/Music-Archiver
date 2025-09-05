@@ -49,55 +49,71 @@
   </ul>
 
   <div class="tab-content mt-3">
+    {% comment %} ------- 🎼 My Albums ------- {% endcomment %}
     <div class="tab-pane fade show active" id="my-album" role="tabpanel">
       <div id="albums" class="d-flex flex-column gap-3">
         {% for album in albums %}
         <div class="album card" data-id="{{ album.id }}" data-reorder-url="{% url 'album:album_reorder_tracks' album.id %}" draggable="true">
           <div class="card-header d-flex justify-content-between align-items-center">
-            <a href="{% url 'album:album_detail' album.id %}" class="fw-bold text-decoration-none">{{ album.name }}</a>
+            <!-- Collapse toggle button -->
+            <button
+              class="btn btn-sm btn-link fw-bold text-decoration-none"
+              data-bs-toggle="collapse"
+              data-bs-target="#album-{{ album.id }}-collapse"
+              aria-expanded="true"
+              aria-controls="album-{{ album.id }}-collapse"
+            >
+              <span class="h5"> ↕ &nbsp</span> {{ album.name }} &nbsp ▼
+            </button>
+
             <div class="form-check mb-0">
               <input class="form-check-input check-all" type="checkbox" id="album-{{ album.id }}-all" />
               <label class="form-check-label" for="album-{{ album.id }}-all">Check All</label>
             </div>
           </div>
 
-          <ul class="list-group list-group-flush tracks">
-            {% for at in album.album_tracks.all %}
-            <li class="list-group-item d-flex align-items-center gap-2" data-id="{{ at.track.id }}" data-atid="{{ at.id }}" draggable="true">
-              <input class="form-check-input track-check" type="checkbox" id="track-{{ at.track.id }}" />
+          <!-- Collapsible body (open by default using .show) -->
+          <div id="album-{{ album.id }}-collapse" class="collapse show">
+            <ul class="list-group list-group-flush tracks">
+              {% for at in album.album_tracks.all %}
+              <li class="list-group-item d-flex align-items-center gap-2" data-id="{{ at.track.id }}" data-atid="{{ at.id }}" draggable="true">
+                <input class="form-check-input track-check" type="checkbox" id="track-{{ at.track.id }}" />
 
-              <button
-                type="button"
-                class="btn btn-sm btn-outline-secondary play-btn"
-                data-id="{{ at.track.id }}"
-                data-name="{{ at.track.name }}"
-                data-src="{% if at.track.audio_file %}{{ at.track.audio_file.url }}{% elif at.track.source_url %}{{ at.track.source_url }}{% endif %}"
-              >
-                ▶
-              </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-secondary play-btn"
+                  data-id="{{ at.track.id }}"
+                  data-name="{{ at.track.name }}"
+                  data-src="{% if at.track.audio_file %}{{ at.track.audio_file.url }}{% elif at.track.source_url %}{{ at.track.source_url }}{% endif %}"
+                >
+                  ▶
+                </button>
 
-              <span class="flex-grow-1">{{ at.track.name }}</span>
+                <span class="flex-grow-1">{{ at.track.name }}</span>
 
-              <button
-                type="button"
-                class="btn btn-sm btn-outline-danger fav-btn {% if at.track.is_favorited %}active{% endif %}"
-                data-track="{{ at.track.id }}"
-                aria-pressed="{{ at.track.is_favorited|yesno:'true,false' }}"
-              >
-                {% if at.track.is_favorited %}♥{% else %}♡{% endif %}
-              </button>
-              <span class="track-playing-status ms-2"></span>
-            </li>
-            {% empty %}
-            <li class="list-group-item text-muted">No tracks</li>
-            {% endfor %}
-          </ul>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-danger fav-btn {% if at.track.is_favorited %}active{% endif %}"
+                  data-track="{{ at.track.id }}"
+                  aria-pressed="{{ at.track.is_favorited|yesno:'true,false' }}"
+                >
+                  {% if at.track.is_favorited %}♥{% else %}♡{% endif %}
+                </button>
+                <span class="track-playing-status ms-2"></span>
+              </li>
+              {% empty %}
+              <li class="list-group-item text-muted">No tracks</li>
+              {% endfor %}
+            </ul>
+          </div>
         </div>
         {% empty %}
         <p class="text-muted">No albums yet.</p>
         {% endfor %}
       </div>
     </div>
+
+    {% comment %} ------- ❤️ My Favourites ------- {% endcomment %}
     <div class="tab-pane fade" id="my-fav" role="tabpanel">
       <div class="album card mb-4" data-id="favorites">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -139,6 +155,8 @@
         </ul>
       </div>
     </div>
+
+    {% comment %} ------- 🕓 Recently Played ------- {% endcomment %}
     <div class="tab-pane fade" id="recent" role="tabpanel">
       <div class="album card mb-4" data-id="recent">
         <div class="card-header d-flex justify-content-between align-items-center">
