@@ -87,7 +87,7 @@ def track_list(request):
         recent.sort(key=lambda r: r["last_played"], reverse=True)
 
     # ---------- ALBUMS (+ annotate is_favorited) ----------
-    fav_subquery = Favorite.objects.filter(owner=request.user, track=OuterRef("pk"))
+    fav_subquery = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
     albums = (
         Album.objects.filter(owner=request.user)
         .prefetch_related(

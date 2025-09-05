@@ -93,12 +93,13 @@
 
                 <button
                   type="button"
-                  class="btn btn-sm btn-outline-danger fav-btn {% if at.track.is_favorited %}active{% endif %}"
+                  class="btn btn-sm btn-outline-danger fav-btn {% if at.is_favorited %}active{% endif %}"
                   data-track="{{ at.track.id }}"
-                  aria-pressed="{{ at.track.is_favorited|yesno:'true,false' }}"
+                  aria-pressed="{{ at.is_favorited|yesno:'true,false' }}"
                 >
-                  {% if at.track.is_favorited %}♥{% else %}♡{% endif %}
+                  {% if at.is_favorited %}♥{% else %}♡{% endif %}
                 </button>
+
                 <span class="track-playing-status ms-2"></span>
               </li>
               {% empty %}
