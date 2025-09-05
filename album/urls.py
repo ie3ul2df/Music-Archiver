@@ -12,6 +12,7 @@ urlpatterns = [
     path("<int:pk>/", views.album_detail, name="album_detail"),        # single album detail
     path("<int:pk>/edit/", views.album_update, name="album_update"),   # rename/update album
     path("<int:pk>/delete/", views.album_delete, name="album_delete"), # delete album
+    path("search/", views.album_search, name="album_search"),          # search albums
 
     # Track management inside an album
     path("<int:pk>/tracks/add/", views.album_add_track, name="album_add_track"),

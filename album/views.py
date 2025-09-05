@@ -1,7 +1,7 @@
 # ----------------------- album/views.py ----------------------- #
 
-from django.db import transaction
-from django.db.models import Case, When, IntegerField
+from django.urls import reverse
+from django.db.models import Case, When, IntegerField, Q
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseBadRequest
@@ -236,14 +236,14 @@ def albums_reorder(request):
 
 
 @login_required
+@require_POST
 def album_delete(request, pk):
-    """Delete an album."""
+    """Delete an album via POST (AJAX or form)."""
     album = get_object_or_404(Album, pk=pk, owner=request.user)
-    if request.method == "POST":
-        album.delete()
-        messages.success(request, "Album deleted!")
-        return redirect("album_list")
-    return render(request, "album/album_confirm_delete.html", {"album": album})
+    album.delete()
+    messages.success(request, "Album deleted!")
+    return redirect("album:album_list")
+
 
 
 def public_album_detail(request, slug):
@@ -278,3 +278,30 @@ def track_create(request):
     else:
         form = TrackForm(request.user)
     return render(request, "tracks/track_form.html", {"form": form})
+
+
+
+
+@login_required
+def album_search(request):
+    """AJAX search albums by name (case-insensitive)."""
+    q = request.GET.get("q", "").strip()
+    albums = Album.objects.filter(owner=request.user)
+    if q:
+        albums = albums.filter(name__icontains=q)
+    albums = albums.order_by("order", "id")[:50]
+
+    return JsonResponse({
+        "results": [
+            {
+                "id": a.id,
+                "name": a.name,
+                "is_public": a.is_public,
+                "detail_url": reverse("album:album_detail", args=[a.id]),
+                "edit_url": reverse("album:album_update", args=[a.id]),
+                "toggle_url": reverse("album:toggle_album_visibility", args=[a.id]),
+                "delete_url": reverse("album:album_delete", args=[a.id]),
+            }
+            for a in albums
+        ]
+    })

@@ -1,19 +1,28 @@
 {% extends "base.html" %} {% load static %} {% block content %}
 <div class="container py-4">
-  <div class="d-flex justify-content-between mb-3">
-    <h2>Your Albums</h2>
+  <!-- Header with search + create -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <h2 class="mb-0">Your Albums</h2>
+
+    <!-- Search form -->
+    <form id="album-search-form" class="d-flex gap-2">
+      <input id="album-search-input" type="text" class="form-control" placeholder="Search albums..." aria-label="Search albums" />
+    </form>
+
+    <!-- Create new album -->
     <form action="{% url 'album:album_create' %}" method="post" class="d-flex gap-2">
       {% csrf_token %}
-      <input name="name" class="form-control" placeholder="New album name" required />
-      <button class="btn btn-primary">Create</button>
+      <input name="name" class="form-control" placeholder="New album name" required aria-label="New album name" />
+      <button class="btn btn-primary">➕ Create</button>
     </form>
   </div>
 
-  <ul class="list-group">
+  <!-- Album list -->
+  <ul id="album-list" class="list-group">
     {% for a in albums %}
     <li class="list-group-item d-flex justify-content-between align-items-center">
       <div>
-        <a href="{% url 'album:album_detail' a.pk %}" class="fw-bold">{{ a.name }}</a>
+        <a href="{% url 'album:album_detail' a.pk %}" class="fw-bold text-decoration-none">{{ a.name }}</a>
         {% if a.is_public %}
         <span class="badge bg-success ms-2">Public</span>
         {% else %}
@@ -22,18 +31,14 @@
       </div>
 
       <div class="btn-group btn-group-sm" role="group">
-        <!-- View -->
         <a href="{% url 'album:album_detail' a.pk %}" class="btn btn-outline-primary">👁 View</a>
-        <!-- Edit -->
         <a href="{% url 'album:album_update' a.pk %}" class="btn btn-outline-secondary">✏ Edit</a>
-        <!-- Toggle visibility -->
         <a href="{% url 'album:toggle_album_visibility' a.pk %}" class="btn btn-outline-warning">
           {% if a.is_public %}🔒 Make Private{% else %}🌍 Make Public{% endif %}
         </a>
-        <!-- Delete -->
         <button
           type="button"
-          class="btn btn-outline-danger btn-sm"
+          class="btn btn-outline-danger"
           data-bs-toggle="modal"
           data-bs-target="#deleteAlbumModal"
           data-album-id="{{ a.pk }}"
@@ -50,14 +55,14 @@
 </div>
 
 <!-- Delete confirmation modal -->
-<div class="modal fade" id="deleteAlbumModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="deleteAlbumModal" tabindex="-1" aria-labelledby="deleteAlbumLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <form method="post" id="deleteAlbumForm" action="">
         {% csrf_token %}
         <div class="modal-header">
-          <h5 class="modal-title">Delete Album</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <h5 class="modal-title" id="deleteAlbumLabel">Delete Album</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
           <p>Are you sure you want to delete <strong id="albumName"></strong>?</p>
@@ -70,7 +75,6 @@
     </div>
   </div>
 </div>
-
 {% endblock %} {% block extra_js %}
 <script src="{% static 'js/album_detail.js' %}" defer></script>
 {% endblock %}

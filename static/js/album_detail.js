@@ -84,16 +84,75 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   const modal = document.getElementById("deleteAlbumModal");
-  modal.addEventListener("show.bs.modal", function (event) {
-    const button = event.relatedTarget;
-    const albumId = button.getAttribute("data-album-id");
-    const albumName = button.getAttribute("data-album-name");
+  if (modal) {
+    modal.addEventListener("show.bs.modal", function (event) {
+      const button = event.relatedTarget;
+      const albumId = button.getAttribute("data-album-id");
+      const albumName = button.getAttribute("data-album-name");
 
-    // update the album name in modal
-    modal.querySelector("#albumName").textContent = albumName;
+      // Only update if element exists
+      const albumNameEl = modal.querySelector("#albumName");
+      if (albumNameEl) {
+        albumNameEl.textContent = albumName;
+      }
 
-    // set the form action to the delete endpoint
-    const form = modal.querySelector("#deleteAlbumForm");
-    form.action = `/album/${albumId}/delete/`; // matches album_delete URL
+      // Update form action
+      const form = modal.querySelector("#deleteAlbumForm");
+      if (form) {
+        form.action = `/album/${albumId}/delete/`;
+      }
+    });
+  }
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("album-search-form");
+  const input = document.getElementById("album-search-input");
+  const list = document.getElementById("album-list");
+
+  let timeout = null;
+
+  input.addEventListener("keyup", () => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      fetch(`/album/search/?q=${encodeURIComponent(input.value)}`)
+        .then((r) => r.json())
+        .then((data) => {
+          list.innerHTML = "";
+          if (data.results.length === 0) {
+            list.innerHTML = `<li class="list-group-item">No albums found.</li>`;
+            return;
+          }
+          data.results.forEach((a) => {
+            const li = document.createElement("li");
+            li.className = "list-group-item d-flex justify-content-between align-items-center";
+            li.innerHTML = `
+    <div>
+      <a href="${a.detail_url}" class="fw-bold text-decoration-none">${a.name}</a>
+      ${a.is_public ? '<span class="badge bg-success ms-2">Public</span>' : '<span class="badge bg-secondary ms-2">Private</span>'}
+    </div>
+    <div class="btn-group btn-group-sm" role="group">
+      <a href="${a.detail_url}" class="btn btn-outline-primary">👁 View</a>
+      <a href="${a.edit_url}" class="btn btn-outline-secondary">✏ Edit</a>
+      <a href="${a.toggle_url}" class="btn btn-outline-warning">
+        ${a.is_public ? "🔒 Make Private" : "🌍 Make Public"}
+      </a>
+      <button type="button"
+              class="btn btn-outline-danger"
+              data-bs-toggle="modal"
+              data-bs-target="#deleteAlbumModal"
+              data-album-id="${a.id}"
+              data-album-name="${a.name}">
+        🗑 Delete
+      </button>
+    </div>
+  `;
+            list.appendChild(li);
+          });
+        });
+    }, 300); // debounce: wait 300ms after typing
   });
+
+  // Prevent form submission (we want AJAX only)
+  form.addEventListener("submit", (e) => e.preventDefault());
 });
