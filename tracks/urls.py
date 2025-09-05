@@ -20,6 +20,7 @@ urlpatterns = [
     # NEW: isolated per-list reorder endpoints
     path("api/favorites/reorder/", views.favorites_reorder, name="favorites_reorder"),
     path("api/recent/reorder/", views.recent_reorder, name="recent_reorder"),
+    path("api/recent/clear/", views.clear_recent, name="clear_recent"),
 
     # Album AJAX
     path("api/albums/add/", views.ajax_add_album, name="ajax_add_album"),

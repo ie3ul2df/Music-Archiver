@@ -263,6 +263,15 @@ def recent_reorder(request):
     return JsonResponse({"ok": True, "scope": "recent", "order": order})
 
 
+
+@login_required
+@require_POST
+def clear_recent(request):
+    Listen.objects.filter(user=request.user).delete()
+    return JsonResponse({"ok": True})
+
+
+
 @require_POST
 @login_required
 def toggle_favorite(request, track_id):

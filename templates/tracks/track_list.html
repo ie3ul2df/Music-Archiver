@@ -162,6 +162,10 @@
         <div class="card-header d-flex justify-content-between align-items-center">
           <span>⏱ Recently Played</span>
           <div class="form-check mb-0">
+            <form method="post" action="{% url 'clear_recent' %}" id="clear-recent-form">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-danger">Clear All</button>
+            </form>
             <input class="form-check-input check-all" type="checkbox" id="album-recent-all" />
             <label class="form-check-label" for="album-recent-all">Check All</label>
           </div>

@@ -121,6 +121,14 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+document.getElementById("clear-recent-form")?.addEventListener("submit", function (e) {
+  e.preventDefault();
+  fetch(this.action, {
+    method: "POST",
+    headers: { "X-CSRFToken": getCookie("csrftoken") },
+  }).then(() => location.reload());
+});
+
 document.addEventListener("dragend", () => {
   // nothing here; music_player.js listens and rebuilds queue
 });
