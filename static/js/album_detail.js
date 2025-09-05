@@ -81,3 +81,19 @@
       });
   });
 })();
+
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("deleteAlbumModal");
+  modal.addEventListener("show.bs.modal", function (event) {
+    const button = event.relatedTarget;
+    const albumId = button.getAttribute("data-album-id");
+    const albumName = button.getAttribute("data-album-name");
+
+    // update the album name in modal
+    modal.querySelector("#albumName").textContent = albumName;
+
+    // set the form action to the delete endpoint
+    const form = modal.querySelector("#deleteAlbumForm");
+    form.action = `/album/${albumId}/delete/`; // matches album_delete URL
+  });
+});

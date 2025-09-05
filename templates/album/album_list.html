@@ -1,4 +1,4 @@
-{# templates/album/album_list.html #} {% extends "base.html" %}{% block content %}
+{% extends "base.html" %} {% load static %} {% block content %}
 <div class="container py-4">
   <div class="d-flex justify-content-between mb-3">
     <h2>Your Albums</h2>
@@ -11,13 +11,66 @@
 
   <ul class="list-group">
     {% for a in albums %}
-    <li class="list-group-item d-flex justify-content-between">
-      <a href="{% url 'album_detail' a.pk %}">{{ a.name }}</a>
-      <span class="text-muted">#{{ forloop.counter }}</span>
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <div>
+        <a href="{% url 'album:album_detail' a.pk %}" class="fw-bold">{{ a.name }}</a>
+        {% if a.is_public %}
+        <span class="badge bg-success ms-2">Public</span>
+        {% else %}
+        <span class="badge bg-secondary ms-2">Private</span>
+        {% endif %}
+      </div>
+
+      <div class="btn-group btn-group-sm" role="group">
+        <!-- View -->
+        <a href="{% url 'album:album_detail' a.pk %}" class="btn btn-outline-primary">👁 View</a>
+        <!-- Edit -->
+        <a href="{% url 'album:album_update' a.pk %}" class="btn btn-outline-secondary">✏ Edit</a>
+        <!-- Toggle visibility -->
+        <a href="{% url 'album:toggle_album_visibility' a.pk %}" class="btn btn-outline-warning">
+          {% if a.is_public %}🔒 Make Private{% else %}🌍 Make Public{% endif %}
+        </a>
+        <!-- Delete -->
+        <button
+          type="button"
+          class="btn btn-outline-danger btn-sm"
+          data-bs-toggle="modal"
+          data-bs-target="#deleteAlbumModal"
+          data-album-id="{{ a.pk }}"
+          data-album-name="{{ a.name }}"
+        >
+          🗑 Delete
+        </button>
+      </div>
     </li>
     {% empty %}
     <li class="list-group-item">No albums yet.</li>
     {% endfor %}
   </ul>
 </div>
+
+<!-- Delete confirmation modal -->
+<div class="modal fade" id="deleteAlbumModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" id="deleteAlbumForm" action="">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title">Delete Album</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete <strong id="albumName"></strong>?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Yes, delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %} {% block extra_js %}
+<script src="{% static 'js/album_detail.js' %}" defer></script>
 {% endblock %}
