@@ -22,10 +22,14 @@ import json
 
 @login_required
 def track_list(request):
-    # favourites
-    favs = Favorite.objects.filter(owner=request.user).select_related("track").order_by("-created_at")[:25]
+    # favourites (ordered by saved track position)
+    favs = (
+        Favorite.objects.filter(owner=request.user)
+        .select_related("track")
+        .order_by("track__position", "-created_at")[:25]
+    )
 
-    # recently played (unique per track)
+    # recently played (unique per track, ordered by track position)
     latest_per_track = (
         Listen.objects.filter(user=request.user)
         .values("track")
@@ -39,6 +43,8 @@ def track_list(request):
         for item in latest_per_track
     ]
 
+    recent.sort(key=lambda x: x["track"].position)
+    
     # annotate albums with favourites
     fav_subquery = Favorite.objects.filter(owner=request.user, track=OuterRef("pk"))
     albums = (
