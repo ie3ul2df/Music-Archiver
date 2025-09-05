@@ -132,3 +132,23 @@ document.getElementById("clear-recent-form")?.addEventListener("submit", functio
 document.addEventListener("dragend", () => {
   // nothing here; music_player.js listens and rebuilds queue
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+  // existing sortable setup ...
+
+  // Global Check/Uncheck All button
+  const globalBtn = document.getElementById("check-all-global");
+  if (globalBtn) {
+    globalBtn.addEventListener("click", () => {
+      const checks = document.querySelectorAll(".track-check");
+      const allChecked = Array.from(checks).every((cb) => cb.checked);
+
+      checks.forEach((cb) => {
+        cb.checked = !allChecked; // toggle
+      });
+
+      // update button label
+      globalBtn.textContent = allChecked ? "✔ All" : "✖ None";
+    });
+  }
+});
