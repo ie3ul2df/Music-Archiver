@@ -305,3 +305,20 @@ def album_search(request):
             for a in albums
         ]
     })
+
+
+@login_required
+@require_POST
+def album_rename_track(request, pk, item_id):
+    """Rename a specific track in the album."""
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
+    item = get_object_or_404(AlbumTrack, pk=item_id, album=album)
+    new_name = (request.POST.get("name") or "").strip()
+    if not new_name:
+        messages.error(request, "Track name cannot be empty.")
+        return redirect("album:album_detail", pk=pk)
+
+    item.track.name = new_name
+    item.track.save(update_fields=["name"])
+    messages.success(request, f'Track renamed to "{new_name}".')
+    return redirect("album:album_detail", pk=pk)

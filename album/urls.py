@@ -16,8 +16,10 @@ urlpatterns = [
 
     # Track management inside an album
     path("<int:pk>/tracks/add/", views.album_add_track, name="album_add_track"),
-    path("<int:pk>/tracks/<int:item_id>/remove/", views.album_remove_track, name="album_remove_track"),
     path("<int:pk>/tracks/reorder/", views.album_reorder_tracks, name="album_reorder_tracks"),
+    path("<int:pk>/tracks/<int:item_id>/rename/", views.album_rename_track, name="album_rename_track"),
+    path("<int:pk>/tracks/<int:item_id>/remove/", views.album_remove_track, name="album_remove_track"),
+
 
     # Reorder albums (top-level list)
     path("reorder/", views.albums_reorder, name="albums_reorder"),

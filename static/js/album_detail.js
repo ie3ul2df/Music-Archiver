@@ -156,3 +156,38 @@ document.addEventListener("DOMContentLoaded", () => {
   // Prevent form submission (we want AJAX only)
   form.addEventListener("submit", (e) => e.preventDefault());
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+  const trackList = document.getElementById("track-list");
+  if (!trackList) return;
+
+  const albumId = trackList.dataset.albumId;
+
+  // ---- DELETE ----
+  const deleteModal = document.getElementById("deleteTrackModal");
+  if (deleteModal) {
+    deleteModal.addEventListener("show.bs.modal", (event) => {
+      const button = event.relatedTarget;
+      const trackId = button.getAttribute("data-track-id");
+      const trackName = button.getAttribute("data-track-name");
+
+      deleteModal.querySelector("#deleteTrackName").textContent = trackName;
+      const form = deleteModal.querySelector("#deleteTrackForm");
+      form.action = `/album/${albumId}/tracks/${trackId}/remove/`;
+    });
+  }
+
+  // ---- RENAME ----
+  const renameModal = document.getElementById("renameTrackModal");
+  if (renameModal) {
+    renameModal.addEventListener("show.bs.modal", (event) => {
+      const button = event.relatedTarget;
+      const trackId = button.getAttribute("data-track-id");
+      const trackName = button.getAttribute("data-track-name");
+
+      renameModal.querySelector("#renameTrackInput").value = trackName;
+      const form = renameModal.querySelector("#renameTrackForm");
+      form.action = `/album/${albumId}/tracks/${trackId}/rename/`;
+    });
+  }
+});
