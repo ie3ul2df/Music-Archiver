@@ -42,13 +42,33 @@ function makeSortable(container, itemSelector) {
 }
 
 function saveOrder(container) {
+  const albumsWrapper = document.getElementById("albums");
+
+  // ---- Case 1: Reorder albums themselves ----
+  if (container === albumsWrapper) {
+    const ids = Array.from(container.querySelectorAll(".album")).map((el) => parseInt(el.dataset.id, 10));
+    const url = container.dataset.reorderUrl;
+    if (url) {
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify({ order: ids }),
+      }).catch(console.error);
+    }
+    return;
+  }
+
+  // ---- Case 2: Reorder tracks inside an album / favorites / recent ----
   const albumCard = container.closest(".album");
   const ids = Array.from(container.querySelectorAll("li[data-atid], li[data-id]"))
     .map((li) => parseInt(li.dataset.atid || li.dataset.id, 10))
     .filter((n) => !Number.isNaN(n));
 
   if (!albumCard) {
-    // global fallback (use only if you really want to reorder Track.position)
+    // global fallback (rarely used)
     fetch("/tracks/api/tracks/reorder/", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") },
@@ -60,7 +80,7 @@ function saveOrder(container) {
   const scope = (albumCard.dataset.id || "").toString();
   const explicitUrl = container.dataset.reorderUrl || albumCard.dataset.reorderUrl || null;
 
-  // Numeric album -> use album endpoint
+  // Numeric album -> track reordering
   if (/^\d+$/.test(scope)) {
     const url = explicitUrl || `/albums/${scope}/tracks/reorder/`;
     fetch(url, {
@@ -71,22 +91,21 @@ function saveOrder(container) {
     return;
   }
 
-  // Named scopes: favorites / recent -> use isolated endpoints
+  // Named scopes: favorites / recent
   let url = explicitUrl;
   if (!url) {
     if (scope === "favorites") url = "/tracks/api/favorites/reorder/";
     else if (scope === "recent") url = "/tracks/api/recent/reorder/";
   }
-  if (!url) {
+  if (url) {
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") },
+      body: JSON.stringify({ order: ids }),
+    }).catch(console.error);
+  } else {
     console.warn("No reorder endpoint for scope:", scope);
-    return;
   }
-
-  fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") },
-    body: JSON.stringify({ order: ids }),
-  }).catch(console.error);
 }
 
 document.addEventListener("DOMContentLoaded", () => {

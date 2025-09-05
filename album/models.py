@@ -18,9 +18,10 @@ class Album(models.Model):
     is_public = models.BooleanField(default=False)
     slug = models.SlugField(max_length=180, unique=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    order = models.PositiveIntegerField(default=0)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["order", "-created_at"]
         indexes = [models.Index(fields=["slug"])]
 
     def _make_unique_slug(self) -> str:

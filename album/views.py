@@ -38,13 +38,13 @@ def _has_field(model_cls, field_name: str) -> bool:
 # ---------- Views ----------
 @login_required
 def album_list(request):
-    """List all albums for the logged-in user (ordered if `position` exists)."""
     qs = Album.objects.filter(owner=request.user)
-    if _has_field(Album, "position"):
-        albums = qs.order_by("position", "id")
+    if _has_field(Album, "order"):
+        albums = qs.order_by("order", "id")   # 👈 use order
     else:
         albums = qs.order_by("-created_at")
     return render(request, "album/album_list.html", {"albums": albums})
+
 
 
 @login_required
@@ -207,8 +207,8 @@ def album_reorder_tracks(request, pk):
 @login_required
 @require_POST
 def albums_reorder(request):
-    """Reorder the user's albums (if Album has a `position` field)."""
-    if not _has_field(Album, "position"):
+    """Reorder the user's albums (uses Album.order)."""
+    if not _has_field(Album, "order"):
         return JsonResponse(
             {"ok": False, "error": "Ordering is not enabled for albums."}, status=400
         )
@@ -229,7 +229,7 @@ def albums_reorder(request):
     pos = 0
     for aid in id_list:
         if aid in user_ids:
-            Album.objects.filter(id=aid).update(position=pos)
+            Album.objects.filter(id=aid, owner=request.user).update(order=pos)
             pos += 1
 
     return JsonResponse({"ok": True, "updated": list(user_ids)})
