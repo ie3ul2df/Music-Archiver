@@ -1,0 +1,11 @@
+{% if users %}
+<h4 class="mt-5">Users (with public albums)</h4>
+<ul class="list-group">
+  {% for u in users %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <span>@{{ u.username }}</span>
+    <span class="badge bg-secondary">{{ u.public_album_count }} public albums</span>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}

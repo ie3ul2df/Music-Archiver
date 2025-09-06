@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-3">Search</h2>
+
+  <form id="search-form" class="row g-2 mb-4" action="{% url 'search' %}" method="get">
+    <div class="col-md-7">
+      <input id="q" type="search" name="q" class="form-control" placeholder="Search albums, tracks, or users…" value="{{ q }}" autocomplete="off" />
+    </div>
+    <div class="col-md-3">
+      <select id="t" name="t" class="form-select">
+        <option value="all" {% if scope == 'all' %}selected{% endif %}>All</option>
+        <option value="albums" {% if scope == 'albums' %}selected{% endif %}>Albums</option>
+        <option value="tracks" {% if scope == 'tracks' %}selected{% endif %}>Tracks</option>
+        <option value="users" {% if scope == 'users' %}selected{% endif %}>Users</option>
+      </select>
+    </div>
+    <div class="col-md-2 d-grid">
+      <button class="btn btn-primary">Search</button>
+    </div>
+  </form>
+
+  <div id="search-summary">{% include "home_page/partials/_search_summary.html" %}</div>
+
+  <div id="search-loading" class="my-3 d-none">
+    <div class="spinner-border" role="status" aria-hidden="true"></div>
+    <span class="ms-2">Searching…</span>
+  </div>
+
+  <div id="search-results">
+    {% if albums %}{% include "home_page/partials/_search_albums.html" %}{% endif %}
+    {% if tracks %}{% include "home_page/partials/_search_tracks.html" %}{% endif %}
+    {% if users %}{% include "home_page/partials/_search_users.html" %}{% endif %}
+    {% if not albums and not tracks and not users and q %}
+      {% include "home_page/partials/_search_empty.html" %}
+    {% endif %}
+  </div>
+</div>
+
+<script src="{% static 'js/home_search.js' %}" defer></script>
+{% endblock %}
