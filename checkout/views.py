@@ -13,6 +13,7 @@ from django.views.decorators.http import require_POST
 from .forms import OrderForm
 from .models import Order, OrderItem
 from plans.models import Plan
+from profile_page.models import UserProfile   # NEW
 
 
 def _build_basket_summary(session_basket):
@@ -55,7 +56,7 @@ def checkout(request):
         if form.is_valid():
             order = form.save(commit=False)
 
-            # Attach Stripe PID and the basket snapshot
+            # Attach Stripe PID and basket snapshot
             client_secret = request.POST.get("client_secret")
             if client_secret:
                 order.stripe_pid = client_secret.split("_secret")[0]
@@ -63,34 +64,66 @@ def checkout(request):
 
             if request.user.is_authenticated:
                 order.user = request.user
+                # NEW: attach profile
+                order.user_profile = getattr(request.user, "userprofile", None)
 
             order.save()
 
-            # Create items from session basket (NOTE: qty is an int, not a dict)
+            # Create OrderItems
             for plan_id, qty in basket.items():
                 plan = get_object_or_404(Plan, id=int(plan_id))
                 OrderItem.objects.create(
                     order=order,
                     plan=plan,
                     quantity=int(qty),
-                    price=plan.price,  # snapshot price; model save also enforces this
+                    price=plan.price,
                 )
 
-            # OrderItem.save() updates order total; but to be safe:
             order.refresh_from_db()
+
+            # NEW: Save info to profile if requested
+            if request.user.is_authenticated and request.POST.get("save_info"):
+                profile = request.user.userprofile
+                profile.default_phone_number    = order.phone_number
+                profile.default_country         = order.country
+                profile.default_postcode        = order.postcode
+                profile.default_town_or_city    = order.town_or_city
+                profile.default_street_address1 = order.street_address1
+                profile.default_street_address2 = order.street_address2
+                profile.default_county          = order.county
+                profile.save()
 
             return redirect("checkout_success", order_number=order.order_number)
         else:
             messages.error(request, "There was an issue with your order details. Please review and try again.")
     else:
-        form = OrderForm()
+        # NEW: Pre-fill from profile
+        initial = {}
+        if request.user.is_authenticated:
+            u = request.user
+            p = getattr(u, "userprofile", None)
+            initial.update({
+                "full_name": (u.get_full_name() or u.username),
+                "email": u.email,
+            })
+            if p:
+                initial.update({
+                    "phone_number":     p.default_phone_number,
+                    "country":          p.default_country,
+                    "postcode":         p.default_postcode,
+                    "town_or_city":     p.default_town_or_city,
+                    "street_address1":  p.default_street_address1,
+                    "street_address2":  p.default_street_address2,
+                    "county":           p.default_county,
+                })
+        form = OrderForm(initial=initial)
 
     context = {
         "form": form,
         "basket_items": basket_items,
         "basket_total": basket_total,
         "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
-        "client_secret": intent.client_secret,          # for Stripe Elements
+        "client_secret": intent.client_secret,
         "cache_checkout_url": reverse("cache_checkout_data"),
     }
     return render(request, "checkout/checkout.html", context)
