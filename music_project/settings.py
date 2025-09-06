@@ -183,8 +183,8 @@ STORAGES = {
 # --------------------------------------------------------------------------------------
 STRIPE_PUBLIC_KEY = os.environ.get("STRIPE_PUBLIC_KEY", "")
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
-# Optional webhook secret if you add webhooks later:
-STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+# webhook secret:
+STRIPE_WH_SECRET = os.environ.get("STRIPE_WH_SECRET")
 
 # --------------------------------------------------------------------------------------
 # Security hardening toggled by DEBUG
