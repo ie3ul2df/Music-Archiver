@@ -1,4 +1,4 @@
-{% extends "base.html" %} {% load crispy_forms_tags %} {% block content %}
+{% extends "base.html" %} {% load crispy_forms_tags static %} {% block content %}
 <div class="container mt-5">
   <h2 class="mb-4">Secure Checkout</h2>
 
@@ -27,8 +27,12 @@
     <div id="card-element" class="form-control mb-3"></div>
     <div id="card-errors" role="alert" class="text-danger mb-3"></div>
 
-    <!-- hidden field to carry Stripe PaymentIntent id -->
+    <!-- hidden client_secret and payment_intent_id -->
+    <input type="hidden" id="id_client_secret" value="{{ client_secret }}" />
     <input type="hidden" name="payment_intent_id" id="payment_intent_id" />
+
+    <!-- optional save info -->
+    <label class="mt-2 d-block"> <input type="checkbox" name="save_info" /> Save my info for next time </label>
 
     <button id="submit-btn" class="btn btn-success w-100 fw-bold">💳 Pay £{{ basket_total }}</button>
   </form>
@@ -40,57 +44,11 @@
     <span class="visually-hidden">Processing payment...</span>
   </div>
 </div>
-
-<style>
-  #loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(255, 255, 255, 0.8);
-    z-index: 9999;
-    display: none; /* hidden by default */
-    align-items: center;
-    justify-content: center;
-  }
-</style>
-
-<script src="https://js.stripe.com/v3/"></script>
 <script>
-  const stripe = Stripe("{{ stripe_public_key }}");
-  const elements = stripe.elements();
-  const card = elements.create("card", { style: { base: { fontSize: "16px" } } });
-  card.mount("#card-element");
-
-  card.on("change", function (event) {
-    document.getElementById("card-errors").textContent = event.error ? event.error.message : "";
-  });
-
-  const form = document.getElementById("payment-form");
-  const overlay = document.getElementById("loading-overlay");
-  const payBtn = document.getElementById("submit-btn");
-
-  form.addEventListener("submit", async function (e) {
-    e.preventDefault();
-
-    // show overlay + disable button
-    overlay.style.display = "flex";
-    payBtn.disabled = true;
-
-    const { paymentIntent, error } = await stripe.confirmCardPayment("{{ client_secret }}", {
-      payment_method: { card: card },
-    });
-
-    if (error) {
-      document.getElementById("card-errors").textContent = error.message;
-      overlay.style.display = "none";
-      payBtn.disabled = false;
-    } else if (paymentIntent.status === "succeeded") {
-      console.log("Stripe Succeeded ✅", paymentIntent.id);
-      document.getElementById("payment_intent_id").value = paymentIntent.id;
-      form.submit(); // continue Django POST
-    }
-  });
+  const stripePublicKey = "{{ stripe_public_key }}";
+  const cacheCheckoutUrl = "{% url 'cache_checkout_data' %}";
 </script>
+{% endblock %} {% block extra_js %}
+<script src="https://js.stripe.com/v3/"></script>
+<script src="{% static 'js/checkout.js' %}" defer></script>
 {% endblock %}
