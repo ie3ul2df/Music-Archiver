@@ -1,46 +1,102 @@
-{% extends "base.html" %} {% load crispy_forms_tags %} {% block content %}
+{% extends "base.html" %} {% load crispy_forms_tags static %} {% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4 text-center">👤 My Profile</h2>
 
-<h2 class="text-center">Hi, {{ user.username }}</h2>
+  <div class="row g-4">
+    <!-- Left: Profile forms -->
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <!-- Profile image -->
+          <div class="text-center mb-4">
+            {% if profile.profile_image %}
+            <img
+              src="{{ profile.profile_image.url }}"
+              alt="Profile image"
+              class="rounded-circle shadow-sm"
+              style="width: 120px; height: 120px; object-fit: cover"
+            />
+            {% else %}
+            <span class="display-1 text-muted">🖼️</span>
+            {% endif %}
+            <h5 class="mt-3">{{ user.username }}</h5>
+          </div>
 
-<div class="container mt-5" style="max-width: 600px">
-  <div class="card shadow-sm">
-    <div class="card-body text-center">
-      <h2 class="mb-3">👤 My Profile</h2>
+          <!-- Forms -->
+          <form method="post" enctype="multipart/form-data" id="profile-update-form">
+            {% csrf_token %}
 
-      {% if profile.profile_image %}
-      <img src="{{ profile.profile_image.url }}" alt="Profile image" class="rounded-circle mb-3" style="width: 120px; height: 120px; object-fit: cover" />
-      {% else %}
-      <span class="display-1">🖼️</span>
-      {% endif %}
+            <h6 class="mb-3">Account Details</h6>
+            {{ user_form|crispy }}
 
-      <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <h5>Account Details</h5>
-        {{ user_form|crispy }}
+            <h6 class="mt-4 mb-3">Profile Details</h6>
+            {{ profile_form|crispy }}
 
-        <h5 class="mt-4">Profile Details</h5>
-        {{ profile_form|crispy }}
+            <hr class="my-4" />
+            <h6 class="mb-3">Default Delivery Information</h6>
 
-        <button type="submit" class="btn btn-primary w-100 mt-3">Save Changes</button>
-      </form>
+            <!-- Render delivery form fields explicitly -->
+            <div class="mb-3">{{ defaults_form.default_phone_number|as_crispy_field }}</div>
+            <div class="mb-3">{{ defaults_form.default_country }} {# render directly, not via crispy_field #}</div>
+            <div class="mb-3">{{ defaults_form.default_postcode|as_crispy_field }}</div>
+            <div class="mb-3">{{ defaults_form.default_town_or_city|as_crispy_field }}</div>
+            <div class="mb-3">{{ defaults_form.default_street_address1|as_crispy_field }}</div>
+            <div class="mb-3">{{ defaults_form.default_street_address2|as_crispy_field }}</div>
+            <div class="mb-3">{{ defaults_form.default_county|as_crispy_field }}</div>
 
-      <!-- Purchased Plans -->
-      <div class="mt-5">
-        <h4>🛒 Purchased Plans</h4>
-        {% if purchased_items %}
-        <ul class="list-group">
-          {% for item in purchased_items %}
-          <li class="list-group-item">
-            {{ item.plan.name }} — £{{ item.plan.price }} <br />
-            <small>Order: {{ item.order.order_number }} ({{ item.order.date|date:"M d, Y H:i" }})</small>
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p>You haven’t purchased any plans yet.</p>
-        {% endif %}
+            <div class="text-end mt-4">
+              <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Order history -->
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h5 class="mb-3">📦 Order History</h5>
+
+          {% if orders %}
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Order #</th>
+                  <th>Date</th>
+                  <th>Items</th>
+                  <th class="text-end">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for o in orders %}
+                <tr>
+                  <td>
+                    <a href="{% url 'order_history' o.order_number %}" title="View order {{ o.order_number }}"> {{ o.order_number|truncatechars:6 }} </a>
+                  </td>
+                  <td>{{ o.date|date:"Y-m-d H:i" }}</td>
+                  <td>
+                    <ul class="list-unstyled mb-0 small">
+                      {% for li in o.items.all %}
+                      <li>{{ li.plan.name }} × {{ li.quantity }}</li>
+                      {% endfor %}
+                    </ul>
+                  </td>
+                  <td class="text-end">£{{ o.order_total }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="text-muted mb-0">No orders yet.</p>
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>
 </div>
+{% endblock %} {% block extra_js %}
+<script src="{% static 'js/profile_country_select.js' %}"></script>
 {% endblock %}
