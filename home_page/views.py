@@ -1,6 +1,6 @@
 # //--------------------------- home_page/views.py ---------------------------//
 from django.shortcuts import render, redirect
-from django.db.models import Q, Count
+from django.db.models import Avg, Count, Exists, OuterRef, FloatField, F, ExpressionWrapper, Q
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.template.loader import render_to_string
@@ -19,7 +19,11 @@ def _is_ajax(request) -> bool:
 
 
 def index(request):
-    """Homepage: hero + (optional) latest public albums (prefetched & annotated)."""
+    """
+    Homepage: hero + latest public albums + top 10 albums & tracks by weighted score.
+    """
+
+    # ---------------- Latest 12 public albums (for grid) ---------------- #
     public_albums = (
         annotate_albums(
             Album.objects.filter(is_public=True).select_related("owner")
@@ -27,7 +31,46 @@ def index(request):
         .annotate(track_count=Count("album_tracks", distinct=True))
         .order_by("-created_at")[:12]
     )
-    return render(request, "home_page/index.html", {"public_albums": public_albums})
+
+    # ---------------- Top 10 Albums (weighted: avg * count) ---------------- #
+    albums_top = (
+        annotate_albums(Album.objects.filter(is_public=True))
+        .filter(rating_count__gt=0)  # only those with votes
+        .annotate(
+            rating_score=ExpressionWrapper(
+                F("rating_avg") * F("rating_count"),
+                output_field=FloatField(),
+            )
+        )
+        .order_by("-rating_score", "-rating_count", "-rating_avg", "-created_at")[:10]
+    )
+
+    # ---------------- Top 10 Tracks (must belong to a public album) ---------------- #
+    in_public_album = AlbumTrack.objects.filter(
+        track_id=OuterRef("pk"), album__is_public=True
+    )
+
+    tracks_top = (
+        annotate_tracks(Track.objects.filter(Exists(in_public_album)))
+        .filter(rating_count__gt=0)
+        .annotate(
+            rating_score=ExpressionWrapper(
+                F("rating_avg") * F("rating_count"),
+                output_field=FloatField(),
+            )
+        )
+        .order_by("-rating_score", "-rating_count", "-rating_avg", "-created_at")[:10]
+    )
+
+    return render(
+        request,
+        "home_page/index.html",
+        {
+            "public_albums": public_albums,
+            "albums_top": albums_top,
+            "tracks_top": tracks_top,
+        },
+    )
 
 
 def search(request):
