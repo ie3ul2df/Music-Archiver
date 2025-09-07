@@ -2,6 +2,10 @@
 <div class="container py-4">
   <h3>{{ album.name }}</h3>
 
+  <!-- ⭐ Album rating -->
+  <div class="mb-3">{% include "ratings/_stars.html" with type="album" id=album.id avg=album.rating_avg count=album.rating_count user_rating=None %}</div>
+
+  <!-- Track add form -->
   <form method="post" enctype="multipart/form-data" class="row g-2 my-3">
     {% csrf_token %}
     <div class="col-md-3">
@@ -22,10 +26,16 @@
 
   <p class="text-muted">Provide a link OR upload a file{% if not has_storage %} (upload requires a storage plan){% endif %}.</p>
 
+  <!-- Track list -->
   <ul id="track-list" class="list-group" data-album-id="{{ album.id }}" data-reorder-url="{% url 'album:album_reorder_tracks' album.pk %}">
     {% for at in items %}
     <li class="list-group-item d-flex justify-content-between align-items-center" data-id="{{ at.id }}">
-      <span class="track-name">{{ at.track.name }}</span>
+      <div class="d-flex flex-column">
+        <span class="track-name">{{ at.track.name }}</span>
+        <!-- ⭐ Track rating -->
+        <div class="mt-1">{% include "ratings/_stars.html" with type="track" id=at.track.id avg=at.track_avg count=at.track_count user_rating=None %}</div>
+      </div>
+
       <div class="btn-group btn-group-sm">
         <!-- Rename -->
         <button

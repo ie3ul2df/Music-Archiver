@@ -1,17 +1,29 @@
 # //--------------------------- home_page/views.py ---------------------------//
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.db.models import Q, Count
 from django.contrib.auth import get_user_model
-from album.models import Album, AlbumTrack
-from tracks.models import Track
 from django.http import JsonResponse
 from django.template.loader import render_to_string
+from django.utils.http import urlencode
+
+from album.models import Album, AlbumTrack
+from tracks.models import Track
+from ratings.utils import annotate_albums, annotate_tracks
+
+
+SEARCH_LIMIT = 50
+
+
+def _is_ajax(request) -> bool:
+    return request.headers.get("x-requested-with") == "XMLHttpRequest"
 
 
 def index(request):
+    """Homepage: hero + (optional) latest public albums (prefetched & annotated)."""
     public_albums = (
-        Album.objects.filter(is_public=True)
-        .select_related("owner")
+        annotate_albums(
+            Album.objects.filter(is_public=True).select_related("owner")
+        )
         .annotate(track_count=Count("album_tracks", distinct=True))
         .order_by("-created_at")[:12]
     )
@@ -19,19 +31,37 @@ def index(request):
 
 
 def search(request):
+    """
+    Global search endpoint for AJAX.
+    Accepts:
+      - q: query string
+      - t: scope ('all' | 'albums' | 'tracks' | 'users')
+    Returns JSON with rendered HTML fragments.
+    """
+    if not _is_ajax(request):
+        # Keep everything on the home page as requested.
+        params = {}
+        if request.GET.get("q"):
+            params["q"] = request.GET["q"].strip()
+        if request.GET.get("t"):
+            params["t"] = request.GET["t"].lower()
+        return redirect("/" + (f"?{urlencode(params)}" if params else ""))
+
     q = (request.GET.get("q") or "").strip()
     scope = (request.GET.get("t") or "all").lower()
     User = get_user_model()
 
-    albums = tracks = users = []
+    albums = []
+    tracks = []
+    users = []
     total = 0
 
     if q:
         if scope in ("all", "albums"):
-            albums = list(
+            albums_qs = annotate_albums(
                 Album.objects.filter(is_public=True)
                 .select_related("owner")
-                .annotate(track_count=Count("album_tracks", distinct=True))  
+                .annotate(track_count=Count("album_tracks", distinct=True))
                 .filter(
                     Q(name__icontains=q)
                     | Q(description__icontains=q)
@@ -39,26 +69,22 @@ def search(request):
                     | Q(owner__first_name__icontains=q)
                     | Q(owner__last_name__icontains=q)
                 )
-                .order_by("-created_at")[:50]
-            )
+            ).order_by("-created_at")[:SEARCH_LIMIT]
+            albums = list(albums_qs)
             total += len(albums)
 
         if scope in ("all", "tracks"):
-            tracks = list(
-                Track.objects.filter(
-                    track_albums__album__is_public=True  # ✅ correct
-                )
-                .filter(
-                    Q(name__icontains=q) | Q(source_url__icontains=q)
-                )
+            tracks_qs = annotate_tracks(
+                Track.objects.filter(track_albums__album__is_public=True)
                 .select_related("owner")
+                .filter(Q(name__icontains=q) | Q(source_url__icontains=q))
                 .distinct()
-                .order_by("-created_at")[:50]
-            )
+            ).order_by("-created_at")[:SEARCH_LIMIT]
+            tracks = list(tracks_qs)
             total += len(tracks)
 
         if scope in ("all", "users"):
-            users = list(
+            users_qs = (
                 User.objects.filter(albums__is_public=True)
                 .filter(
                     Q(username__icontains=q)
@@ -71,20 +97,35 @@ def search(request):
                     )
                 )
                 .distinct()
-                .order_by("-public_album_count", "username")[:50]
+                .order_by("-public_album_count", "username")[:SEARCH_LIMIT]
             )
+            users = list(users_qs)
             total += len(users)
 
-    context = {"q": q, "scope": scope, "albums": albums, "tracks": tracks, "users": users, "total": total}
+    context = {
+        "q": q,
+        "scope": scope,
+        "albums": albums,
+        "tracks": tracks,
+        "users": users,
+        "total": total,
+    }
 
-    if request.headers.get("x-requested-with") == "XMLHttpRequest":
-        html = {
-            "albums": render_to_string("home_page/partials/_search_albums.html", context, request=request),
-            "tracks": render_to_string("home_page/partials/_search_tracks.html", context, request=request),
-            "users": render_to_string("home_page/partials/_search_users.html", context, request=request),
-            "summary": render_to_string("home_page/partials/_search_summary.html", context, request=request),
-            "empty": render_to_string("home_page/partials/_search_empty.html", context, request=request),
-        }
-        return JsonResponse({"q": q, "scope": scope, "total": total, "html": html})
-
-    return render(request, "home_page/search.html", context)
+    html = {
+        "albums": render_to_string(
+            "home_page/partials/_search_albums.html", context, request=request
+        ),
+        "tracks": render_to_string(
+            "home_page/partials/_search_tracks.html", context, request=request
+        ),
+        "users": render_to_string(
+            "home_page/partials/_search_users.html", context, request=request
+        ),
+        "summary": render_to_string(
+            "home_page/partials/_search_summary.html", context, request=request
+        ),
+        "empty": render_to_string(
+            "home_page/partials/_search_empty.html", context, request=request
+        ),
+    }
+    return JsonResponse({"q": q, "scope": scope, "total": total, "html": html})

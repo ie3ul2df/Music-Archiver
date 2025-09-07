@@ -87,22 +87,57 @@ document.addEventListener("DOMContentLoaded", () => {
   if (modal) {
     modal.addEventListener("show.bs.modal", function (event) {
       const button = event.relatedTarget;
-      const albumId = button.getAttribute("data-album-id");
       const albumName = button.getAttribute("data-album-name");
+      const deleteUrl = button.getAttribute("data-url");
 
-      // Only update if element exists
+      // Update modal text
       const albumNameEl = modal.querySelector("#albumName");
       if (albumNameEl) {
         albumNameEl.textContent = albumName;
       }
 
-      // Update form action
+      // Set correct form action (AJAX endpoint)
       const form = modal.querySelector("#deleteAlbumForm");
       if (form) {
-        form.action = `/album/${albumId}/delete/`;
+        form.action = deleteUrl;
       }
     });
   }
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  const deleteForm = document.getElementById("deleteAlbumForm");
+  if (!deleteForm) return;
+
+  deleteForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const url = deleteForm.getAttribute("action");
+    const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "X-CSRFToken": csrftoken },
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        // Remove the album li
+        const li = document.querySelector(`#album-list li[data-id="${data.id}"]`);
+        if (li) li.remove();
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById("deleteAlbumModal"));
+        modal.hide();
+      } else {
+        alert(data.error || "Failed to delete album.");
+      }
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert("Something went wrong deleting the album.");
+    }
+  });
 });
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -115,7 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
   input.addEventListener("keyup", () => {
     clearTimeout(timeout);
     timeout = setTimeout(() => {
-      fetch(`/album/search/?q=${encodeURIComponent(input.value)}`)
+      fetch(`/albums/search/?q=${encodeURIComponent(input.value)}`)
         .then((r) => r.json())
         .then((data) => {
           list.innerHTML = "";
@@ -188,6 +223,141 @@ document.addEventListener("DOMContentLoaded", () => {
       renameModal.querySelector("#renameTrackInput").value = trackName;
       const form = renameModal.querySelector("#renameTrackForm");
       form.action = `/album/${albumId}/tracks/${trackId}/rename/`;
+    });
+  }
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("album-create-form");
+  if (!form) return;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault(); // stop page reload
+
+    const url = form.getAttribute("action");
+    const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+    const nameInput = form.querySelector("[name=name]");
+    const name = nameInput.value.trim();
+
+    if (!name) {
+      alert("Please enter an album name");
+      return;
+    }
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": csrftoken,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({ name }),
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        // Reset form
+        form.reset();
+
+        // Insert new album at the top of the list
+        const list = document.getElementById("album-list");
+        if (list) {
+          const li = document.createElement("li");
+          li.className = "list-group-item d-flex justify-content-between align-items-center flex-wrap";
+          li.dataset.id = data.id;
+          li.innerHTML = `
+            <div class="d-flex flex-column">
+              <div>
+                <a href="${data.detail_url}" class="fw-bold text-decoration-none">${data.name}</a>
+                <span class="badge bg-secondary ms-2">Private</span>
+              </div>
+              <div class="mt-1">⭐ New album</div>
+            </div>
+            <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group">
+              <a href="${data.detail_url}" class="btn btn-outline-primary">👁 View</a>
+              <button type="button" class="btn btn-outline-secondary" disabled>✏ Edit</button>
+              <button type="button" class="btn btn-outline-warning" disabled>🌍 Make Public</button>
+              <button type="button" class="btn btn-outline-danger" disabled>🗑 Delete</button>
+            </div>
+          `;
+          list.prepend(li);
+        }
+      } else {
+        alert(data.error || "Could not create album");
+      }
+    } catch (err) {
+      console.error("Album create failed:", err);
+      alert("Something went wrong");
+    }
+  });
+});
+
+//------------------------ Album Edit modal handler
+
+document.addEventListener("DOMContentLoaded", () => {
+  const renameModal = document.getElementById("renameAlbumModal");
+  const renameForm = document.getElementById("renameAlbumForm");
+  const renameInput = document.getElementById("renameAlbumInput");
+
+  let renameUrl = null;
+  let albumLi = null;
+
+  // Open modal with current album name
+  document.querySelectorAll(".rename-album-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      renameUrl = btn.getAttribute("data-url");
+      const currentName = btn.getAttribute("data-current-name");
+      albumLi = btn.closest("li.list-group-item");
+
+      renameInput.value = currentName;
+      const modal = new bootstrap.Modal(renameModal);
+      modal.show();
+    });
+  });
+
+  // Submit rename form via AJAX
+  if (renameForm) {
+    renameForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!renameUrl) return;
+
+      const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+      const newName = renameInput.value.trim();
+      if (!newName) {
+        alert("Name cannot be empty");
+        return;
+      }
+
+      try {
+        const res = await fetch(renameUrl, {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": csrftoken,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({ name: newName }),
+        });
+        const data = await res.json();
+
+        if (data.ok && albumLi) {
+          // Update the DOM with new name
+          const link = albumLi.querySelector("a.fw-bold");
+          if (link) link.textContent = newName;
+
+          // Also update button dataset
+          const btn = albumLi.querySelector(".rename-album-btn");
+          if (btn) btn.setAttribute("data-current-name", newName);
+
+          // Close modal
+          bootstrap.Modal.getInstance(renameModal).hide();
+        } else {
+          alert(data.error || "Rename failed");
+        }
+      } catch (err) {
+        console.error("Rename error:", err);
+        alert("Something went wrong renaming album.");
+      }
     });
   }
 });

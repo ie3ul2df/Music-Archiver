@@ -125,7 +125,7 @@
       </div>
     </div>
 
-    {# ------- ❤️ My Favourites ------- #}
+    {# ------- ❤️ My Favourites (favorites are Track objects) ------- #}
     <div class="tab-pane fade" id="my-fav" role="tabpanel">
       <div class="album card mb-4" data-id="favorites">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -144,10 +144,12 @@
             data-name="{{ track.name }}"
             data-src="{% if track.audio_file %}{{ track.audio_file.url }}{% elif track.source_url %}{{ track.source_url }}{% endif %}"
           >
+            <!-- ↕ Drag handle (draggable element) -->
             <span class="drag-handle" draggable="true" title="Drag to reorder">↕</span>
 
             <input class="form-check-input track-check" type="checkbox" id="track-fav-{{ track.id }}" />
 
+            <!-- ▶ Play -->
             <button
               type="button"
               class="btn btn-sm btn-outline-secondary play-btn"
@@ -158,12 +160,15 @@
               ▶
             </button>
 
+            <!-- Track name -->
             <span class="flex-grow-1">{{ track.name }}</span>
 
+            <!-- ⭐ Stars -->
             <span class="ms-2">
               {% include "ratings/_stars.html" with type="track" id=track.id avg=track.rating_avg count=track.rating_count user_rating=None %}
             </span>
 
+            <!-- ♥ Toggle favourite -->
             <button
               type="button"
               class="btn btn-sm btn-outline-danger fav-btn {% if track.is_favorited %}active{% endif %}"
@@ -180,7 +185,7 @@
       </div>
     </div>
 
-    {# ------- 🕓 Recently Played ------- #}
+    {# ------- 🕓 Recently Played (recent are Track objects) ------- #}
     <div class="tab-pane fade" id="recent" role="tabpanel">
       <ul class="list-group list-group-flush tracks">
         {% for row in recent %}
@@ -196,6 +201,7 @@
 
           <span class="flex-grow-1">{{ row.name }}</span>
 
+          <!-- ⭐ Track stars -->
           <span class="ms-2"> {% include "ratings/_stars.html" with type="track" id=row.id avg=row.rating_avg count=row.rating_count user_rating=None %} </span>
 
           <button
@@ -219,4 +225,5 @@
 <script src="{% static 'js/music_player.js' %}" defer></script>
 <script src="{% static 'js/track_list.js' %}" defer></script>
 <script src="{% static 'js/toggle_fav_btn.js' %}" defer></script>
+
 {% endblock %}

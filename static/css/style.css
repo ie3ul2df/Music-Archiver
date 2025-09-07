@@ -37,3 +37,68 @@
   align-items: center;
   justify-content: center;
 }
+
+/* ---------------------------
+   Rating styles 
+--------------------------- */
+
+.star-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 1.6rem;
+}
+
+.star-rating .stars {
+  display: flex; /* normal LTR order */
+  align-items: center;
+}
+
+.star-rating .star-btn {
+  appearance: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  padding: 0 4px;
+  color: #c9ccd3; /* base grey */
+  transition: color 0.2s ease, transform 0.15s ease, text-shadow 0.2s ease;
+}
+
+/* Persisted selection from server (or post-click) */
+.star-rating .star-btn.is-selected {
+  color: #f5c518; /* gold */
+  text-shadow: 0 0 8px rgba(245, 197, 24, 0.6);
+}
+
+/* JS adds .is-hover to stars 1..N while hovering a star */
+.star-rating .star-btn.is-hover {
+  color: #f5c518;
+  transform: translateY(-1px) scale(1.12);
+  text-shadow: 0 0 10px rgba(245, 197, 24, 0.75);
+}
+
+/* While the group is busy posting, disable pointer */
+.star-rating.is-busy .star-btn {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* Drag handle for favourites */
+.drag-handle {
+  cursor: grab;
+  user-select: none;
+  font-size: 1.2rem;
+  line-height: 1;
+  opacity: 0.7;
+  padding: 0 0.25rem;
+}
+.drag-handle:active {
+  cursor: grabbing;
+  opacity: 1;
+}
+li.track-item.dragging {
+  opacity: 0.6;
+  background: #f8f9fa;
+}

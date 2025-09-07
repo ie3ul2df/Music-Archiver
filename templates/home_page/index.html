@@ -48,7 +48,7 @@
       <div class="card border-0 shadow-sm p-4 h-100">
         <h3>📂 Albums</h3>
         <p>Create albums, organise your tracks, and enjoy your collection seamlessly.</p>
-        <a href="{% url 'album_list' %}" class="btn btn-outline-primary">My Albums</a>
+        <a href="{% url 'album:album_list' %}" class="btn btn-outline-primary">My Albums</a>
       </div>
     </div>
     <div class="col-md-4">
@@ -71,5 +71,5 @@
   {% endif %}
 </div>
 
-<script src="{% static 'js/search.js' %}" defer></script>
+<script src="{% static 'js/home_search.js' %}" defer></script>
 {% endblock %}

@@ -9,9 +9,13 @@
           <a href="{% url 'album_detail' album.id %}">{{ album.name }}</a>
         </h5>
         <p class="text-muted mb-2">by {{ album.owner.username }}</p>
+
         {% if album.description %}
-        <p class="small text-secondary mb-0">{{ album.description|truncatechars:140 }}</p>
+        <p class="small text-secondary mb-2">{{ album.description|truncatechars:140 }}</p>
         {% endif %}
+
+        <!-- ⭐ Stars widget -->
+        <div class="mt-1">{% include "ratings/_stars.html" with type="album" id=album.id avg=album.rating_avg count=album.rating_count user_rating=None %}</div>
       </div>
       <div class="card-footer bg-white border-0">
         <span class="badge bg-secondary">{{ album.track_count }} tracks</span>

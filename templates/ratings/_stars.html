@@ -1,0 +1,19 @@
+{# Inputs: type - "album" | "track" id - object id avg - float (0..5) count - int user_rating - int|None #}
+<div class="star-rating d-inline-flex align-items-center" data-type="{{ type }}" data-id="{{ id }}" data-user-rating="{{ user_rating|default:'' }}">
+  <div class="stars me-2">
+    {% for n in "12345" %} {% with v=forloop.counter %} {# Gold if user rated (v <= user_rating) else gold if v <= avg #}
+    <button
+      type="button"
+      class="star-btn{% if user_rating and v <= user_rating %} is-selected{% elif not user_rating and avg and v <= avg %} is-selected{% endif %}"
+      data-value="{{ v }}"
+      aria-label="{{ v }} star{% if v > 1 %}s{% endif %}"
+    >
+      ★
+    </button>
+    {% endwith %} {% endfor %}
+  </div>
+  <div class="rating-summary small text-muted">
+    <span class="avg">{{ avg|default:0|floatformat:1 }}</span>/5
+    <span class="count">({{ count|default:0 }})</span>
+  </div>
+</div>

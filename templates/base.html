@@ -45,7 +45,7 @@
               <a class="nav-link {% if request.resolver_match.url_name == 'track_list' %}active{% endif %}" href="{% url 'track_list' %}">🎵 Music Player</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link {% if request.resolver_match.url_name == 'album_list' %}active{% endif %}" href="{% url 'album_list' %}">📂My Albums</a>
+              <a href="{% url 'album:album_list' %}" class="btn btn-outline-primary">📂 My Albums</a>
             </li>
             <li class="nav-item">
               <a class="nav-link {% if request.resolver_match.url_name == 'plan_list' %}active{% endif %}" href="{% url 'plan_list' %}">💸 Prices</a>
@@ -63,10 +63,12 @@
                 <img
                   src="{{ profile.profile_image.url }}"
                   alt="Profile image"
-                  class="rounded-circle mb-3"
+                  class="rounded-circle me-2"
                   style="width: 25px; height: 25px; object-fit: cover"
                 />
-                {% else %} <span>👤</span>{% endif %} Profile
+                {% else %}
+                <span class="me-1">👤</span>
+                {% endif %} Profile
               </a>
             </li>
             <li class="nav-item">
@@ -93,7 +95,10 @@
       </div>
       {% endfor %} {% endif %} {% block content %}{% endblock %}
     </main>
+
+    <!-- Global scripts -->
     <script src="{% static 'js/cookies.js' %}" defer></script>
+    <script src="{% static 'js/ratings.js' %}" defer></script>
     {% block extra_js %}{% endblock %}
   </body>
 </html>
