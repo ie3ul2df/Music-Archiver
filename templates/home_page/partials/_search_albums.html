@@ -6,7 +6,7 @@
     <div class="card h-100">
       <div class="card-body">
         <h5 class="card-title mb-1">
-          <a href="{% url 'album_detail' album.id %}">{{ album.name }}</a>
+          <a href="{% url 'album:album_detail' album.id %}">{{ album.name }}</a>
         </h5>
         <p class="text-muted mb-2">by {{ album.owner.username }}</p>
 

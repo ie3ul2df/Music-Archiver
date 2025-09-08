@@ -43,7 +43,10 @@ def _has_field(model_cls, field_name: str) -> bool:
 
 @login_required
 def album_list(request):
-    """List current user's albums (ordered if field available) + ratings; create on POST."""
+    """
+    List current user's albums (ordered if field available) + ratings; create on POST.
+    Also provides Saved Albums & Saved Tracks for the tabs on album_list.html.
+    """
     # Handle create
     if request.method == "POST":
         ok, reason = can_add_album(request.user)
@@ -58,25 +61,61 @@ def album_list(request):
         messages.success(request, "Album created.")
         return redirect("album_list")
 
-    # List with ratings
+    # Your albums (with ratings)
     qs = Album.objects.filter(owner=request.user)
     if _has_field(Album, "order"):
         qs = qs.order_by("order", "id")
     else:
         qs = qs.order_by("-created_at", "id")
-
     albums = annotate_albums(qs)  # adds rating_avg & rating_count
-    return render(request, "album/album_list.html", {"albums": albums})
 
+    # Saved items for tabs (lazy import to avoid circular if app not installed yet)
+    try:
+        from save_system.models import SavedAlbum, SavedTrack
+
+        saved_albums = (
+            SavedAlbum.objects
+            .filter(owner=request.user)
+            .select_related("original_album")
+            .order_by("-saved_at")
+        )
+        saved_tracks = (
+            SavedTrack.objects
+            .filter(owner=request.user)
+            .select_related("original_track", "album")
+            .order_by("-saved_at")
+        )
+    except Exception:
+        # save_system not installed yet; keep page working
+        saved_albums = []
+        saved_tracks = []
+
+    return render(
+        request,
+        "album/album_list.html",
+        {
+            "albums": albums,
+            "saved_albums": saved_albums,
+            "saved_tracks": saved_tracks,
+        },
+    )
 
 
 @login_required
 def album_detail(request, pk):
-    """Show album with tracks; allow adding new ones and drag-reorder."""
-    album = get_object_or_404(Album, pk=pk, owner=request.user)
-    album = annotate_albums(Album.objects.filter(pk=album.pk)).first()  # ⭐ add ratings
+    """Show album with tracks. Owner can edit, others can only view if public."""
+    album = get_object_or_404(
+        Album.objects.all(),
+        Q(pk=pk) & (Q(owner=request.user) | Q(is_public=True))
+    )
 
-    if request.method == "POST":
+    # Annotate ratings
+    album = annotate_albums(Album.objects.filter(pk=album.pk)).first()
+
+    is_owner = album.owner == request.user
+
+    # Handle POST only if user owns the album
+    if is_owner and request.method == "POST":
         form = TrackForm(request.POST, request.FILES, owner=request.user)
         if form.is_valid():
             track = form.save()
@@ -84,11 +123,12 @@ def album_detail(request, pk):
             pos = (last.position + 1) if last else 0
             AlbumTrack.objects.create(album=album, track=track, position=pos)
             messages.success(request, "Track added to album.")
-            return redirect("album_detail", pk=album.pk)
+            return redirect("album:album_detail", pk=album.pk)
         messages.error(request, "Fix the errors and try again.")
     else:
-        form = TrackForm(owner=request.user)
+        form = TrackForm(owner=request.user) if is_owner else None
 
+    # Tracks with rating annotations
     items = (
         AlbumTrack.objects.filter(album=album)
         .select_related("track")
@@ -105,8 +145,9 @@ def album_detail(request, pk):
         {
             "album": album,
             "items": items,
-            "form": form,
-            "has_storage": True,  # TODO: integrate with storage plans
+            "form": form,            # None for visitors
+            "is_owner": is_owner,    # template can use this flag
+            "has_storage": True,     # TODO: integrate with storage plans
         },
     )
 
@@ -119,19 +160,19 @@ def album_add_track(request, pk):
     tid = request.POST.get("track_id")
     if not tid:
         messages.error(request, "Select a track to add.")
-        return redirect("album_detail", pk=pk)
+        return redirect("album:album_detail", pk=pk)
 
     track = get_object_or_404(Track, pk=tid, owner=request.user)
 
     if AlbumTrack.objects.filter(album=album, track=track).exists():
         messages.info(request, "Track is already in this album.")
-        return redirect("album_detail", pk=pk)
+        return redirect("album:album_detail", pk=pk)
 
     last = AlbumTrack.objects.filter(album=album).order_by("-position").first()
     pos = (last.position + 1) if last else 0
     AlbumTrack.objects.create(album=album, track=track, position=pos)
     messages.success(request, "Added to album.")
-    return redirect("album_detail", pk=pk)
+    return redirect("album:album_detail", pk=pk)
 
 
 @login_required
@@ -142,7 +183,7 @@ def album_remove_track(request, pk, item_id):
     item = get_object_or_404(AlbumTrack, pk=item_id, album=album)
     item.delete()
     messages.success(request, "Removed from album.")
-    return redirect("album_detail", pk=pk)
+    return redirect("album:album_detail", pk=pk)
 
 
 

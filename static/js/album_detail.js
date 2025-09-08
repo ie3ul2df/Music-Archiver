@@ -150,7 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
   input.addEventListener("keyup", () => {
     clearTimeout(timeout);
     timeout = setTimeout(() => {
-      fetch(`/albums/search/?q=${encodeURIComponent(input.value)}`)
+      fetch(`/album/search/?q=${encodeURIComponent(input.value)}`)
         .then((r) => r.json())
         .then((data) => {
           list.innerHTML = "";

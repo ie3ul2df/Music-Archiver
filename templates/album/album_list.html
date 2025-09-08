@@ -1,70 +1,173 @@
 {% extends "base.html" %} {% load static %} {% block content %}
+
 <div class="container py-4">
-  <!-- Header with search + create -->
-  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-    <h2 class="mb-0">Your Albums</h2>
-
-    <!-- Search form -->
-    <form id="album-search-form" class="d-flex gap-2">
-      <input id="album-search-input" type="text" class="form-control" placeholder="Search albums..." aria-label="Search albums" />
-    </form>
-
-    <!-- Create new album (AJAX) -->
-    <form id="album-create-form" action="{% url 'album:ajax_add_album' %}" method="post" class="d-flex gap-2">
-      {% csrf_token %}
-      <input name="name" class="form-control" placeholder="New album name" required aria-label="New album name" />
-      <button class="btn btn-primary" type="submit">➕ Create</button>
-    </form>
-  </div>
-
-  <!-- Album list -->
-  <ul id="album-list" class="list-group">
-    {% for a in albums %}
-    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap" data-id="{{ a.pk }}">
-      <div class="d-flex flex-column">
-        <div>
-          <a href="{% url 'album:album_detail' a.pk %}" class="fw-bold text-decoration-none">{{ a.name }}</a>
-          {% if a.is_public %}
-          <span class="badge bg-success ms-2">Public</span>
-          {% else %}
-          <span class="badge bg-secondary ms-2">Private</span>
-          {% endif %}
-        </div>
-
-        <!-- ⭐ Rating widget -->
-        <div class="mt-1">{% include "ratings/_stars.html" with type="album" id=a.id avg=a.rating_avg count=a.rating_count user_rating=None %}</div>
-      </div>
-
-      <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group">
-        <a href="{% url 'album:album_detail' a.pk %}" class="btn btn-outline-primary">👁 View</a>
-        <!-- Rename will be handled inline or via AJAX -->
-        <button
-          type="button"
-          class="btn btn-outline-secondary rename-album-btn"
-          data-url="{% url 'album:ajax_rename_album' a.pk %}"
-          data-current-name="{{ a.name }}"
-        >
-          ✏ Edit
-        </button>
-        <a href="{% url 'album:toggle_album_visibility' a.pk %}" class="btn btn-outline-warning">
-          {% if a.is_public %}🔒 Make Private{% else %}🌍 Make Public{% endif %}
-        </a>
-        <button
-          type="button"
-          class="btn btn-outline-danger"
-          data-bs-toggle="modal"
-          data-bs-target="#deleteAlbumModal"
-          data-url="{% url 'album:ajax_delete_album' a.pk %}"
-          data-album-name="{{ a.name }}"
-        >
-          🗑 Delete
-        </button>
-      </div>
+  <!-- Tabs -->
+  <ul class="nav nav-tabs" id="albumsTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button
+        class="nav-link active"
+        id="your-tab"
+        data-bs-toggle="tab"
+        data-bs-target="#your-tabpane"
+        type="button"
+        role="tab"
+        aria-controls="your-tabpane"
+        aria-selected="true"
+      >
+        Your Albums
+      </button>
     </li>
-    {% empty %}
-    <li class="list-group-item">No albums yet.</li>
-    {% endfor %}
+    <li class="nav-item" role="presentation">
+      <button
+        class="nav-link"
+        id="saved-albums-tab"
+        data-bs-toggle="tab"
+        data-bs-target="#saved-albums-tabpane"
+        type="button"
+        role="tab"
+        aria-controls="saved-albums-tabpane"
+        aria-selected="false"
+      >
+        Saved Albums
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button
+        class="nav-link"
+        id="saved-tracks-tab"
+        data-bs-toggle="tab"
+        data-bs-target="#saved-tracks-tabpane"
+        type="button"
+        role="tab"
+        aria-controls="saved-tracks-tabpane"
+        aria-selected="false"
+      >
+        Saved Tracks
+      </button>
+    </li>
   </ul>
+
+  <div class="tab-content pt-3" id="albumsTabsContent">
+    <!-- ================= Your Albums ================= -->
+    <div class="tab-pane fade show active" id="your-tabpane" role="tabpanel" aria-labelledby="your-tab" tabindex="0">
+      <!-- Header with search + create -->
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <h2 class="mb-0">Your Albums</h2>
+
+        <!-- Search form -->
+        <form id="album-search-form" class="d-flex gap-2">
+          <input id="album-search-input" type="text" class="form-control" placeholder="Search albums..." aria-label="Search albums" />
+        </form>
+
+        <!-- Create new album (AJAX) -->
+        <form id="album-create-form" action="{% url 'album:ajax_add_album' %}" method="post" class="d-flex gap-2">
+          {% csrf_token %}
+          <input name="name" class="form-control" placeholder="New album name" required aria-label="New album name" />
+          <button class="btn btn-primary" type="submit">➕ Create</button>
+        </form>
+      </div>
+
+      <!-- Album list -->
+      <ul id="album-list" class="list-group">
+        {% for a in albums %}
+        <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap" data-id="{{ a.pk }}">
+          <div class="d-flex flex-column">
+            <div>
+              <a href="{% url 'album:album_detail' a.pk %}" class="fw-bold text-decoration-none">{{ a.name }}</a>
+              {% if a.is_public %}
+              <span class="badge bg-success ms-2">Public</span>
+              {% else %}
+              <span class="badge bg-secondary ms-2">Private</span>
+              {% endif %}
+            </div>
+
+            <!-- ⭐ Rating widget -->
+            <div class="mt-1">{% include "ratings/_stars.html" with type="album" id=a.id avg=a.rating_avg count=a.rating_count user_rating=None %}</div>
+          </div>
+
+          <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group">
+            <a href="{% url 'album:album_detail' a.pk %}" class="btn btn-outline-primary">👁 View</a>
+            <!-- Rename will be handled inline or via AJAX -->
+            <button
+              type="button"
+              class="btn btn-outline-secondary rename-album-btn"
+              data-url="{% url 'album:ajax_rename_album' a.pk %}"
+              data-current-name="{{ a.name }}"
+            >
+              ✏ Edit
+            </button>
+            <a href="{% url 'album:toggle_album_visibility' a.pk %}" class="btn btn-outline-warning">
+              {% if a.is_public %}🔒 Make Private{% else %}🌍 Make Public{% endif %}
+            </a>
+            <button
+              type="button"
+              class="btn btn-outline-danger"
+              data-bs-toggle="modal"
+              data-bs-target="#deleteAlbumModal"
+              data-url="{% url 'album:ajax_delete_album' a.pk %}"
+              data-album-name="{{ a.name }}"
+            >
+              🗑 Delete
+            </button>
+          </div>
+        </li>
+        {% empty %}
+        <li class="list-group-item">No albums yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <!-- ================= Saved Albums ================= -->
+    <div class="tab-pane fade" id="saved-albums-tabpane" role="tabpanel" aria-labelledby="saved-albums-tab" tabindex="0">
+      <h2 class="h4 mb-3">Saved Albums</h2>
+      <ul class="list-group">
+        {% for s in saved_albums %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div class="d-flex flex-column">
+            <div class="fw-semibold">{{ s.name_snapshot }}</div>
+            <small class="text-muted">
+              Saved on {{ s.saved_at|date:"Y-m-d H:i" }} {% if s.original_album %} ·
+              <a class="text-decoration-none" href="{% url 'album:album_detail' s.original_album.pk %}">Open original</a> {% else %} ·
+              <span class="text-danger">Original removed</span>
+              {% endif %}
+            </small>
+          </div>
+          {% if s.has_updates %}
+          <span class="badge bg-warning text-dark">Updated</span>
+          {% endif %}
+        </li>
+        {% empty %}
+        <li class="list-group-item">No saved albums.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <!-- ================= Saved Tracks ================= -->
+    <div class="tab-pane fade" id="saved-tracks-tabpane" role="tabpanel" aria-labelledby="saved-tracks-tab" tabindex="0">
+      <h2 class="h4 mb-3">Saved Tracks</h2>
+      <ul class="list-group">
+        {% for s in saved_tracks %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div class="d-flex flex-column">
+            <div class="fw-semibold">{{ s.name_snapshot }}</div>
+            <small class="text-muted">
+              Saved on {{ s.saved_at|date:"Y-m-d H:i" }} · Filed in
+              <a class="text-decoration-none" href="{% url 'album:album_detail' s.album.pk %}">{{ s.album.name }}</a>
+              {% if s.original_track %} {# if you have a track detail route, link it here; otherwise omit #} {% else %} ·
+              <span class="text-danger">Original removed</span>
+              {% endif %}
+            </small>
+          </div>
+          {% if s.has_updates %}
+          <span class="badge bg-warning text-dark">Updated</span>
+          {% endif %}
+        </li>
+        {% empty %}
+        <li class="list-group-item">No saved tracks.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
 </div>
 
 <!-- Delete confirmation modal -->

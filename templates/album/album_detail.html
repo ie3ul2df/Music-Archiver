@@ -37,6 +37,7 @@
       </div>
 
       <div class="btn-group btn-group-sm">
+        {% if is_owner %}
         <!-- Rename -->
         <button
           type="button"
@@ -59,6 +60,10 @@
         >
           🗑
         </button>
+        {% else %} {% if request.user.is_authenticated %}
+        <!-- Save track into one of user's own albums -->
+        <button class="btn btn-outline-success" data-track-id="{{ at.track.id }}" data-bs-toggle="modal" data-bs-target="#saveTrackModal">💾 Save</button>
+        {% endif %} {% endif %}
       </div>
     </li>
     {% empty %}

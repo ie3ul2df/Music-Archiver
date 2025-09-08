@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "profile_page",
     "checkout",
     "ratings",
+    "save_system",
 ]
 
 SITE_ID = 1
@@ -119,6 +120,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "basket.contexts.basket_contents",
                 "profile_page.context_processors.user_profile",
+                "save_system.context_processors.user_albums_for_save",
             ],
         },
     },

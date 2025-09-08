@@ -1,18 +1,67 @@
-{# templates/album/public_album_detail.html #} {% extends "base.html" %} {% block content %}
+{# templates/album/public_album_detail.html #} {% extends "base.html" %} {% load static %} {% block content %}
 <div class="container py-4">
-  <h2>{{ album.name }}</h2>
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="mb-0">{{ album.name }}</h2>
+    {% if user.is_authenticated and album.owner_id != user.id %}
+    <a href="{% url 'save_system:save_album' album.pk %}" data-save-album="1" class="btn btn-sm btn-outline-success">💾 Save Album</a>
+    {% endif %}
+  </div>
+
   {% if album.description %}
   <p class="text-muted">{{ album.description }}</p>
   {% endif %}
+
   <ol class="list-group list-group-numbered">
     {% for at in tracks %}
     <li class="list-group-item d-flex justify-content-between align-items-center">
-      <span>{{ at.track.title }}</span>
-      <a href="{% url 'play_track' at.track.pk %}" class="btn btn-sm btn-outline-primary">Play</a>
+      <span>{{ at.track.title|default:at.track.name }}</span>
+      <div class="btn-group">
+        <a href="{% url 'play_track' at.track.pk %}" class="btn btn-sm btn-outline-primary">Play</a>
+        {% if user.is_authenticated and album.owner_id != user.id %}
+        <button class="btn btn-sm btn-outline-success ms-2" data-track-id="{{ at.track.id }}" data-bs-toggle="modal" data-bs-target="#saveTrackModal">
+          💾 Save Track
+        </button>
+        {% endif %}
+      </div>
     </li>
     {% empty %}
     <li class="list-group-item">No tracks yet.</li>
     {% endfor %}
   </ol>
 </div>
-{% endblock %}
+
+{% if user.is_authenticated %}
+<!-- Save Track Modal -->
+<div class="modal fade" id="saveTrackModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="saveTrackForm" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="track_id" id="saveTrackId" />
+        <div class="modal-header">
+          <h5 class="modal-title">Save track to your album</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          {% if user_albums %}
+          <label for="albumSelect" class="form-label">Choose Album</label>
+          <select name="album_id" id="albumSelect" class="form-select">
+            {% for a in user_albums %}
+            <option value="{{ a.id }}">{{ a.name }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <p class="text-muted mb-0">You don’t have any albums yet. Create one first.</p>
+          {% endif %}
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary" {% if not user_albums %}disabled{% endif %}>Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Save-System JS -->
+<script src="{% static 'js/save_system.js' %}"></script>
+{% endif %} {% endblock %}
