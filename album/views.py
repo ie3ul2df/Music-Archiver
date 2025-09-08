@@ -103,7 +103,11 @@ def album_list(request):
 
 @login_required
 def album_detail(request, pk):
-    """Show album with tracks. Owner can edit, others can only view if public."""
+    """Show album with tracks.
+    - Owner: can edit (add tracks, reorder, delete)
+    - Visitor: can only view if album is public
+    """
+
     album = get_object_or_404(
         Album.objects.all(),
         Q(pk=pk) & (Q(owner=request.user) | Q(is_public=True))
@@ -111,7 +115,6 @@ def album_detail(request, pk):
 
     # Annotate ratings
     album = annotate_albums(Album.objects.filter(pk=album.pk)).first()
-
     is_owner = album.owner == request.user
 
     # Handle POST only if user owns the album
@@ -139,18 +142,20 @@ def album_detail(request, pk):
         .order_by("position", "id")
     )
 
+    # Choose template
+    template_name = "album/album_detail.html" if is_owner else "album/public_album_detail.html"
+
     return render(
         request,
-        "album/album_detail.html",
+        template_name,
         {
             "album": album,
             "items": items,
             "form": form,            # None for visitors
-            "is_owner": is_owner,    # template can use this flag
+            "is_owner": is_owner,
             "has_storage": True,     # TODO: integrate with storage plans
         },
     )
-
 
 @login_required
 @require_POST
