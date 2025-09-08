@@ -26,4 +26,10 @@ urlpatterns = [
     path("json/", views.tracks_json, name="tracks_json_legacy"),
     path("reorder/", views.reorder_tracks, name="reorder_tracks_legacy"),
     path("<int:track_id>/fav/", views.toggle_favorite, name="toggle_favorite_legacy"),
+    
+    # Download track
+    path("<int:pk>/download/", views.download_track, name="download_track"),
+    
+    # User tracks
+    path("by/<str:username>/", views.user_tracks, name="user_tracks"),
 ]

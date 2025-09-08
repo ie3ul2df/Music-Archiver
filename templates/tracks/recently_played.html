@@ -3,10 +3,10 @@
   <h2>Recently Played</h2>
   <ul class="list-group">
     {% for row in results %}
-    <li class="list-group-item d-flex justify-content-between align-items-center">
-      <span>{{ row.track.name }}</span>
-      <small class="text-muted">{{ row.last_played|date:"Y-m-d H:i" }}</small>
-    </li>
+    <div class="d-flex flex-column">
+      {% include "tracks/_track_card.html" with track=row.track %}
+      <small class="text-muted ms-2">Last played: {{ row.last_played|date:"Y-m-d H:i" }}</small>
+    </div>
     {% empty %}
     <li class="list-group-item text-muted">No tracks played yet.</li>
     {% endfor %}

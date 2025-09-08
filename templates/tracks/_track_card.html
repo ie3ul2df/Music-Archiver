@@ -1,0 +1,54 @@
+{# Reusable compact Bootstrap card for a single track #} {# expects: track (required); album (optional); is_favorited (optional bool); avg/count optional #} {%
+load static %} {% with avg=avg|default:track.rating_avg|default:0 count=count|default:track.rating_count|default:0 %}
+
+<li class="list-group-item p-2 track-card d-flex flex-column gap-2" data-track-id="{{ track.id }}">
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <!-- Title -->
+    <span class="fw-semibold me-1">{{ track.name }}</span>
+
+    <!-- small album link (only if provided by parent) -->
+    {% if album %}
+    <a class="text-decoration-none small text-muted" href="{% url 'album_detail' album.id %}"> · {{ album.name }} </a>
+    {% endif %}
+
+    <!-- small author link -->
+    <a class="text-decoration-none small text-muted" href="{% url 'user_tracks' track.owner.username %}"> · {{ track.owner.username }} </a>
+
+    <!-- right aligned actions -->
+    <span class="ms-auto d-flex align-items-center gap-1">
+      <!-- ♥ favourite -->
+      <button
+        class="btn btn-sm {% if is_favorited %}btn-danger{% else %}btn-outline-danger{% endif %} js-fav"
+        data-url="{% url 'toggle_favorite' track.id %}"
+        title="Favourite"
+      >
+        ♥
+      </button>
+
+      <!-- 💾 save to my album (hide if mine) -->
+      {% if request.user.is_authenticated and request.user.id != track.owner_id %}
+      <button class="btn btn-sm btn-outline-secondary js-save" data-save-url="{% url 'save_track' track.id %}" title="Save to one of my albums">💾</button>
+      {% endif %}
+
+      <!-- ⬇ download -->
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'download_track' track.id %}" title="Download"> ⬇ </a>
+
+      <!-- ▶ inline play/pause -->
+      <button class="btn btn-sm btn-primary js-inline-play" title="Play/Pause">▶</button>
+
+      <!-- ★ ratings (your working widget) -->
+      <span class="ms-1 rating-wrap"> {% include "ratings/_stars.html" with type="track" id=track.id avg=avg count=count user_rating=None %} </span>
+    </span>
+  </div>
+
+  <!-- Inline audio (revealed on first play) -->
+  {% if track.audio_file or track.source_url %} {% if track.audio_file %} {% with stream=track.audio_file.url %} {% else %} {% with stream=track.source_url %}
+  {% endif %}
+
+  <audio class="inline-audio d-none" preload="none" src="{{ stream }}" data-log-url="{% url 'log_play' track.id %}">
+    Your browser does not support the audio element.
+  </audio>
+
+  {% endwith %} {% endif %}
+</li>
+{% endwith %}

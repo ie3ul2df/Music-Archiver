@@ -1,13 +1,15 @@
 # ----------------------- tracks/views.py ----------------------- #
-
+import os
 import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.contrib import messages
+from django.http import FileResponse, HttpResponseNotFound, HttpResponseRedirect
 from django.utils import timezone
 from django.db import IntegrityError
+from django.contrib.auth import get_user_model
 from django.db.models import (
     Max, Exists, OuterRef, Prefetch, Avg, Count,
 )
@@ -273,3 +275,26 @@ def log_play(request, track_id):
     track = get_object_or_404(Track, pk=track_id)
     Listen.objects.create(user=request.user, track=track)
     return JsonResponse({"ok": True})
+
+
+@login_required
+def download_track(request, pk):
+    track = get_object_or_404(Track, pk=pk)
+    if track.audio_file:
+      try:
+        return FileResponse(open(track.audio_file.path, "rb"),
+                            as_attachment=True,
+                            filename=os.path.basename(track.audio_file.name))
+      except Exception:
+        return HttpResponseNotFound("File not found.")
+    if track.source_url:
+      return HttpResponseRedirect(track.source_url)
+    return HttpResponseNotFound("Nothing to download.")
+
+
+User = get_user_model()
+
+def user_tracks(request, username):
+    author = get_object_or_404(User, username=username)
+    qs = annotate_tracks(Track.objects.filter(owner=author).order_by("-created_at"))
+    return render(request, "tracks/user_tracks.html", {"author": author, "tracks": qs})

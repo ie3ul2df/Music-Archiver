@@ -3,15 +3,7 @@
   <h2>Favourites</h2>
 
   <ul class="list-group">
-    {% for f in favorites %}
-    <li class="list-group-item d-flex justify-content-between align-items-center" data-fav-list>
-      <span>{{ f.track.name }}</span>
-      <span class="d-flex gap-2">
-        <a class="btn btn-sm btn-outline-primary" href="{% url 'play_track' f.track.pk %}">▶ Play</a>
-        <button type="button" class="btn btn-sm btn-outline-danger fav-btn active" data-track="{{ f.track.pk }}" aria-pressed="true">♥</button>
-      </span>
-    </li>
-    {% empty %}
+    {% for f in favorites %} {% include "tracks/_track_card.html" with track=f.track is_favorited=True %} {% empty %}
     <li class="list-group-item text-muted">No favourites yet.</li>
     {% endfor %}
   </ul>

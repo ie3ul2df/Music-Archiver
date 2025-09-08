@@ -27,45 +27,8 @@
 
   <!-- Track list -->
   <ul id="track-list" class="list-group" data-album-id="{{ album.id }}" data-reorder-url="{% url 'album:album_reorder_tracks' album.pk %}">
-    {% for at in items %}
-    <li class="list-group-item d-flex justify-content-between align-items-center" data-id="{{ at.id }}">
-      <div class="d-flex flex-column">
-        <span class="track-name">{{ at.track.name }}</span>
-        <!-- ⭐ Track rating -->
-        <div class="mt-1">{% include "ratings/_stars.html" with type="track" id=at.track.id avg=at.track_avg count=at.track_count user_rating=None %}</div>
-      </div>
-
-      <div class="btn-group btn-group-sm">
-        {% if is_owner %}
-        <!-- Rename -->
-        <button
-          type="button"
-          class="btn btn-outline-secondary rename-track-btn"
-          data-track-id="{{ at.id }}"
-          data-track-name="{{ at.track.name }}"
-          data-bs-toggle="modal"
-          data-bs-target="#renameTrackModal"
-        >
-          ✏
-        </button>
-        <!-- Delete -->
-        <button
-          type="button"
-          class="btn btn-outline-danger delete-track-btn"
-          data-track-id="{{ at.id }}"
-          data-track-name="{{ at.track.name }}"
-          data-bs-toggle="modal"
-          data-bs-target="#deleteTrackModal"
-        >
-          🗑
-        </button>
-        {% else %} {% if request.user.is_authenticated %}
-        <!-- Save track into one of user's own albums -->
-        <button class="btn btn-outline-success" data-track-id="{{ at.track.id }}" data-bs-toggle="modal" data-bs-target="#saveTrackModal">💾 Save</button>
-        {% endif %} {% endif %}
-      </div>
-    </li>
-    {% empty %}
+    {% for at in items %} {% include "tracks/_track_card.html" with track=at.track album=album is_favorited=at.is_favorited avg=at.track_avg
+    count=at.track_count %} {% empty %}
     <li class="list-group-item text-muted">No tracks yet.</li>
     {% endfor %}
   </ul>
