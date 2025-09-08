@@ -1,8 +1,15 @@
-{% extends "base.html" %} {% load static %} {% load crispy_forms_tags %} {% block content %}
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block content %}
 <div class="container py-4">
   <h3>{{ album.name }}</h3>
+
   <!-- ⭐ Album rating -->
-  <div class="mb-3">{% include "ratings/_stars.html" with type="album" id=album.id avg=album.rating_avg count=album.rating_count user_rating=None %}</div>
+  <div class="mb-3">
+    {% include "ratings/_stars.html" with type="album" id=album.id avg=album.rating_avg count=album.rating_count user_rating=None %}
+  </div>
 
   <!-- Track add form -->
   <form method="post" enctype="multipart/form-data" class="row g-2 my-3">
@@ -14,22 +21,33 @@
       <input name="source_url" class="form-control" placeholder="https://audio-link.mp3" />
     </div>
     {% if has_storage %}
-    <div class="col-md-3">
-      <input type="file" name="audio_file" accept="audio/*" class="form-control" />
-    </div>
+      <div class="col-md-3">
+        <input type="file" name="audio_file" accept="audio/*" class="form-control" />
+      </div>
     {% endif %}
     <div class="col-md-2 d-grid">
       <button class="btn btn-primary">Add Track</button>
     </div>
   </form>
 
-  <p class="text-muted">Provide a link OR upload a file{% if not has_storage %} (upload requires a storage plan){% endif %}.</p>
+  <p class="text-muted">
+    Provide a link OR upload a file
+    {% if not has_storage %}(upload requires a storage plan){% endif %}.
+  </p>
 
   <!-- Track list -->
-  <ul id="track-list" class="list-group" data-album-id="{{ album.id }}" data-reorder-url="{% url 'album:album_reorder_tracks' album.pk %}">
-    {% for at in items %} {% include "tracks/_track_card.html" with track=at.track album=album is_favorited=at.is_favorited avg=at.track_avg
-    count=at.track_count %} {% empty %}
-    <li class="list-group-item text-muted">No tracks yet.</li>
+  <ul id="track-list" class="list-group"
+      data-album-id="{{ album.id }}"
+      data-reorder-url="{% url 'album:album_reorder_tracks' album.pk %}">
+    {% for at in items %}
+      {% include "tracks/_track_card.html" with
+          track=at.track
+          album=album
+          is_favorited=at.is_favorited
+          avg=at.track_avg
+          count=at.track_count %}
+    {% empty %}
+      <li class="list-group-item text-muted">No tracks yet.</li>
     {% endfor %}
   </ul>
 
@@ -77,6 +95,8 @@
     </div>
   </div>
 </div>
-{% endblock %} {% block extra_js %}
+{% endblock %}
+
+{% block extra_js %}
 <script src="{% static 'js/album_detail.js' %}" defer></script>
 {% endblock %}
