@@ -26,12 +26,12 @@ def _can_add_album(user):
     Otherwise: free users limited to 1 album.
     """
     try:
-        from plans.utils import can_add_album as _cap  # type: ignore
+        from plans.utils import can_add_album as _cap  
         return _cap(user)
     except Exception:
         count = Album.objects.filter(owner=user).count()
-        if count >= 1:
-            return False, "Free tier limit reached (1 album). Upgrade to add more."
+        if count >= 3:
+            return False, "Free tier limit reached (3 albums). Upgrade to add more."
         return True, None
 
 
@@ -47,19 +47,34 @@ def album_list(request):
     List current user's albums (ordered if field available) + ratings; create on POST.
     Also provides Saved Albums & Saved Tracks for the tabs on album_list.html.
     """
-    # Handle create
+    # Handle album creation
     if request.method == "POST":
         ok, reason = can_add_album(request.user)
         if not ok:
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"ok": False, "error": reason}, status=400)
             messages.error(request, reason)
-            return redirect("album_list")
+            return redirect("album:album_list")
+
         name = (request.POST.get("name") or "").strip()
         if not name:
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"ok": False, "error": "Album name is required."}, status=400)
             messages.error(request, "Album name is required.")
-            return redirect("album_list")
-        Album.objects.create(owner=request.user, name=name)
-        messages.success(request, "Album created.")
-        return redirect("album_list")
+            return redirect("album:album_list")
+
+        album = Album.objects.create(owner=request.user, name=name)
+
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "ok": True,
+                "id": album.id,
+                "name": album.name,
+                "detail_url": reverse("album:album_detail", args=[album.pk]),
+            })
+        else:
+            messages.success(request, "Album created.")
+            return redirect("album:album_list")
 
     # Your albums (with ratings)
     qs = Album.objects.filter(owner=request.user)
@@ -69,7 +84,7 @@ def album_list(request):
         qs = qs.order_by("-created_at", "id")
     albums = annotate_albums(qs)  # adds rating_avg & rating_count
 
-    # Saved items for tabs (lazy import to avoid circular if app not installed yet)
+    # Saved items for tabs (lazy import to avoid circulars if save_system not installed yet)
     try:
         from save_system.models import SavedAlbum, SavedTrack
 
@@ -86,7 +101,6 @@ def album_list(request):
             .order_by("-saved_at")
         )
     except Exception:
-        # save_system not installed yet; keep page working
         saved_albums = []
         saved_tracks = []
 
@@ -99,7 +113,6 @@ def album_list(request):
             "saved_tracks": saved_tracks,
         },
     )
-
 
 @login_required
 def album_detail(request, pk):

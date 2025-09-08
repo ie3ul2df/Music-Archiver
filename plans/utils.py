@@ -12,7 +12,7 @@ class Entitlements:
     storage_gb: int = 0
 
 FREE_MAX_TRACKS_PER_ALBUM = 10
-FREE_MAX_ALBUMS = 1  # Default Album only
+FREE_MAX_ALBUMS = 3  # Default Album only
 
 def get_entitlements(user) -> Entitlements:
     ent = Entitlements()
@@ -38,14 +38,14 @@ def get_entitlements(user) -> Entitlements:
 
 
 def can_add_album(user):
-    """Free: 1 album max; Unlimited Albums or Premium: unlimited."""
+    """Free: 3 album max; Unlimited Albums or Premium: unlimited."""
     ent = get_entitlements(user)
     if ent.premium or ent.unlimited_albums:
         return True, None
-    from tracks.models import Album
+    from album.models import Album
     count = Album.objects.filter(owner=user).count()
     if count >= FREE_MAX_ALBUMS:
-        return False, "Free tier allows only the Default album. Upgrade to add more."
+        return False, "Free tier allows only 3 albums. Upgrade to add more."
     return True, None
 
 
