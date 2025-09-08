@@ -58,7 +58,7 @@
 
             {% if user.is_authenticated %}
             <li class="nav-item">
-              <a class="d-flex nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'profile' %}">
+              <a class="d-flex nav-link {% if request.resolver_match.url_name == 'profile:profile' %}active{% endif %}" href="{% url 'profile:profile' %}">
                 {% if profile.profile_image %}
                 <img
                   src="{{ profile.profile_image.url }}"

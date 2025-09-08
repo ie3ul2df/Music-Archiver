@@ -2,12 +2,14 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
-from django.db.models import Q
-
+from django.db.models import Q, Count
+from django.contrib.auth.models import User
 from .models import UserProfile
 from .forms import UserForm, UserProfileForm, ProfileDefaultDeliveryForm
 from checkout.models import Order
-
+from ratings.utils import annotate_albums, annotate_tracks
+from album.models import Album 
+from tracks.models import Track
 
 @login_required
 def profile_view(request):
@@ -73,5 +75,45 @@ def order_history(request, order_number):
         {
             "order": order,
             "from_profile": True,  # lets template hide payment form
+        },
+    )
+
+
+
+def public_profile(request, username: str):
+    """
+    Public-facing profile page for a given user (no login required).
+    Shows the user's public profile info, public albums, and tracks
+    (tracks that appear in at least one public album).
+    """
+    view_user = get_object_or_404(User, username=username)
+    profile = UserProfile.objects.filter(user=view_user).first()
+
+    public_albums = (
+        annotate_albums(
+            Album.objects.filter(owner=view_user, is_public=True)
+                         .annotate(track_count=Count("album_tracks", distinct=True))
+        )
+        .order_by("-created_at")
+    )
+
+    public_tracks = (
+        annotate_tracks(
+            Track.objects.filter(
+                track_albums__album__owner=view_user,
+                track_albums__album__is_public=True,
+            ).distinct()
+        )
+        .order_by("-created_at")
+    )
+
+    return render(
+        request,
+        "profile_page/public_profile.html",
+        {
+            "view_user": view_user,
+            "profile": profile,
+            "public_albums": public_albums,
+            "public_tracks": public_tracks,
         },
     )
