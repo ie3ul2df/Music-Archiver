@@ -16,6 +16,7 @@ urlpatterns = [
     path("checkout/", include("checkout.urls")),     # checkout flow
     path("ratings/", include("ratings.urls")),       # rating system
     path("save/", include("save_system.urls")),      # save system
+    path("follow/", include(("follow_system.urls", "follow"), namespace="follow")),   # follow system 
 
     # Third-party
     path("accounts/", include("allauth.urls")),      # login / signup / logout

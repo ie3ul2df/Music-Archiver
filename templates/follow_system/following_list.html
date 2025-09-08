@@ -1,0 +1,14 @@
+{% extends "base.html" %} {% block content %}
+<div class="container py-4">
+  <h3 class="mb-3">@{{ view_user.username }} is following</h3>
+  <ul class="list-group">
+    {% for u in following %}
+    <li class="list-group-item">
+      <a href="{% url 'profile:public_profile' u.username %}">@{{ u.username }}</a>
+    </li>
+    {% empty %}
+    <li class="list-group-item">Not following anyone yet.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

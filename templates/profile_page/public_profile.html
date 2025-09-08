@@ -1,31 +1,45 @@
-{% extends "base.html" %} {% load static %} {% block content %}
+{# templates/profile_page/public_profile.html #} {% extends "base.html" %} {% load static %} {% block content %}
 <div class="container py-4">
   <!-- Header -->
-  <div class="d-flex align-items-center gap-3 mb-4">
-    <div>
-      {% if profile and profile.profile_image %}
-      <img
-        src="{{ profile.profile_image.url }}"
-        class="rounded-circle shadow-sm"
-        alt="{{ view_user.username }} avatar"
-        style="width: 72px; height: 72px; object-fit: cover"
-      />
-      {% else %}
-      <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 72px; height: 72px">
-        <span class="text-muted fs-4">@</span>
+  <div class="d-flex align-items-center justify-content-between gap-3 mb-4">
+    <div class="d-flex align-items-center gap-3">
+      <div>
+        {% if profile and profile.profile_image %}
+        <img
+          src="{{ profile.profile_image.url }}"
+          class="rounded-circle shadow-sm"
+          alt="{{ view_user.username }} avatar"
+          style="width: 72px; height: 72px; object-fit: cover"
+        />
+        {% else %}
+        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 72px; height: 72px">
+          <span class="text-muted fs-4">@</span>
+        </div>
+        {% endif %}
       </div>
-      {% endif %}
-    </div>
-    <div>
-      <h3 class="mb-0">@{{ view_user.username }}</h3>
-      {% if profile and profile.bio %}
-      <div class="text-muted small mt-1">{{ profile.bio }}</div>
-      {% endif %} {% if profile and profile.website %}
-      <div class="small mt-1">
-        <a href="{{ profile.website }}" rel="nofollow noopener" target="_blank">{{ profile.website }}</a>
+      <div>
+        <h3 class="mb-0">@{{ view_user.username }}</h3>
+        {% if profile and profile.bio %}
+        <div class="text-muted small mt-1">{{ profile.bio }}</div>
+        {% endif %}
+        <div class="small text-muted mt-1"><strong id="followersCount">{{ followers_count }}</strong> followers · {{ following_count }} following</div>
+        {% if profile and profile.website %}
+        <div class="small mt-1">
+          <a href="{{ profile.website }}" rel="nofollow noopener" target="_blank">{{ profile.website }}</a>
+        </div>
+        {% endif %}
       </div>
-      {% endif %}
     </div>
+
+    {% if request.user.is_authenticated and request.user.id != view_user.id %}
+    <button
+      class="btn btn-sm {{ is_following|yesno:'btn-outline-danger,btn-outline-primary' }}"
+      data-follow-toggle="{% url 'follow:toggle' view_user.username %}"
+      data-followers-target="#followersCount"
+    >
+      {{ is_following|yesno:"Unfollow,Follow" }}
+    </button>
+    {% endif %}
   </div>
 
   <!-- Tabs -->
@@ -82,4 +96,7 @@
     </div>
   </div>
 </div>
+
+<!-- Follow System JS -->
+<script src="{% static 'js/follow_system.js' %}" defer></script>
 {% endblock %}

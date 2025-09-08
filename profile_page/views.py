@@ -10,6 +10,7 @@ from checkout.models import Order
 from ratings.utils import annotate_albums, annotate_tracks
 from album.models import Album 
 from tracks.models import Track
+from follow_system.models import Follow
 
 @login_required
 def profile_view(request):
@@ -33,7 +34,7 @@ def profile_view(request):
             profile_form.save()
             defaults_form.save()
             messages.success(request, "Your profile was updated successfully!")
-            return redirect("profile")
+            return redirect("profile:profile")
         else:
             messages.error(request, "Please correct the errors below.")
     else:
@@ -46,12 +47,31 @@ def profile_view(request):
         Q(user_profile=profile) | Q(user=request.user)
     ).order_by("-date").prefetch_related("items", "items__plan")
 
+    following = (
+        User.objects
+        .filter(follower_relations__follower=request.user)
+        .select_related("userprofile")
+        .distinct()
+        .order_by("username")
+    )
+
+    # Followers: users that follow *me* (request.user is the following)
+    followers = (
+        User.objects
+        .filter(following_relations__following=request.user)
+        .select_related("userprofile")
+        .distinct()
+        .order_by("username")
+    )
+
     context = {
         "user_form": user_form,
         "profile_form": profile_form,
         "defaults_form": defaults_form,
-        "profile": profile,
-        "orders": orders,
+        "profile": profile,     # your UserProfile instance
+        "orders": orders,       # your order queryset
+        "following": following,
+        "followers": followers,
     }
     return render(request, "profile_page/profile.html", context)
 
@@ -88,6 +108,12 @@ def public_profile(request, username: str):
     """
     view_user = get_object_or_404(User, username=username)
     profile = UserProfile.objects.filter(user=view_user).first()
+    followers_count = Follow.objects.filter(following=view_user).count()
+    following_count = Follow.objects.filter(follower=view_user).count()
+    is_following = False
+    if request.user.is_authenticated and request.user != view_user:
+        is_following = Follow.objects.filter(follower=request.user, following=view_user).exists()
+
 
     public_albums = (
         annotate_albums(
@@ -107,13 +133,12 @@ def public_profile(request, username: str):
         .order_by("-created_at")
     )
 
-    return render(
-        request,
-        "profile_page/public_profile.html",
-        {
-            "view_user": view_user,
-            "profile": profile,
-            "public_albums": public_albums,
-            "public_tracks": public_tracks,
-        },
-    )
+    return render(request, "profile_page/public_profile.html", {
+        "view_user": view_user,
+        "profile": profile,
+        "public_albums": public_albums,
+        "public_tracks": public_tracks,
+        "followers_count": followers_count,
+        "following_count": following_count,
+        "is_following": is_following,
+    })

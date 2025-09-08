@@ -2,29 +2,43 @@
 <div class="container mt-5">
   <h2 class="mb-4 text-center">👤 My Profile</h2>
 
-  <div class="row g-4">
-    <!-- Left: Profile forms -->
-    <div class="col-12 col-lg-6">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <!-- Profile image -->
-          <div class="text-center mb-4">
-            {% if profile.profile_image %}
-            <img
-              src="{{ profile.profile_image.url }}"
-              alt="Profile image"
-              class="rounded-circle shadow-sm"
-              style="width: 120px; height: 120px; object-fit: cover"
-            />
-            {% else %}
-            <span class="display-1 text-muted">🖼️</span>
-            {% endif %}
-            <h5 class="mt-3">{{ user.username }}</h5>
-          </div>
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <!-- Tabs -->
+      <ul class="nav nav-tabs" id="profileTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="acct-tab" data-bs-toggle="tab" data-bs-target="#acct" type="button" role="tab">Account Details</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="delivery-tab" data-bs-toggle="tab" data-bs-target="#delivery" type="button" role="tab">Delivery Information</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button" role="tab">Order History</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="social-tab" data-bs-toggle="tab" data-bs-target="#social" type="button" role="tab">Following & Followers</button>
+        </li>
+      </ul>
 
-          <!-- Forms -->
-          <form method="post" enctype="multipart/form-data" id="profile-update-form">
-            {% csrf_token %}
+      <form method="post" enctype="multipart/form-data" id="profile-update-form">
+        {% csrf_token %}
+
+        <div class="tab-content pt-3">
+          <!-- Tab 1: Account Details -->
+          <div class="tab-pane fade show active" id="acct" role="tabpanel" aria-labelledby="acct-tab">
+            <div class="text-center mb-4">
+              {% if profile.profile_image %}
+              <img
+                src="{{ profile.profile_image.url }}"
+                alt="Profile image"
+                class="rounded-circle shadow-sm"
+                style="width: 120px; height: 120px; object-fit: cover"
+              />
+              {% else %}
+              <span class="display-1 text-muted">🖼️</span>
+              {% endif %}
+              <h5 class="mt-3">{{ user.username }}</h5>
+            </div>
 
             <h6 class="mb-3">Account Details</h6>
             {{ user_form|crispy }}
@@ -32,71 +46,123 @@
             <h6 class="mt-4 mb-3">Profile Details</h6>
             {{ profile_form|crispy }}
 
-            <hr class="my-4" />
-            <h6 class="mb-3">Default Delivery Information</h6>
-
-            <!-- Render delivery form fields explicitly -->
-            <div class="mb-3">{{ defaults_form.default_phone_number|as_crispy_field }}</div>
-            <div class="mb-3">{{ defaults_form.default_country }} {# render directly, not via crispy_field #}</div>
-            <div class="mb-3">{{ defaults_form.default_postcode|as_crispy_field }}</div>
-            <div class="mb-3">{{ defaults_form.default_town_or_city|as_crispy_field }}</div>
-            <div class="mb-3">{{ defaults_form.default_street_address1|as_crispy_field }}</div>
-            <div class="mb-3">{{ defaults_form.default_street_address2|as_crispy_field }}</div>
-            <div class="mb-3">{{ defaults_form.default_county|as_crispy_field }}</div>
-
             <div class="text-end mt-4">
               <button type="submit" class="btn btn-primary">Save Changes</button>
             </div>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <!-- Right: Order history -->
-    <div class="col-12 col-lg-6">
-      <div class="card shadow-sm h-100">
-        <div class="card-body">
-          <h5 class="mb-3">📦 Order History</h5>
-
-          {% if orders %}
-          <div class="table-responsive">
-            <table class="table table-sm align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th>Order #</th>
-                  <th>Date</th>
-                  <th>Items</th>
-                  <th class="text-end">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for o in orders %}
-                <tr>
-                  <td>
-                    <a href="{% url 'order_history' o.order_number %}" title="View order {{ o.order_number }}"> {{ o.order_number|truncatechars:6 }} </a>
-                  </td>
-                  <td>{{ o.date|date:"Y-m-d H:i" }}</td>
-                  <td>
-                    <ul class="list-unstyled mb-0 small">
-                      {% for li in o.items.all %}
-                      <li>{{ li.plan.name }} × {{ li.quantity }}</li>
-                      {% endfor %}
-                    </ul>
-                  </td>
-                  <td class="text-end">£{{ o.order_total }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
           </div>
-          {% else %}
-          <p class="text-muted mb-0">No orders yet.</p>
-          {% endif %}
+
+          <!-- Tab 2: Delivery Information -->
+          <div class="tab-pane fade" id="delivery" role="tabpanel" aria-labelledby="delivery-tab">
+            <h6 class="mb-3">Default Delivery Information</h6>
+            <div class="row g-3">
+              <div class="col-md-6">{{ defaults_form.default_phone_number|as_crispy_field }}</div>
+              <div class="col-md-6">{{ defaults_form.default_country }}</div>
+              <div class="col-md-6">{{ defaults_form.default_postcode|as_crispy_field }}</div>
+              <div class="col-md-6">{{ defaults_form.default_town_or_city|as_crispy_field }}</div>
+              <div class="col-md-6">{{ defaults_form.default_street_address1|as_crispy_field }}</div>
+              <div class="col-md-6">{{ defaults_form.default_street_address2|as_crispy_field }}</div>
+              <div class="col-md-6">{{ defaults_form.default_county|as_crispy_field }}</div>
+            </div>
+            <div class="text-end mt-4">
+              <button type="submit" class="btn btn-primary">Save Delivery Info</button>
+            </div>
+          </div>
+
+          <!-- Tab 3: Order History -->
+          <div class="tab-pane fade" id="orders" role="tabpanel" aria-labelledby="orders-tab">
+            <h6 class="mb-3">📦 Order History</h6>
+            {% if orders %}
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Order #</th>
+                    <th>Date</th>
+                    <th>Items</th>
+                    <th class="text-end">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for o in orders %}
+                  <tr>
+                    <td>
+                      <a href="{% url 'profile:order_history' o.order_number %}" title="View order {{ o.order_number }}">
+                        {{ o.order_number|truncatechars:6 }}
+                      </a>
+                    </td>
+                    <td>{{ o.date|date:"Y-m-d H:i" }}</td>
+                    <td>
+                      <ul class="list-unstyled mb-0 small">
+                        {% for li in o.items.all %}
+                        <li>{{ li.plan.name }} × {{ li.quantity }}</li>
+                        {% endfor %}
+                      </ul>
+                    </td>
+                    <td class="text-end">£{{ o.order_total }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No orders yet.</p>
+            {% endif %}
+          </div>
+
+          <!-- Tab 4: Following & Followers -->
+          <div class="tab-pane fade" id="social" role="tabpanel" aria-labelledby="social-tab">
+            <div class="row g-4">
+              <div class="col-12 col-lg-6">
+                <h6 class="mb-3">Following ({{ following|length }})</h6>
+                <ul class="list-group">
+                  {% for u in following %}
+                  <li class="list-group-item d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                      {% if u.userprofile and u.userprofile.profile_image %}
+                      <img src="{{ u.userprofile.profile_image.url }}" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover" alt="" />
+                      {% else %}
+                      <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 32px; height: 32px">
+                        <span class="text-muted small">@</span>
+                      </div>
+                      {% endif %}
+                      <a class="text-decoration-none" href="{% url 'profile:public_profile' u.username %}"> @{{ u.username }} </a>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" data-follow-toggle="{% url 'follow:toggle' u.username %}">Unfollow</button>
+                  </li>
+                  {% empty %}
+                  <li class="list-group-item text-muted">Not following anyone yet.</li>
+                  {% endfor %}
+                </ul>
+              </div>
+
+              <div class="col-12 col-lg-6">
+                <h6 class="mb-3">Followers ({{ followers|length }})</h6>
+                <ul class="list-group">
+                  {% for u in followers %}
+                  <li class="list-group-item d-flex align-items-center gap-2">
+                    {% if u.userprofile and u.userprofile.profile_image %}
+                    <img src="{{ u.userprofile.profile_image.url }}" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover" alt="" />
+                    {% else %}
+                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 32px; height: 32px">
+                      <span class="text-muted small">@</span>
+                    </div>
+                    {% endif %}
+                    <a class="text-decoration-none" href="{% url 'profile:public_profile' u.username %}"> @{{ u.username }} </a>
+                  </li>
+                  {% empty %}
+                  <li class="list-group-item text-muted">No followers yet.</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+        {# /.tab-content #}
+      </form>
     </div>
   </div>
 </div>
 {% endblock %} {% block extra_js %}
 <script src="{% static 'js/profile_country_select.js' %}"></script>
+<script src="{% static 'js/follow_system.js' %}" defer></script>
 {% endblock %}

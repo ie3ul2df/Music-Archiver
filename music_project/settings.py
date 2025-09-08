@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "checkout",
     "ratings",
     "save_system",
+    "follow_system",
 ]
 
 SITE_ID = 1
