@@ -1,4 +1,6 @@
-{% extends "base.html" %} {% load static %} {% block content %}
+{% extends "base.html" %} 
+{% load static %} 
+{% block content %}
 
 <div class="container py-4">
   <!-- Tabs -->
@@ -214,6 +216,7 @@
   </div>
 </div>
 
-{% endblock %} {% block extra_js %}
+{% endblock %} 
+{% block extra_js %}
 <script src="{% static 'js/album_detail.js' %}" defer></script>
 {% endblock %}
