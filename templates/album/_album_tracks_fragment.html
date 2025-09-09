@@ -1,0 +1,7 @@
+<ul class="list-group list-group-flush">
+  {% for at in items %}
+    {% include "tracks/_track_card.html" with at=at track=at.track album=album album_item_id=at.id is_owner=is_owner is_favorited=at.is_favorited avg=at.track_avg count=at.track_count %}
+  {% empty %}
+    <li class="list-group-item text-muted">No tracks</li>
+  {% endfor %}
+</ul>

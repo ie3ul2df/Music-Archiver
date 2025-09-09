@@ -228,19 +228,24 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+
   // ---- RENAME ----
   const renameModal = document.getElementById("renameTrackModal");
   if (renameModal) {
     renameModal.addEventListener("show.bs.modal", (event) => {
       const button = event.relatedTarget;
-      const trackId = button.getAttribute("data-track-id");
       const trackName = button.getAttribute("data-track-name");
+      const url = button.getAttribute("data-url");
 
+      // Fill input with current track name
       renameModal.querySelector("#renameTrackInput").value = trackName;
+
+      // Update form action to the correct endpoint
       const form = renameModal.querySelector("#renameTrackForm");
-      form.action = `/album/${albumId}/tracks/${trackId}/rename/`;
+      form.action = url;
     });
   }
+
 });
 
 document.addEventListener("DOMContentLoaded", () => {

@@ -2,8 +2,9 @@
 
 import json
 from django.urls import reverse
+from django.http import HttpResponseForbidden
 from django.db import transaction
-from django.db.models import Case, When, IntegerField, F, Q, Count, Avg
+from django.db.models import Case, When, IntegerField, F, Q, Count, Avg, Count, Exists, OuterRef, Value, BooleanField
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseBadRequest
@@ -12,7 +13,7 @@ from django.views.decorators.http import require_POST
 
 from .models import Album, AlbumTrack
 from .forms import AlbumForm
-from tracks.models import Track
+from tracks.models import Track, Favorite
 from tracks.forms import TrackForm
 from tracks.utils import mark_track_ownership
 from ratings.utils import annotate_albums, annotate_tracks
@@ -40,6 +41,52 @@ def _can_add_album(user):
 def _has_field(model_cls, field_name: str) -> bool:
     return any(f.name == field_name for f in model_cls._meta.fields)
 
+def _can_view_album(album, user):
+    return (album.is_public or (user.is_authenticated and album.owner_id == user.id))
+
+# -------------- Album fragment view --------------
+def album_tracks_fragment(request, pk):
+    album = get_object_or_404(Album, pk=pk)
+    # On "Your Album" tab these are the user's albums, but keep a guard:
+    if not (request.user.is_authenticated and album.owner_id == request.user.id) and not getattr(album, "is_public", False):
+        return HttpResponseForbidden("Not allowed.")
+
+    items = (
+        AlbumTrack.objects.filter(album=album)
+        .select_related("track")
+        .annotate(
+            track_avg=Avg("track__ratings__stars"),
+            track_count=Count("track__ratings", distinct=True),
+        )
+        .order_by("position", "id")
+    )
+
+    # Favourite flag per track
+    if request.user.is_authenticated:
+        fav_subq = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
+        items = items.annotate(is_favorited=Exists(fav_subq))
+    else:
+        items = items.annotate(is_favorited=Value(False, output_field=BooleanField()))
+
+    # Saved flag for 💾/🗃️
+    saved_ids = set()
+    if request.user.is_authenticated:
+        saved_ids = set(
+            SavedTrack.objects.filter(
+                owner=request.user,
+                original_track__in=[it.track for it in items]
+            ).values_list("original_track_id", flat=True)
+        )
+    for it in items:
+        it.track.is_in_my_albums = (it.track.id in saved_ids)
+
+    is_owner = request.user.is_authenticated and album.owner_id == request.user.id
+
+    return render(
+        request,
+        "album/_album_tracks_fragment.html",
+        {"album": album, "items": items, "is_owner": is_owner},
+    )
 
 # ---------------------- Album functions ---------------------- #
 # ---------------------- Album functions ---------------------- #

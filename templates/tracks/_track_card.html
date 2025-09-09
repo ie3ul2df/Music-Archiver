@@ -59,9 +59,13 @@
       {% if is_owner %}
 
         <!-- Rename (opens existing modal on album page) -->
-        <button type="button" class="btn btn-sm btn-outline-secondary rename-track-btn"
-        data-track-id="{{ album_item_id }}" data-track-name="{{ track.name }}"
-        data-bs-toggle="modal" data-bs-target="#renameTrackModal">✏</button>
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary rename-track-btn"
+                data-url="{% url 'album:album_rename_track' album.id album_item_id %}"
+                data-track-name="{{ track.name }}"
+                data-bs-toggle="modal"
+                data-bs-target="#renameTrackModal">✏</button>
+
 
         <!-- 🗑 Delete my track entirely (only if I own it) -->
         {% if track.is_my_track %}

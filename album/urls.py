@@ -35,4 +35,6 @@ urlpatterns = [
 
     # Visibility
     path("<int:pk>/toggle-visibility/", views.toggle_album_visibility, name="toggle_album_visibility"),
+    
+    path("fragment/<int:pk>/tracks/", views.album_tracks_fragment, name="album_tracks_fragment"),
 ]

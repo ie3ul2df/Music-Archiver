@@ -77,46 +77,58 @@
             <div>
               <a href="{% url 'album:album_detail' a.pk %}" class="fw-bold text-decoration-none">{{ a.name }}</a>
               {% if a.is_public %}
-              <span class="badge bg-success ms-2">Public</span>
+                <span class="badge bg-success ms-2">Public</span>
               {% else %}
-              <span class="badge bg-secondary ms-2">Private</span>
+                <span class="badge bg-secondary ms-2">Private</span>
               {% endif %}
             </div>
 
-            <!-- ⭐ Rating widget -->
-            <div class="mt-1">{% include "ratings/_stars.html" with type="album" id=a.id avg=a.rating_avg count=a.rating_count user_rating=None %}</div>
+            <!-- ⭐ Rating -->
+            <div class="mt-1">
+              {% include "ratings/_stars.html" with type="album" id=a.id avg=a.rating_avg count=a.rating_count user_rating=None %}
+            </div>
+
+            <!-- 🔽 Tracks toggle (AJAX) -->
+            <div class="mt-2">
+              <button type="button"
+                      class="btn btn-sm btn-outline-secondary js-load-tracks"
+                      data-url="{% url 'album:album_tracks_fragment' a.pk %}"
+                      data-target="#album-{{ a.pk }}-tracks">
+                Show tracks
+              </button>
+            </div>
+
+            <!-- AJAX target -->
+            <div id="album-{{ a.pk }}-tracks" class="mt-2 d-none"></div>
           </div>
 
+          <!-- 👇 Your existing 4-button group stays exactly the same -->
           <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group">
             <a href="{% url 'album:album_detail' a.pk %}" class="btn btn-outline-primary">👁 View</a>
-            <!-- Rename will be handled inline or via AJAX -->
-            <button
-              type="button"
-              class="btn btn-outline-secondary rename-album-btn"
-              data-url="{% url 'album:ajax_rename_album' a.pk %}"
-              data-current-name="{{ a.name }}"
-            >
+            <button type="button"
+                    class="btn btn-outline-secondary rename-album-btn"
+                    data-url="{% url 'album:ajax_rename_album' a.pk %}"
+                    data-current-name="{{ a.name }}">
               ✏ Edit
             </button>
             <a href="{% url 'album:toggle_album_visibility' a.pk %}" class="btn btn-outline-warning">
               {% if a.is_public %}🔒 Make Private{% else %}🌍 Make Public{% endif %}
             </a>
-            <button
-              type="button"
-              class="btn btn-outline-danger"
-              data-bs-toggle="modal"
-              data-bs-target="#deleteAlbumModal"
-              data-url="{% url 'album:ajax_delete_album' a.pk %}"
-              data-album-name="{{ a.name }}"
-            >
+            <button type="button"
+                    class="btn btn-outline-danger"
+                    data-bs-toggle="modal"
+                    data-bs-target="#deleteAlbumModal"
+                    data-url="{% url 'album:ajax_delete_album' a.pk %}"
+                    data-album-name="{{ a.name }}">
               🗑 Delete
             </button>
           </div>
         </li>
         {% empty %}
-        <li class="list-group-item">No albums yet.</li>
+          <li class="list-group-item">No albums yet.</li>
         {% endfor %}
       </ul>
+
     </div>
 
     <!-- ================= Saved Albums ================= -->
@@ -172,51 +184,16 @@
   </div>
 </div>
 
-<!-- Delete confirmation modal -->
-<div class="modal fade" id="deleteAlbumModal" tabindex="-1" aria-labelledby="deleteAlbumLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form method="post" id="deleteAlbumForm" action="">
-        {% csrf_token %}
-        <div class="modal-header">
-          <h5 class="modal-title" id="deleteAlbumLabel">Delete Album</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <p>Are you sure you want to delete <strong id="albumName"></strong>?</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-danger">Yes, delete</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-<!-- Rename album modal -->
-<div class="modal fade" id="renameAlbumModal" tabindex="-1" aria-labelledby="renameAlbumLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form method="post" id="renameAlbumForm" action="">
-        {% csrf_token %}
-        <div class="modal-header">
-          <h5 class="modal-title" id="renameAlbumLabel">Rename Album</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <input type="text" name="name" id="renameAlbumInput" class="form-control" required />
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
 {% endblock %} 
+
 {% block extra_js %}
 <script src="{% static 'js/album_detail.js' %}" defer></script>
+<script src="{% static 'js/album_tracks_loader.js' %}" defer></script>
+{% endblock %}
+
+{% block extra_modals %}
+  {% include "album/_rename_track_modal.html" %}
+  {% include "album/_delete_track_modal.html" %}
+  {% include "album/_rename_album_modal.html" %}
+  {% include "album/_delete_album_modal.html" %}
 {% endblock %}
