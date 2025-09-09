@@ -1,0 +1,13 @@
+<li class="list-group-item d-flex justify-content-between align-items-center" data-album-id="{{ album.id }}">
+  <div class="me-3">
+    <a href="{% url 'album:album_detail' album.pk %}" class="fw-bold text-decoration-none">
+      {{ album.name }}
+    </a>
+    <div class="small text-muted">by {{ album.owner.username }}</div>
+  </div>
+
+  <!-- ⭐ Album stars -->
+  <div class="ms-auto">
+    {% include "ratings/_stars.html" with type="album" id=album.id avg=avg count=count user_rating=None %}
+  </div>
+</li>

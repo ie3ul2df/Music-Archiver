@@ -75,7 +75,7 @@
 <div class="row mt-5">
   <div class="col-lg-6">
     <h3 class="mb-3">🔥 Top 10 Albums</h3>
-    <ul class="list-group">
+    {% comment %} <ul class="list-group">
       {% for album in albums_top %}
       <li class="list-group-item d-flex justify-content-between align-items-center">
         <div class="me-3">
@@ -87,12 +87,21 @@
       {% empty %}
       <li class="list-group-item">No albums ranked yet.</li>
       {% endfor %}
-    </ul>
+    </ul> {% endcomment %}
+  <ul class="list-group">
+  {% for album in albums_top %}
+    {% include "album/_album_card.html" with album=album avg=album.rating_avg count=album.rating_count %}
+  {% empty %}
+    <li class="list-group-item text-muted">No albums ranked yet.</li>
+  {% endfor %}
+</ul>
+
+  
   </div>
 
   <div class="col-lg-6 mt-4 mt-lg-0">
     <h3 class="mb-3">🎵 Top 10 Tracks</h3>
-    <ul class="list-group">
+    {% comment %} <ul class="list-group">
       {% for track in tracks_top %}
       <li class="list-group-item d-flex justify-content-between align-items-center">
         <div class="me-3">
@@ -104,7 +113,23 @@
       {% empty %}
       <li class="list-group-item">No tracks ranked yet.</li>
       {% endfor %}
-    </ul>
+    </ul> {% endcomment %}
+  <ul class="list-group">
+    {% for track in tracks_top %}
+      {% include "tracks/_track_card.html" with
+         track=track
+         album=None
+         is_favorited=track.is_favorited|default:False
+         avg=track.rating_avg
+         count=track.rating_count %}
+    {% empty %}
+      <li class="list-group-item text-muted">No tracks ranked yet.</li>
+    {% endfor %}
+  </ul>
+
+
+
+
   </div>
 </div>
 
