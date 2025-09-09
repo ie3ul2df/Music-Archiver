@@ -35,17 +35,16 @@
     {% if not has_storage %}(upload requires a storage plan){% endif %}.
   </p>
 
+
   <!-- Track list -->
-  <ul id="track-list" class="list-group"
-      data-album-id="{{ album.id }}"
-      data-reorder-url="{% url 'album:album_reorder_tracks' album.pk %}">
+  <ul class="list-group">
     {% for at in items %}
       {% include "tracks/_track_card.html" with
-          track=at.track
-          album=album
-          is_favorited=at.is_favorited
-          avg=at.track_avg
-          count=at.track_count %}
+         track=at.track
+         album=album
+         is_favorited=at.is_favorited
+         avg=at.track_avg
+         count=at.track_count %}
     {% empty %}
       <li class="list-group-item text-muted">No tracks yet.</li>
     {% endfor %}
