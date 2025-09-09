@@ -2,8 +2,10 @@
 <div class="container py-4">
   <h4>@{{ author.username }}</h4>
   <ul class="list-group">
-    {% for t in tracks %} {% include "tracks/_track_card.html" with track=t %} {% empty %}
-    <li class="list-group-item">No tracks yet.</li>
+    {% for t in tracks %}
+      {% include "tracks/_track_card.html" with track=t avg=t.rating_avg count=t.rating_count %}
+    {% empty %}
+      <li class="list-group-item">No tracks yet.</li>
     {% endfor %}
   </ul>
 </div>

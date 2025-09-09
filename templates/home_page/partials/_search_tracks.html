@@ -1,8 +1,10 @@
 {% if tracks %}
 <h4 class="mt-5">Tracks (from public albums)</h4>
 <ul class="list-group">
-  {% for t in tracks %} {% include "tracks/_track_card.html" with track=t %} {% empty %}
-  <li class="list-group-item text-muted">No tracks found.</li>
+  {% for t in tracks %}
+    {% include "tracks/_track_card.html" with track=t avg=t.rating_avg count=t.rating_count %}
+  {% empty %}
+    <li class="list-group-item text-muted">No tracks found.</li>
   {% endfor %}
 </ul>
 {% endif %}

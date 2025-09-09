@@ -6,7 +6,7 @@
 
     <!-- Album link -->
     {% if album %}
-      <a class="text-decoration-none small text-muted" href="{% url 'album_detail' album.id %}">· {{ album.name }}</a>
+      <a class="text-decoration-none small text-muted" href="{% url 'album:album_detail' album.id %}">· {{ album.name }}</a>
     {% endif %}
 
     <!-- Author link -->
@@ -33,7 +33,8 @@
 
       <!-- Rating -->
       <span class="ms-1 rating-wrap">
-        {% include "ratings/_stars.html" with type="track" id=track.id avg=avg|default:track.rating_avg|default:0 count=count|default:track.rating_count|default:0 user_rating=None %}
+        {% comment %} {% include "ratings/_stars.html" with type="track" id=track.id avg=avg|default:track.rating_avg|default:0 count=count|default:track.rating_count|default:0 user_rating=None %} {% endcomment %}
+        {% include "ratings/_stars.html" with type="track" id=track.id avg=avg|default:0 count=count|default:0 user_rating=None %}
       </span>
     </span>
   </div>

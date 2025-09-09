@@ -4,7 +4,7 @@
   <ul class="list-group">
     {% for row in results %}
     <div class="d-flex flex-column">
-      {% include "tracks/_track_card.html" with track=row.track %}
+      {% include "tracks/_track_card.html" with track=row.track avg=row.track.rating_avg count=row.track.rating_count %}
       <small class="text-muted ms-2">Last played: {{ row.last_played|date:"Y-m-d H:i" }}</small>
     </div>
     {% empty %}

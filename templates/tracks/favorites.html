@@ -3,8 +3,10 @@
   <h2>Favourites</h2>
 
   <ul class="list-group">
-    {% for f in favorites %} {% include "tracks/_track_card.html" with track=f.track is_favorited=True %} {% empty %}
-    <li class="list-group-item text-muted">No favourites yet.</li>
+    {% for f in favorites %}
+      {% include "tracks/_track_card.html" with track=f.track is_favorited=True avg=f.track.rating_avg count=f.track.rating_count %}
+    {% empty %}
+      <li class="list-group-item text-muted">No favourites yet.</li>
     {% endfor %}
   </ul>
 </div>
