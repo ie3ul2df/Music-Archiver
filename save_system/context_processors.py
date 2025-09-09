@@ -1,8 +1,7 @@
 from album.models import Album
 
 def user_albums_for_save(request):
-    if request.user.is_authenticated:
-        return {
-            "user_albums": Album.objects.filter(owner=request.user).order_by("name")
-        }
-    return {"user_albums": []}
+    if not request.user.is_authenticated:
+        return {"save_albums": [], "user_albums": []}
+    qs = Album.objects.filter(owner=request.user).only("id", "name").order_by("name")
+    return {"save_albums": qs, "user_albums": qs}

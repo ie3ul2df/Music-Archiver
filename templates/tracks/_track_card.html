@@ -4,6 +4,7 @@
     <!-- Title -->
     <span class="fw-semibold me-1">{{ track.name }}</span>
 
+
     <!-- Album link -->
     {% if album %}
       <a class="text-decoration-none small text-muted" href="{% url 'album:album_detail' album.id %}">· {{ album.name }}</a>
@@ -12,17 +13,31 @@
     <!-- Author link -->
     <a class="text-decoration-none small text-muted" href="{% url 'user_tracks' track.owner.username %}">🔗 {{ track.owner.username }}</a>
 
+
     <!-- Actions -->
     <span class="ms-auto d-flex align-items-center gap-1">
+
+      <!-- Rating -->
+      <span class="ms-1 rating-wrap">
+        {% comment %} {% include "ratings/_stars.html" with type="track" id=track.id avg=avg|default:track.rating_avg|default:0 count=count|default:track.rating_count|default:0 user_rating=None %} {% endcomment %}
+        {% include "ratings/_stars.html" with type="track" id=track.id avg=avg|default:0 count=count|default:0 user_rating=None %}
+      </span>
+
       <!-- Favourite -->
       <button class="btn btn-sm {% if is_favorited %}btn-danger{% else %}btn-outline-danger{% endif %} js-fav"
               data-url="{% url 'toggle_favorite' track.id %}" title="Favourite">♥</button>
 
       <!-- Save -->
       {% if request.user.is_authenticated and request.user.id != track.owner_id %}
-        <button class="btn btn-sm btn-outline-secondary js-save"
-                data-save-url="{% url 'save_track' track.id %}"
-                title="Save to one of my albums">💾</button>
+          <button
+            class="btn btn-sm btn-outline-secondary js-save"
+            data-save-url="{% url 'save_system:save_track' track.id %}"
+            data-bs-toggle="modal"
+            data-bs-target="#saveToAlbumModal"
+            title="Save to one of my albums">
+          💾
+          </button>
+
       {% endif %}
 
       <!-- Download -->
@@ -31,11 +46,6 @@
       <!-- Play -->
       <button class="btn btn-sm btn-primary js-inline-play" title="Play/Pause">▶</button>
 
-      <!-- Rating -->
-      <span class="ms-1 rating-wrap">
-        {% comment %} {% include "ratings/_stars.html" with type="track" id=track.id avg=avg|default:track.rating_avg|default:0 count=count|default:track.rating_count|default:0 user_rating=None %} {% endcomment %}
-        {% include "ratings/_stars.html" with type="track" id=track.id avg=avg|default:0 count=count|default:0 user_rating=None %}
-      </span>
     </span>
   </div>
 
