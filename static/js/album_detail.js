@@ -145,52 +145,68 @@ document.addEventListener("DOMContentLoaded", () => {
   const input = document.getElementById("album-search-input");
   const list = document.getElementById("album-list");
 
+  // If this page has no search UI, stop here
+  if (!form || !input || !list) return;
+
   let timeout = null;
 
   input.addEventListener("keyup", () => {
     clearTimeout(timeout);
     timeout = setTimeout(() => {
       fetch(`/album/search/?q=${encodeURIComponent(input.value)}`)
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
         .then((data) => {
           list.innerHTML = "";
           if (data.results.length === 0) {
             list.innerHTML = `<li class="list-group-item">No albums found.</li>`;
             return;
           }
+
           data.results.forEach((a) => {
             const li = document.createElement("li");
-            li.className = "list-group-item d-flex justify-content-between align-items-center";
+            li.className =
+              "list-group-item d-flex justify-content-between align-items-center";
             li.innerHTML = `
-    <div>
-      <a href="${a.detail_url}" class="fw-bold text-decoration-none">${a.name}</a>
-      ${a.is_public ? '<span class="badge bg-success ms-2">Public</span>' : '<span class="badge bg-secondary ms-2">Private</span>'}
-    </div>
-    <div class="btn-group btn-group-sm" role="group">
-      <a href="${a.detail_url}" class="btn btn-outline-primary">👁 View</a>
-      <a href="${a.edit_url}" class="btn btn-outline-secondary">✏ Edit</a>
-      <a href="${a.toggle_url}" class="btn btn-outline-warning">
-        ${a.is_public ? "🔒 Make Private" : "🌍 Make Public"}
-      </a>
-      <button type="button"
-              class="btn btn-outline-danger"
-              data-bs-toggle="modal"
-              data-bs-target="#deleteAlbumModal"
-              data-album-id="${a.id}"
-              data-album-name="${a.name}">
-        🗑 Delete
-      </button>
-    </div>
-  `;
+              <div>
+                <a href="${a.detail_url}" class="fw-bold text-decoration-none">${a.name}</a>
+                ${
+                  a.is_public
+                    ? '<span class="badge bg-success ms-2">Public</span>'
+                    : '<span class="badge bg-secondary ms-2">Private</span>'
+                }
+              </div>
+              <div class="btn-group btn-group-sm" role="group">
+                <a href="${a.detail_url}" class="btn btn-outline-primary">👁 View</a>
+                <a href="${a.edit_url}" class="btn btn-outline-secondary">✏ Edit</a>
+                <a href="${a.toggle_url}" class="btn btn-outline-warning">
+                  ${a.is_public ? "🔒 Make Private" : "🌍 Make Public"}
+                </a>
+                <button type="button"
+                        class="btn btn-outline-danger"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteAlbumModal"
+                        data-album-id="${a.id}"
+                        data-album-name="${a.name}">
+                  🗑 Delete
+                </button>
+              </div>
+            `;
             list.appendChild(li);
           });
+        })
+        .catch((err) => {
+          console.error("Album search error:", err);
         });
-    }, 300); // debounce: wait 300ms after typing
+    }, 300); // debounce
   });
 
   // Prevent form submission (we want AJAX only)
   form.addEventListener("submit", (e) => e.preventDefault());
 });
+
 
 document.addEventListener("DOMContentLoaded", () => {
   const trackList = document.getElementById("track-list");
@@ -360,4 +376,84 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+});
+
+
+// DELETE (🗑) — delete my track entirely
+// DETACH (⛔) — remove from THIS album only
+document.addEventListener("DOMContentLoaded", () => {
+  const deleteModal = document.getElementById("deleteTrackModal");
+
+  // --- DELETE HANDLER (🗑) ---
+  if (deleteModal) {
+    deleteModal.addEventListener("show.bs.modal", (event) => {
+      const button = event.relatedTarget;
+      const trackId = button.getAttribute("data-track-id");
+      const trackName = button.getAttribute("data-track-name");
+
+      // Update modal content
+      deleteModal.querySelector("#deleteTrackName").textContent = trackName;
+
+      // Point form action to correct endpoint
+      const form = deleteModal.querySelector("#deleteTrackForm");
+      form.action = `/tracks/${trackId}/delete/`; // ✅ Track delete endpoint
+    });
+
+    const deleteForm = document.getElementById("deleteTrackForm");
+    if (deleteForm) {
+      deleteForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const url = deleteForm.getAttribute("action");
+
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "X-CSRFToken": getCookie("csrftoken") },
+          });
+
+          const data = await res.json();
+          if (data.ok) {
+            // Remove deleted track row from DOM
+            const li = document.querySelector(
+              `#track-list li[data-track-id="${data.id}"]`
+            );
+            if (li) li.remove();
+
+            // Close modal
+            bootstrap.Modal.getInstance(deleteModal)?.hide();
+          } else {
+            alert(data.error || "Failed to delete track.");
+          }
+        } catch (err) {
+          console.error("Delete track error:", err);
+          alert("Network error while deleting track.");
+        }
+      });
+    }
+  }
+
+  // --- DETACH HANDLER (⛔) ---
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".js-detach[data-detach-url]");
+    if (!btn) return;
+
+    e.preventDefault();
+    const url = btn.getAttribute("data-detach-url");
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "X-CSRFToken": getCookie("csrftoken") },
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      // Remove detached track row from DOM
+      const row = btn.closest("li.list-group-item");
+      if (row) row.remove();
+    } catch (err) {
+      console.error("Detach error:", err);
+      alert("Failed to remove track from album.");
+    }
+  });
 });

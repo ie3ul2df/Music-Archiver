@@ -66,6 +66,8 @@ class AlbumTrack(models.Model):
     )
     position = models.PositiveIntegerField(default=0, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Users can rename other users track on their own album only without changing the original track name
+    custom_name = models.CharField(max_length=200, blank=True, null=True)
 
     class Meta:
         unique_together = (("album", "track"),)

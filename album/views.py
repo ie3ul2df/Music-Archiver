@@ -14,8 +14,10 @@ from .models import Album, AlbumTrack
 from .forms import AlbumForm
 from tracks.models import Track
 from tracks.forms import TrackForm
+from tracks.utils import mark_track_ownership
 from ratings.utils import annotate_albums, annotate_tracks
 from plans.utils import can_add_album
+from save_system.models import SavedTrack
 
 
 # ---------- Helpers ----------
@@ -39,7 +41,10 @@ def _has_field(model_cls, field_name: str) -> bool:
     return any(f.name == field_name for f in model_cls._meta.fields)
 
 
-# ---------- Views ----------
+# ---------------------- Album functions ---------------------- #
+# ---------------------- Album functions ---------------------- #
+# ---------------------- Album functions ---------------------- #
+
 
 @login_required
 def album_list(request):
@@ -114,6 +119,118 @@ def album_list(request):
         },
     )
 
+
+@login_required
+def album_search(request):
+    q = request.GET.get("q", "").strip()
+    albums = Album.objects.filter(owner=request.user)
+    if q:
+        albums = albums.filter(name__icontains=q)
+
+    albums = annotate_albums(albums)  # ⭐ add rating fields if available
+
+    results = []
+    for a in albums:
+        results.append({
+            "id": a.id,
+            "name": a.name,
+            "is_public": a.is_public,
+            "detail_url": reverse("album:album_detail", args=[a.id]),
+            "toggle_url": reverse("album:toggle_album_visibility", args=[a.id]), 
+            "edit_url": reverse("album:ajax_rename_album", args=[a.id]),
+        })
+    return JsonResponse({"results": results})
+
+
+@login_required
+@require_POST
+def ajax_add_album(request):
+    """Add a new album (AJAX-only). Enforces plan limits and sets order/position if present."""
+    ok, reason = can_add_album(request.user)
+    if not ok:
+        return JsonResponse({"ok": False, "error": reason or "Album limit reached."}, status=403)
+
+    name = (request.POST.get("name") or "").strip()
+    if not name:
+        return JsonResponse({"ok": False, "error": "Album name required."}, status=400)
+
+    album = Album(owner=request.user, name=name)
+
+    # Put new album at the end if you have ordering fields
+    if _has_field(Album, "order"):
+        last = Album.objects.filter(owner=request.user).order_by("-order", "-id").first()
+        album.order = (last.order + 1) if last and last.order is not None else 0
+    elif _has_field(Album, "position"):
+        last = Album.objects.filter(owner=request.user).order_by("-position", "-id").first()
+        album.position = (last.position + 1) if last and last.position is not None else 0
+
+    album.save()
+
+    detail_url = reverse("album:album_detail", args=[album.pk])
+    return JsonResponse({"ok": True, "id": album.id, "name": album.name, "detail_url": detail_url})
+
+
+@login_required
+@require_POST
+def ajax_rename_album(request, pk):
+    """Rename an album (AJAX-only)."""
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
+    new_name = (request.POST.get("name") or "").strip()
+    if not new_name:
+        return JsonResponse({"ok": False, "error": "Name cannot be empty."}, status=400)
+    if new_name != album.name:
+        album.name = new_name
+        album.save(update_fields=["name"])
+    return JsonResponse({"ok": True, "id": album.id, "name": album.name})
+
+
+@login_required
+@require_POST
+def ajax_delete_album(request, pk):
+    """Delete an album (AJAX-only)."""
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
+    album.delete()
+    return JsonResponse({"ok": True, "id": pk})
+
+
+@login_required
+@require_POST
+def albums_reorder(request):
+    if not _has_field(Album, "order"):
+        return JsonResponse({"ok": False, "error": "Ordering is not enabled for albums."}, status=400)
+
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+        id_list = [int(x) for x in data.get("order", [])]
+    except Exception:
+        return HttpResponseBadRequest("Invalid JSON payload.")
+
+    user_qs = Album.objects.filter(owner=request.user)
+    user_ids = list(user_qs.values_list("id", flat=True))
+    if not user_ids:
+        return JsonResponse({"ok": True, "updated": []})
+
+    # Build final ids: keep client order that belongs to the user, then append missing
+    seen = set()
+    final_ids = []
+    for aid in id_list:
+        if aid in user_ids and aid not in seen:
+            final_ids.append(aid); seen.add(aid)
+    for aid in user_ids:
+        if aid not in seen:
+            final_ids.append(aid)
+
+    with transaction.atomic():
+        user_qs.update(order=F("order") + 1_000_000)
+        case = Case(
+            *[When(id=aid, then=pos) for pos, aid in enumerate(final_ids)],
+            output_field=IntegerField(),
+        )
+        user_qs.filter(id__in=final_ids).update(order=case)
+
+    return JsonResponse({"ok": True, "updated": final_ids})
+
+
 @login_required
 def album_detail(request, pk):
     """Show album with tracks.
@@ -155,6 +272,20 @@ def album_detail(request, pk):
         .order_by("position", "id")
     )
 
+    mark_track_ownership(items, request.user)
+
+    # ✅ mark whether each track is already saved in one of the user's albums
+    saved_ids = set()
+    if request.user.is_authenticated:
+        saved_ids = set(
+            SavedTrack.objects.filter(
+                owner=request.user,
+                original_track__in=[it.track for it in items]
+            ).values_list("original_track_id", flat=True)
+        )
+    for it in items:
+        it.track.is_in_my_albums = it.track.id in saved_ids
+
     # Choose template
     template_name = "album/album_detail.html" if is_owner else "album/public_album_detail.html"
 
@@ -169,6 +300,48 @@ def album_detail(request, pk):
             "has_storage": True,     # TODO: integrate with storage plans
         },
     )
+
+
+def public_album_detail(request, slug):
+    """Public album detail page with ratings and tracks."""
+    album = get_object_or_404(Album, slug=slug, is_public=True)
+    album = annotate_albums(Album.objects.filter(pk=album.pk)).first()
+
+    tracks = (
+        AlbumTrack.objects.filter(album=album)
+        .select_related("track")
+        .annotate(
+            track_avg=Avg("track__ratings__stars"),
+            track_count=Count("track__ratings", distinct=True),
+        )
+        .order_by("id")
+    )
+    mark_track_ownership(tracks, request.user)
+
+    # ✅ mark saved status for logged-in users
+    saved_ids = set()
+    if request.user.is_authenticated:
+        saved_ids = set(
+            SavedTrack.objects.filter(
+                owner=request.user,
+                original_track__in=[it.track for it in tracks]
+            ).values_list("original_track_id", flat=True)
+        )
+    for it in tracks:
+        it.track.is_in_my_albums = it.track.id in saved_ids
+
+    return render(
+        request,
+        "album/public_album_detail.html",
+        {
+            "album": album,
+            "tracks": tracks,
+        },
+    )
+
+# ---------------------- Tracks in the albums ---------------------- #
+# ---------------------- Tracks in the albums ---------------------- #
+# ---------------------- Tracks in the albums ---------------------- #
 
 @login_required
 @require_POST
@@ -202,7 +375,6 @@ def album_remove_track(request, pk, item_id):
     item.delete()
     messages.success(request, "Removed from album.")
     return redirect("album:album_detail", pk=pk)
-
 
 
 @login_required
@@ -256,64 +428,6 @@ def album_reorder_tracks(request, pk):
     return JsonResponse({"ok": True, "updated": final_order})
 
 
-
-@login_required
-@require_POST
-def albums_reorder(request):
-    if not _has_field(Album, "order"):
-        return JsonResponse({"ok": False, "error": "Ordering is not enabled for albums."}, status=400)
-
-    try:
-        data = json.loads(request.body.decode("utf-8"))
-        id_list = [int(x) for x in data.get("order", [])]
-    except Exception:
-        return HttpResponseBadRequest("Invalid JSON payload.")
-
-    user_qs = Album.objects.filter(owner=request.user)
-    user_ids = list(user_qs.values_list("id", flat=True))
-    if not user_ids:
-        return JsonResponse({"ok": True, "updated": []})
-
-    # Build final ids: keep client order that belongs to the user, then append missing
-    seen = set()
-    final_ids = []
-    for aid in id_list:
-        if aid in user_ids and aid not in seen:
-            final_ids.append(aid); seen.add(aid)
-    for aid in user_ids:
-        if aid not in seen:
-            final_ids.append(aid)
-
-    with transaction.atomic():
-        user_qs.update(order=F("order") + 1_000_000)
-        case = Case(
-            *[When(id=aid, then=pos) for pos, aid in enumerate(final_ids)],
-            output_field=IntegerField(),
-        )
-        user_qs.filter(id__in=final_ids).update(order=case)
-
-    return JsonResponse({"ok": True, "updated": final_ids})
-
-
-
-
-def public_album_detail(request, slug):
-    """Public album detail page with ratings and tracks."""
-    album = get_object_or_404(Album, slug=slug, is_public=True)
-    album = annotate_albums(Album.objects.filter(pk=album.pk)).first()
-
-    tracks = (
-        AlbumTrack.objects.filter(album=album)
-        .select_related("track")
-        .annotate(
-            track_avg=Avg("track__ratings__stars"),
-            track_count=Count("track__ratings", distinct=True),
-        )
-        .order_by("id")
-    )
-    return render(request, "album/public_album_detail.html", {"album": album, "tracks": tracks})
-
-
 @login_required
 def toggle_album_visibility(request, pk):
     """Toggle album public/private."""
@@ -325,7 +439,6 @@ def toggle_album_visibility(request, pk):
     return redirect("album:album_detail", pk=album.pk)
 
 
-# (Optional) Track creation shortcut (consider moving to tracks/views.py)
 @login_required
 def track_create(request):
     if request.method == "POST":
@@ -340,31 +453,13 @@ def track_create(request):
 
 
 @login_required
-def album_search(request):
-    q = request.GET.get("q", "").strip()
-    albums = Album.objects.filter(owner=request.user)
-    if q:
-        albums = albums.filter(name__icontains=q)
-
-    albums = annotate_albums(albums)  # ⭐ add rating fields if available
-
-    results = []
-    for a in albums:
-        results.append({
-            "id": a.id,
-            "name": a.name,
-            "is_public": a.is_public,
-            "detail_url": reverse("album:album_detail", args=[a.id]),
-            "toggle_url": reverse("album:toggle_album_visibility", args=[a.id]), 
-            "edit_url": reverse("album:ajax_rename_album", args=[a.id]),
-        })
-    return JsonResponse({"results": results})
-
-
-@login_required
 @require_POST
 def album_rename_track(request, pk, item_id):
-    """Rename a specific track in the album."""
+    """Rename a specific track in the album.
+
+    - If the track belongs to me, rename the original Track.
+    - If it belongs to someone else, set a custom_name just for this album.
+    """
     album = get_object_or_404(Album, pk=pk, owner=request.user)
     item = get_object_or_404(AlbumTrack, pk=item_id, album=album)
 
@@ -373,65 +468,34 @@ def album_rename_track(request, pk, item_id):
         messages.error(request, "Track name cannot be empty.")
         return redirect("album:album_detail", pk=pk)
 
-    item.track.name = new_name
-    item.track.save(update_fields=["name"])
-    messages.success(request, f'Track renamed to “{new_name}”.')
+    if item.track.owner_id == request.user.id:
+        # My track → rename the track itself
+        item.track.name = new_name
+        item.track.save(update_fields=["name"])
+        messages.success(request, f'Track renamed to “{new_name}”.')
+    else:
+        # Someone else’s track → just override label for this album
+        item.custom_name = new_name
+        item.save(update_fields=["custom_name"])
+        messages.success(request, f'Track relabeled as “{new_name}” in this album.')
+
     return redirect("album:album_detail", pk=pk)
 
 
-
-
-
-
-
-
-
-
-
 @login_required
 @require_POST
-def ajax_add_album(request):
-    """Add a new album (AJAX-only). Enforces plan limits and sets order/position if present."""
-    ok, reason = can_add_album(request.user)
-    if not ok:
-        return JsonResponse({"ok": False, "error": reason or "Album limit reached."}, status=403)
-
-    name = (request.POST.get("name") or "").strip()
-    if not name:
-        return JsonResponse({"ok": False, "error": "Album name required."}, status=400)
-
-    album = Album(owner=request.user, name=name)
-
-    # Put new album at the end if you have ordering fields
-    if _has_field(Album, "order"):
-        last = Album.objects.filter(owner=request.user).order_by("-order", "-id").first()
-        album.order = (last.order + 1) if last and last.order is not None else 0
-    elif _has_field(Album, "position"):
-        last = Album.objects.filter(owner=request.user).order_by("-position", "-id").first()
-        album.position = (last.position + 1) if last and last.position is not None else 0
-
-    album.save()
-
-    detail_url = reverse("album:album_detail", args=[album.pk])
-    return JsonResponse({"ok": True, "id": album.id, "name": album.name, "detail_url": detail_url})
-
-@login_required
-@require_POST
-def ajax_rename_album(request, pk):
-    """Rename an album (AJAX-only)."""
+def album_detach_track(request, pk, item_id):
+    """⛔ Remove a specific track from the album (does NOT delete the track)."""
     album = get_object_or_404(Album, pk=pk, owner=request.user)
-    new_name = (request.POST.get("name") or "").strip()
-    if not new_name:
-        return JsonResponse({"ok": False, "error": "Name cannot be empty."}, status=400)
-    if new_name != album.name:
-        album.name = new_name
-        album.save(update_fields=["name"])
-    return JsonResponse({"ok": True, "id": album.id, "name": album.name})
+    item = get_object_or_404(AlbumTrack, pk=item_id, album=album)
+    track = item.track
 
-@login_required
-@require_POST
-def ajax_delete_album(request, pk):
-    """Delete an album (AJAX-only)."""
-    album = get_object_or_404(Album, pk=pk, owner=request.user)
-    album.delete()
-    return JsonResponse({"ok": True, "id": pk})
+    # Delete the AlbumTrack entry
+    item.delete()
+
+    # Also clean up SavedTrack snapshot if it exists for this album+track
+    from save_system.models import SavedTrack
+    SavedTrack.objects.filter(owner=request.user, album=album, original_track=track).delete()
+
+    messages.success(request, "Removed from album.")
+    return redirect("album:album_detail", pk=pk)

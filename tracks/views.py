@@ -24,7 +24,9 @@ from plans.utils import (
     user_has_storage_plan,
 )
 from ratings.utils import annotate_albums, annotate_tracks
-
+from tracks.utils import mark_track_ownership
+from save_system.models import SavedTrack
+from .models import Listen
 
 ##### -------------------- Track List (main tabs UI) -------------------- #####
 
@@ -40,17 +42,15 @@ def track_list(request):
       - Favourites (tracks, annotated with ratings, session re-order support)
       - Recently Played (tracks, annotated with ratings, ordered by last play)
     """
+    from save_system.models import SavedTrack  # local import to avoid circulars
 
     # ------------------------------- FAVOURITES ------------------------------- #
-    # Build a set/list of favorite track IDs (keeps us independent of related_name)
     fav_ids = list(
         Favorite.objects.filter(owner=request.user).values_list("track_id", flat=True)
     )
 
-    # Return favorites as TRACKS (simplifies templates)
     favorites_qs = annotate_tracks(Track.objects.filter(id__in=fav_ids))
 
-    # Optional: apply session ordering if present
     fav_order = request.session.get(f"fav_order_{request.user.id}", [])
     if fav_order:
         order_pos = {tid: i for i, tid in enumerate(fav_order)}
@@ -58,12 +58,10 @@ def track_list(request):
     else:
         favorites = list(favorites_qs.order_by("-created_at")[:25])
 
-    # mark favorites for the heart button
     for t in favorites:
         t.is_favorited = True
 
     # ---------------------------- RECENTLY PLAYED ---------------------------- #
-    # Get latest play time per track for this user
     latest_per_track = (
         Listen.objects.filter(user=request.user)
         .values("track")
@@ -72,14 +70,11 @@ def track_list(request):
     )
     recent_track_ids = [row["track"] for row in latest_per_track]
 
-    # Fetch those tracks (annotated with ratings) and keep dictionary for quick lookup
     recent_tracks_by_id = annotate_tracks(
         Track.objects.filter(id__in=recent_track_ids)
     ).in_bulk()
 
     fav_id_set = set(fav_ids)
-
-    # Preserve order from latest_per_track; attach is_favorited for hearts
     recent = []
     for row in latest_per_track:
         tid = row["track"]
@@ -90,7 +85,6 @@ def track_list(request):
         recent.append(trk)
 
     # --------------------------------- ALBUMS -------------------------------- #
-    # is_favorited per album track for this user
     fav_subquery = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
 
     albums_qs = annotate_albums(Album.objects.filter(owner=request.user)).prefetch_related(
@@ -109,7 +103,6 @@ def track_list(request):
         )
     )
 
-    # 🔑 Respect saved album order on render so drag order persists after refresh
     if _has_field(Album, "order"):
         albums_qs = albums_qs.order_by("order", "id")
     else:
@@ -117,13 +110,34 @@ def track_list(request):
 
     albums = albums_qs
 
+    # ---------------------------- OWNERSHIP + SAVED --------------------------- #
+    # Precompute all saved track IDs for this user
+    saved_ids = set(
+        SavedTrack.objects.filter(owner=request.user).values_list("original_track_id", flat=True)
+    )
+
+    def mark_track_flags(tracks):
+        """Helper to set .is_my_track and .is_in_my_albums on each track."""
+        for t in tracks:
+            t.is_my_track = (t.owner_id == request.user.id)
+            t.is_in_my_albums = (t.id in saved_ids)
+
+    mark_track_flags(favorites)
+    mark_track_flags(recent)
+
+    for album in albums:
+        for at in album.album_tracks_annotated:
+            at.track.is_my_track = (at.track.owner_id == request.user.id)
+            at.track.is_in_my_albums = (at.track.id in saved_ids)
+
+    # --------------------------------- RENDER -------------------------------- #
     return render(
         request,
         "tracks/track_list.html",
         {
-            "albums": albums,        # Album queryset; each album has .rating_avg/.rating_count
-            "favorites": favorites,  # List[Track] with .rating_avg/.rating_count & .is_favorited
-            "recent": recent,        # List[Track] with .rating_avg/.rating_count & .is_favorited
+            "albums": albums,
+            "favorites": favorites,
+            "recent": recent,
         },
     )
 
@@ -221,10 +235,11 @@ def recent_reorder(request):
 
 
 @login_required
-@require_POST
 def clear_recent(request):
-    Listen.objects.filter(user=request.user).delete()
-    return JsonResponse({"ok": True})
+    if request.method == "POST":
+        Listen.objects.filter(user=request.user).delete()
+        return JsonResponse({"ok": True, "msg": "Recent list cleared."})
+    return JsonResponse({"ok": False, "error": "POST required."}, status=405)
 
 
 @login_required
@@ -298,3 +313,11 @@ def user_tracks(request, username):
     author = get_object_or_404(User, username=username)
     qs = annotate_tracks(Track.objects.filter(owner=author).order_by("-created_at"))
     return render(request, "tracks/user_tracks.html", {"author": author, "tracks": qs})
+
+
+@login_required
+@require_POST
+def delete_track(request, pk):
+    track = get_object_or_404(Track, pk=pk, owner=request.user)
+    track.delete()
+    return JsonResponse({"ok": True, "id": pk})

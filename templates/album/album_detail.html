@@ -37,9 +37,11 @@
 
 
   <!-- Track list -->
-  <ul class="list-group">
+  <ul id="track-list" class="list-group"
+      data-album-id="{{ album.id }}"
+      data-reorder-url="{% url 'album:album_reorder_tracks' album.pk %}">
     {% for at in items %}
-      {% include "tracks/_track_card.html" with track=at.track album=album is_favorited=at.is_favorited avg=at.track_avg count=at.track_count %}
+      {% include "tracks/_track_card.html" with track=at.track album=album album_item_id=at.id is_owner=is_owner is_favorited=at.is_favorited avg=at.track_avg count=at.track_count custom_name=at.custom_name %}
     {% empty %}
       <li class="list-group-item text-muted">No tracks yet.</li>
     {% endfor %}

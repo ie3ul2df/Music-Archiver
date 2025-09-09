@@ -9,7 +9,7 @@ from django.utils.http import urlencode
 from album.models import Album, AlbumTrack
 from tracks.models import Track
 from ratings.utils import annotate_albums, annotate_tracks
-
+from save_system.models import SavedTrack
 
 SEARCH_LIMIT = 50
 
@@ -62,6 +62,18 @@ def index(request):
         .order_by("-rating_score", "-rating_count", "-rating_avg", "-created_at")[:10]
     )
 
+    # ---------------- Mark which tracks are already saved by this user ---------------- #
+    if request.user.is_authenticated:
+        saved_ids = set(
+            SavedTrack.objects.filter(owner=request.user, original_track__in=tracks_top)
+            .values_list("original_track_id", flat=True)
+        )
+        for t in tracks_top:
+            t.is_in_my_albums = t.id in saved_ids
+    else:
+        for t in tracks_top:
+            t.is_in_my_albums = False
+
     return render(
         request,
         "home_page/index.html",
@@ -71,6 +83,8 @@ def index(request):
             "tracks_top": tracks_top,
         },
     )
+
+
 
 
 def search(request):

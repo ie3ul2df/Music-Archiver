@@ -20,7 +20,7 @@ urlpatterns = [
     # Isolated per-list reorder endpoints
     path("api/favorites/reorder/", views.favorites_reorder, name="favorites_reorder"),
     path("api/recent/reorder/", views.recent_reorder, name="recent_reorder"),
-    path("api/recent/clear/", views.clear_recent, name="clear_recent"),
+    path("tracks/api/recent/clear/", views.clear_recent, name="clear_recent"),
 
     # Legacy aliases (keep if you want backwards compatibility)
     path("json/", views.tracks_json, name="tracks_json_legacy"),
@@ -32,4 +32,7 @@ urlpatterns = [
     
     # User tracks
     path("by/<str:username>/", views.user_tracks, name="user_tracks"),
+    
+    # Delete track
+    path("<int:pk>/delete/", views.delete_track, name="delete_track"),
 ]

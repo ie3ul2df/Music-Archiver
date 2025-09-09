@@ -1,43 +1,38 @@
 // --------------------------- static/js/track_list.js ---------------------------//
 
-/* ---------------- CSRF helpers (global) ----------------
-   We expose window.getCookie and window.getCSRF so all IIFEs can use them. */
-(function () {
-  if (typeof window.getCookie !== "function") {
-    window.getCookie = function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== "") {
-        const cookies = document.cookie.split(";");
-        for (let i = 0; i < cookies.length; i++) {
-          const cookie = cookies[i].trim();
-          if (cookie.substring(0, name.length + 1) === name + "=") {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
-        }
-      }
-      return cookieValue;
-    };
-  }
-  if (typeof window.getCSRF !== "function") {
-    window.getCSRF = function getCSRF() {
-      return window.getCookie("csrftoken") || "";
-    };
-  }
-})();
-
-// --------------------------- MAIN: albums & tracks sortable, helpers ---------------------------//
 (function () {
   "use strict";
 
-  // Generic POST JSON utility with CSRF
+  // ---------------- CSRF (fallback if cookies.js wasn't loaded) ----------------
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+      const cookies = document.cookie.split(";");
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        // Does this cookie string begin with the name we want?
+        if (cookie.substring(0, name.length + 1) === name + "=") {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  // Always resolve CSRF from this function
+  function getCSRF() {
+    return getCookie("csrftoken");
+  }
+  // Prefer global getCookie if provided by cookies.js, else fallback:
+  const getCSRF = (typeof getCookie === "function" ? getCookie : getCookieLocal).bind(null, "csrftoken");
+
   async function postJSON(url, payload) {
     const res = await fetch(url, {
       method: "POST",
       headers: {
-        "X-CSRFToken": getCSRF(),
+        "X-CSRFToken": getCookie("csrftoken"),
         "Content-Type": "application/json",
-        "Accept": "application/json",
       },
       body: JSON.stringify(payload),
       credentials: "same-origin",
@@ -82,12 +77,11 @@
       if (!item) return;
       dragging = item;
       item.classList.add("is-dragging");
-      if (e.dataTransfer) {
-        e.dataTransfer.effectAllowed = "move";
-        try {
-          e.dataTransfer.setData("text/plain", "");
-        } catch (_) {}
-      }
+      e.dataTransfer.effectAllowed = "move";
+      // Some browsers require data to be set
+      try {
+        e.dataTransfer.setData("text/plain", "");
+      } catch (_) {}
     });
 
     container.addEventListener("dragover", (e) => {
@@ -128,9 +122,7 @@
       console.warn("Missing albums reorder URL on #albums");
       return;
     }
-    const ids = [...albumsWrapper.querySelectorAll(".album")]
-      .map((a) => parseInt(a.dataset.id, 10))
-      .filter(Number.isFinite);
+    const ids = [...albumsWrapper.querySelectorAll(".album")].map((a) => parseInt(a.dataset.id, 10)).filter(Number.isFinite);
     if (!ids.length) return;
     await postJSON(url, { order: ids });
   }
@@ -149,9 +141,7 @@
     }
 
     // IMPORTANT: use AlbumTrack IDs for ordering!
-    const atIds = [...listUL.querySelectorAll("li.track-item")]
-      .map((li) => parseInt(li.dataset.atid, 10))
-      .filter(Number.isFinite);
+    const atIds = [...listUL.querySelectorAll("li.track-item")].map((li) => parseInt(li.dataset.atid, 10)).filter(Number.isFinite);
 
     if (!atIds.length) return;
     await postJSON(url, { order: atIds });
@@ -199,9 +189,15 @@
   document.addEventListener("dragend", () => {});
 })();
 
-//--------------------------- FAVOURITES: drag to reorder ---------------------------//
+//--------------------------- Drag tracks in favourite list ---------------------------//
 (function () {
   "use strict";
+
+  function getCookie(name) {
+    const m = document.cookie.match("(^|;)\\s*" + name + "\\s*=\\s*([^;]+)");
+    return m ? m.pop() : "";
+  }
+  const csrftoken = getCookie("csrftoken");
 
   const list = document.getElementById("fav-tracks");
   if (!list) return;
@@ -209,7 +205,9 @@
   let draggingLi = null;
 
   list.addEventListener("dragstart", (e) => {
+    // Only proceed if target is an element
     if (!(e.target instanceof Element)) return;
+
     const li = e.target.closest("li.track-item");
     if (!li) return;
 
@@ -234,7 +232,7 @@
   list.addEventListener("dragover", (e) => {
     if (!draggingLi) return;
     e.preventDefault(); // allow drop
-    const after = getAfterElementFav(list, e.clientY);
+    const after = getAfterElement(list, e.clientY);
     if (after == null) {
       list.appendChild(draggingLi);
     } else {
@@ -257,19 +255,17 @@
       await fetch(url, {
         method: "POST",
         headers: {
-          "X-CSRFToken": getCSRF(),
+          "X-CSRFToken": csrftoken,
           "Content-Type": "application/json",
-          "Accept": "application/json",
         },
         body: JSON.stringify({ order }),
-        credentials: "same-origin",
       });
     } catch (err) {
       console.error("Failed saving favourites order", err);
     }
   });
 
-  function getAfterElementFav(container, y) {
+  function getAfterElement(container, y) {
     const els = [...container.querySelectorAll("li.track-item:not(.dragging)")];
     let closest = null;
     let closestOffset = Number.NEGATIVE_INFINITY;
@@ -286,7 +282,7 @@
   }
 })();
 
-// ----------------------- Clear recent tracks list ----------------------- //
+// ----------------------- clear recent tracks list
 document.addEventListener("DOMContentLoaded", () => {
   const clearBtn = document.getElementById("clear-recent");
   const list = document.getElementById("recent-list");
@@ -299,17 +295,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const res = await fetch(clearBtn.dataset.url, {
           method: "POST",
           headers: {
-            "X-CSRFToken": getCSRF(),
-            "Accept": "application/json",
+            "X-CSRFToken": getCookieLocal("csrftoken"),
           },
           credentials: "same-origin",
         });
-        const data = await res.json().catch(() => ({}));
+        const data = await res.json();
 
-        if (data && data.ok) {
+        if (data.ok) {
           list.innerHTML = '<li class="list-group-item text-muted">No recently played tracks.</li>';
         } else {
-          alert((data && data.error) || "Failed to clear recent list.");
+          alert(data.error || "Failed to clear recent list.");
         }
       } catch (err) {
         console.error("Error clearing recent list:", err);

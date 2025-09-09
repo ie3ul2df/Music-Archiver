@@ -184,35 +184,47 @@
 
     {# ------- 🕓 Recently Played ------- #}
     <div class="tab-pane fade" id="recent" role="tabpanel">
-      <ul class="list-group list-group-flush tracks">
+      {% if user.is_authenticated %}
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="mb-0">Recently Played</h5>
+          <button id="clear-recent"
+                  data-url="{% url 'clear_recent' %}"
+                  class="btn btn-sm btn-outline-danger">
+            Clear All
+          </button>
+        </div>
+      {% endif %}
+
+      <ul id="recent-list" class="list-group list-group-flush tracks">
         {% for row in recent %}
-        <li class="list-group-item d-flex align-items-center gap-2">
-          <button
-            class="btn btn-sm btn-outline-secondary play-btn"
-            data-id="{{ row.id }}"
-            data-name="{{ row.name }}"
-            data-src="{% if row.audio_file %}{{ row.audio_file.url }}{% else %}{{ row.source_url }}{% endif %}"
-          >
-            ▶
-          </button>
+          <li class="list-group-item d-flex align-items-center gap-2">
+            <button
+              class="btn btn-sm btn-outline-secondary play-btn"
+              data-id="{{ row.id }}"
+              data-name="{{ row.name }}"
+              data-src="{% if row.audio_file %}{{ row.audio_file.url }}{% else %}{{ row.source_url }}{% endif %}">
+              ▶
+            </button>
 
-          <span class="flex-grow-1">{{ row.name }}</span>
+            <span class="flex-grow-1">{{ row.name }}</span>
 
-          <span class="ms-2"> {% include "ratings/_stars.html" with type="track" id=row.id avg=row.rating_avg count=row.rating_count user_rating=None %} </span>
+            <span class="ms-2">
+              {% include "ratings/_stars.html" with type="track" id=row.id avg=row.rating_avg count=row.rating_count user_rating=None %}
+            </span>
 
-          <button
-            class="btn btn-sm btn-outline-danger fav-btn {% if row.is_favorited %}active{% endif %}"
-            data-track="{{ row.id }}"
-            aria-pressed="{{ row.is_favorited|yesno:'true,false' }}"
-          >
-            {% if row.is_favorited %}♥{% else %}♡{% endif %}
-          </button>
-        </li>
+            <button
+              class="btn btn-sm btn-outline-danger fav-btn {% if row.is_favorited %}active{% endif %}"
+              data-track="{{ row.id }}"
+              aria-pressed="{{ row.is_favorited|yesno:'true,false' }}">
+              {% if row.is_favorited %}♥{% else %}♡{% endif %}
+            </button>
+          </li>
         {% empty %}
-        <li class="list-group-item text-muted">No recently played tracks.</li>
+          <li class="list-group-item text-muted">No recently played tracks.</li>
         {% endfor %}
       </ul>
     </div>
+
   </div>
   {% endif %}
 </div>
