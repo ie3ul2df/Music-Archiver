@@ -3,7 +3,11 @@
     <a href="{% url 'album:album_detail' album.pk %}" class="fw-bold text-decoration-none">
       {{ album.name }}
     </a>
-    <div class="small text-muted">by {{ album.owner.username }}</div>
+    <div class="small text-muted">    
+      <a class="text-decoration-none small text-muted" href="{% url 'user_tracks' album.owner.username %}">
+        🔗 {{ album.owner.username }}
+      </a>
+    </div>
   </div>
 
   <!-- ⭐ Album stars -->
