@@ -15,7 +15,7 @@ from .models import Album, AlbumTrack
 from .forms import AlbumForm
 from tracks.models import Track, Favorite
 from tracks.forms import TrackForm
-from tracks.utils import mark_track_ownership
+from tracks.utils import mark_track_ownership, annotate_is_in_my_albums
 from ratings.utils import annotate_albums, annotate_tracks
 from plans.utils import can_add_album
 from save_system.models import SavedTrack
@@ -45,10 +45,11 @@ def _can_view_album(album, user):
     return (album.is_public or (user.is_authenticated and album.owner_id == user.id))
 
 # -------------- Album fragment view --------------
+@login_required
 def album_tracks_fragment(request, pk):
     album = get_object_or_404(Album, pk=pk)
-    # On "Your Album" tab these are the user's albums, but keep a guard:
-    if not (request.user.is_authenticated and album.owner_id == request.user.id) and not getattr(album, "is_public", False):
+
+    if not (album.owner_id == request.user.id) and not getattr(album, "is_public", False):
         return HttpResponseForbidden("Not allowed.")
 
     items = (
@@ -61,26 +62,16 @@ def album_tracks_fragment(request, pk):
         .order_by("position", "id")
     )
 
-    # Favourite flag per track
     if request.user.is_authenticated:
         fav_subq = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
         items = items.annotate(is_favorited=Exists(fav_subq))
     else:
         items = items.annotate(is_favorited=Value(False, output_field=BooleanField()))
 
-    # Saved flag for 💾/🗃️
-    saved_ids = set()
-    if request.user.is_authenticated:
-        saved_ids = set(
-            SavedTrack.objects.filter(
-                owner=request.user,
-                original_track__in=[it.track for it in items]
-            ).values_list("original_track_id", flat=True)
-        )
-    for it in items:
-        it.track.is_in_my_albums = (it.track.id in saved_ids)
+    # 👇 Set the correct 🗃️/💾 flag on each at.track
+    annotate_is_in_my_albums(items, request.user, attr="track")
 
-    is_owner = request.user.is_authenticated and album.owner_id == request.user.id
+    is_owner = (album.owner_id == request.user.id)
 
     return render(
         request,
@@ -319,7 +310,11 @@ def album_detail(request, pk):
         .order_by("position", "id")
     )
 
+    # existing:
     mark_track_ownership(items, request.user)
+
+    # add this:
+    annotate_is_in_my_albums(items, request.user, attr="track")
 
     # ✅ mark whether each track is already saved in one of the user's albums
     saved_ids = set()

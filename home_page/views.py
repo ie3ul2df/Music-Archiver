@@ -10,6 +10,8 @@ from album.models import Album, AlbumTrack
 from tracks.models import Track
 from ratings.utils import annotate_albums, annotate_tracks
 from save_system.models import SavedTrack
+from tracks.utils import annotate_is_in_my_albums
+
 
 SEARCH_LIMIT = 50
 
@@ -61,6 +63,9 @@ def index(request):
         )
         .order_by("-rating_score", "-rating_count", "-rating_avg", "-created_at")[:10]
     )
+    
+    # ensure the flag is set for icons:
+    annotate_is_in_my_albums(list(tracks_top), request.user)  # cast to list to evaluate and annotate
 
     # ---------------- Mark which tracks are already saved by this user ---------------- #
     if request.user.is_authenticated:

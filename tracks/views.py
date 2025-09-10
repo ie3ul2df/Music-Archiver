@@ -24,7 +24,7 @@ from plans.utils import (
     user_has_storage_plan,
 )
 from ratings.utils import annotate_albums, annotate_tracks
-from tracks.utils import mark_track_ownership
+from tracks.utils import mark_track_ownership, annotate_is_in_my_albums
 from save_system.models import SavedTrack
 from .models import Listen
 
@@ -42,7 +42,7 @@ def track_list(request):
       - Favourites (tracks, annotated with ratings, session re-order support)
       - Recently Played (tracks, annotated with ratings, ordered by last play)
     """
-    from save_system.models import SavedTrack  # local import to avoid circulars
+    from tracks.utils import annotate_is_in_my_albums  # safe local import
 
     # ------------------------------- FAVOURITES ------------------------------- #
     fav_ids = list(
@@ -60,6 +60,9 @@ def track_list(request):
 
     for t in favorites:
         t.is_favorited = True
+
+    # Set 💾/🗃️ for favourites
+    annotate_is_in_my_albums(favorites, request.user)
 
     # ---------------------------- RECENTLY PLAYED ---------------------------- #
     latest_per_track = (
@@ -83,6 +86,9 @@ def track_list(request):
             continue
         trk.is_favorited = tid in fav_id_set
         recent.append(trk)
+
+    # Set 💾/🗃️ for recent
+    annotate_is_in_my_albums(recent, request.user)
 
     # --------------------------------- ALBUMS -------------------------------- #
     fav_subquery = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
@@ -108,27 +114,11 @@ def track_list(request):
     else:
         albums_qs = albums_qs.order_by("-created_at", "id")
 
-    albums = albums_qs
+    albums = list(albums_qs)
 
-    # ---------------------------- OWNERSHIP + SAVED --------------------------- #
-    # Precompute all saved track IDs for this user
-    saved_ids = set(
-        SavedTrack.objects.filter(owner=request.user).values_list("original_track_id", flat=True)
-    )
-
-    def mark_track_flags(tracks):
-        """Helper to set .is_my_track and .is_in_my_albums on each track."""
-        for t in tracks:
-            t.is_my_track = (t.owner_id == request.user.id)
-            t.is_in_my_albums = (t.id in saved_ids)
-
-    mark_track_flags(favorites)
-    mark_track_flags(recent)
-
+    # Set 💾/🗃️ for tracks inside albums (AlbumTrack objects → attr="track")
     for album in albums:
-        for at in album.album_tracks_annotated:
-            at.track.is_my_track = (at.track.owner_id == request.user.id)
-            at.track.is_in_my_albums = (at.track.id in saved_ids)
+        annotate_is_in_my_albums(album.album_tracks_annotated, request.user, attr="track")
 
     # --------------------------------- RENDER -------------------------------- #
     return render(

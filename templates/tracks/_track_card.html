@@ -37,7 +37,8 @@
                 data-save-url="{% url 'save_system:save_track' track.id %}"
                 data-bs-toggle="modal" data-bs-target="#saveToAlbumModal"
                 title="Save to one of my albums">
-          {% if track.is_in_my_albums %}🗃️{% else %}💾{% endif %}
+          {# 🗃️ if I own the track OR it's in any of my albums; else 💾 #}
+          {% if track.owner_id == request.user.id or track.is_in_my_albums %}🗃️{% else %}💾{% endif %}
         </button>
       {% endif %}
 
