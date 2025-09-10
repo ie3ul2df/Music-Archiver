@@ -306,6 +306,10 @@ def album_detail(request, pk):
         .annotate(
             track_avg=Avg("track__ratings__stars"),
             track_count=Count("track__ratings", distinct=True),
+            # ✅ mark favourited for the current user on each AlbumTrack row
+            is_favorited=Exists(
+                Favorite.objects.filter(owner=request.user, track_id=OuterRef("track_id"))
+            ),
         )
         .order_by("position", "id")
     )

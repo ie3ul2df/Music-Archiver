@@ -26,6 +26,7 @@ from plans.utils import (
 from ratings.utils import annotate_albums, annotate_tracks
 from tracks.utils import mark_track_ownership, annotate_is_in_my_albums
 from save_system.models import SavedTrack
+from playlist.models import Playlist, PlaylistItem
 from .models import Listen
 
 ##### -------------------- Track List (main tabs UI) -------------------- #####
@@ -37,17 +38,34 @@ def _has_field(model_cls, field_name: str) -> bool:
 @login_required
 def track_list(request):
     """
-    Track list page with three tabs:
-      - Albums (album ratings + per-track ratings + favorited flags)
-      - Favourites (tracks, annotated with ratings, session re-order support)
-      - Recently Played (tracks, annotated with ratings, ordered by last play)
+    Track list page with four tabs:
+      - Albums
+      - Favourites
+      - Recently Played
+      - Playlist (with initial '✓ In' toggle state)
     """
-    from tracks.utils import annotate_is_in_my_albums  # safe local import
+    from tracks.utils import annotate_is_in_my_albums  # local import
 
-    # ------------------------------- FAVOURITES ------------------------------- #
+    # ----------------------------- PLAYLIST (FIRST) ----------------------------- #
+    playlist = None
+    playlist_items = []
+    in_playlist_ids: set[int] = set()
+
+    if request.user.is_authenticated:
+        playlist, _ = Playlist.objects.get_or_create(owner=request.user, name="My Playlist")
+        playlist_items = (
+            PlaylistItem.objects.select_related("track")
+            .filter(playlist=playlist)
+            .order_by("position", "id")
+        )
+        # initial toggle state for all templates
+        in_playlist_ids = set(playlist_items.values_list("track_id", flat=True))
+
+    # ------------------------------- FAVOURITES -------------------------------- #
     fav_ids = list(
         Favorite.objects.filter(owner=request.user).values_list("track_id", flat=True)
     )
+    fav_id_set = set(fav_ids)
 
     favorites_qs = annotate_tracks(Track.objects.filter(id__in=fav_ids))
 
@@ -60,11 +78,11 @@ def track_list(request):
 
     for t in favorites:
         t.is_favorited = True
+        t.in_playlist = t.id in in_playlist_ids
 
-    # Set 💾/🗃️ for favourites
     annotate_is_in_my_albums(favorites, request.user)
 
-    # ---------------------------- RECENTLY PLAYED ---------------------------- #
+    # ---------------------------- RECENTLY PLAYED ------------------------------ #
     latest_per_track = (
         Listen.objects.filter(user=request.user)
         .values("track")
@@ -77,7 +95,6 @@ def track_list(request):
         Track.objects.filter(id__in=recent_track_ids)
     ).in_bulk()
 
-    fav_id_set = set(fav_ids)
     recent = []
     for row in latest_per_track:
         tid = row["track"]
@@ -85,12 +102,12 @@ def track_list(request):
         if not trk:
             continue
         trk.is_favorited = tid in fav_id_set
+        trk.in_playlist = tid in in_playlist_ids
         recent.append(trk)
 
-    # Set 💾/🗃️ for recent
     annotate_is_in_my_albums(recent, request.user)
 
-    # --------------------------------- ALBUMS -------------------------------- #
+    # ---------------------------------- ALBUMS --------------------------------- #
     fav_subquery = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
 
     albums_qs = annotate_albums(Album.objects.filter(owner=request.user)).prefetch_related(
@@ -109,18 +126,25 @@ def track_list(request):
         )
     )
 
-    if _has_field(Album, "order"):
-        albums_qs = albums_qs.order_by("order", "id")
-    else:
-        albums_qs = albums_qs.order_by("-created_at", "id")
-
+    albums_qs = (
+        albums_qs.order_by("order", "id")
+        if _has_field(Album, "order")
+        else albums_qs.order_by("-created_at", "id")
+    )
     albums = list(albums_qs)
 
-    # Set 💾/🗃️ for tracks inside albums (AlbumTrack objects → attr="track")
     for album in albums:
         annotate_is_in_my_albums(album.album_tracks_annotated, request.user, attr="track")
+        for at in album.album_tracks_annotated:
+            at.track.in_playlist = at.track.id in in_playlist_ids
 
-    # --------------------------------- RENDER -------------------------------- #
+    # ---------------------- PLAYLIST ROWS THEMSELVES --------------------------- #
+    if request.user.is_authenticated and playlist_items:
+        for it in playlist_items:
+            it.track.is_favorited = it.track.id in fav_id_set
+            it.track.in_playlist = True
+
+    # ------------------------------- RENDER ------------------------------------ #
     return render(
         request,
         "tracks/track_list.html",
@@ -128,8 +152,13 @@ def track_list(request):
             "albums": albums,
             "favorites": favorites,
             "recent": recent,
+            "playlist": playlist,
+            "playlist_items": playlist_items,
+            "in_playlist_ids": list(in_playlist_ids), 
         },
     )
+
+
 
 
 @login_required

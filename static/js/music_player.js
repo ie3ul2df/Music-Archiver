@@ -113,23 +113,50 @@
 
   // --- Build queue from checked rows (DOM order) ---
   function getCheckedTracksInDOMOrder() {
-    const albums = document.querySelectorAll(".album");
     const arr = [];
-    albums.forEach((album) => {
-      const lis = album.querySelectorAll(".tracks > li");
-      lis.forEach((li) => {
-        const cb = li.querySelector(".track-check");
-        if (cb && cb.checked) {
-          const btn = li.querySelector(".play-btn");
-          const src = btn?.dataset.src || "";
-          if (!src) return; // skip rows without audio source
-          const id = btn?.dataset.id || li.dataset.id || null;
-          const name = btn?.dataset.name || li.querySelector("span")?.textContent?.trim() || "Untitled";
-          arr.push({ id, name, src });
-        }
-      });
+
+    // Prefer playlist scope; else active tab; else document
+    const playlistUL = document.getElementById("playlist-tracks");
+    const activePane  = document.querySelector(".tab-pane.show.active");
+    const scope = playlistUL || activePane || document;
+
+    // IMPORTANT: include .track-card (playlist) as well as .track-item (others)
+    const rows = scope.querySelectorAll("ul.tracks li.track-item, ul.tracks li.track-card");
+
+    rows.forEach((li) => {
+      const cb = li.querySelector(".track-check");
+      if (!cb || !cb.checked) return;
+
+      // Find a source URL (playlist rows have <audio.inline-audio>, not .play-btn data-src)
+      const playBtn = li.querySelector(".play-btn, .js-inline-play");
+      const audioEl = li.querySelector("audio.inline-audio");
+      const src =
+        playBtn?.dataset?.src ||
+        li.dataset.src ||
+        (audioEl ? audioEl.getAttribute("src") : "") ||
+        "";
+
+      if (!src) return;
+
+      // ID can be on button or the <li> (playlist has data-track-id)
+      const id =
+        playBtn?.dataset?.id ||
+        li.dataset.trackId ||   // ✅ prefer real track id
+        li.dataset.id ||
+        null;
+
+      // Name: try data-name, then common title spans
+      const name =
+        playBtn?.dataset?.name ||
+        li.dataset.name ||
+        li.querySelector(".flex-grow-1")?.textContent?.trim() ||
+        li.querySelector(".fw-semibold")?.textContent?.trim() ||
+        "Untitled";
+
+      arr.push({ id, name, src });
     });
-    // de-dup by src
+
+    // De-dup by src
     const seen = new Set();
     return arr.filter((t) => {
       if (!t.src || seen.has(t.src)) return false;
@@ -137,6 +164,7 @@
       return true;
     });
   }
+
 
   function rebuildQueueFromChecks({ maintainCurrent = true, autoplay = false } = {}) {
     if (!checkboxMode()) return;
@@ -155,13 +183,27 @@
       return;
     }
 
-    const newIndex = maintainCurrent && currentSrc ? tracks.findIndex((t) => t.src === currentSrc) : -1;
+    const newIndex = maintainCurrent && currentSrc
+      ? tracks.findIndex((t) => t.src === currentSrc)
+      : -1;
 
     if (newIndex !== -1) {
       idx = newIndex;
       setNowPlaying("Now");
       highlightActiveButton();
       setPlaypauseLabel();
+
+      // ✅ If caller requested autoplay, actually start playing again.
+      if (autoplay) {
+        const same =
+          !!audio.currentSrc && tracks[idx] && audio.currentSrc === tracks[idx].src;
+        if (same) {
+          audio.play();
+          setPlaypauseLabel();
+        } else {
+          load(idx, true); // source changed; reload this item
+        }
+      }
     } else {
       idx = 0;
       setNowPlaying("Ready");
@@ -169,6 +211,7 @@
       if (autoplay) load(0, true);
     }
   }
+
 
   // --- Core ---
   function load(i, autoplay = true) {
@@ -178,6 +221,7 @@
     if (!t) return;
 
     audio.src = t.src;
+    audio.load();
     setNowPlaying("Now");
     highlightActiveButton();
 
@@ -209,20 +253,28 @@
   }
 
   function togglePlayPause() {
-    if (!audio.src) {
-      // If no source yet, build queue from checks (if any) and start
-      if (!tracks.length && checkboxMode()) {
-        rebuildQueueFromChecks({ maintainCurrent: false, autoplay: true });
-        return;
+    // If a source is already loaded, the button should only toggle play/pause.
+    if (audio.src) {
+      if (audio.paused) {
+        audio.play();
+      } else {
+        audio.pause();
       }
-      if (tracks.length) {
-        load(0, true);
-        return;
-      }
+      setPlaypauseLabel();
+      return;
     }
-    if (audio.paused) audio.play();
-    else audio.pause();
-    setPlaypauseLabel();
+
+    // No source yet — build a queue from checked rows if any and start.
+    const anyChecked = document.querySelector(".track-check:checked");
+    if (anyChecked) {
+      rebuildQueueFromChecks({ maintainCurrent: false, autoplay: true });
+      return;
+    }
+
+    // Fallback: use existing queue if present
+    if (tracks.length) {
+      load(0, true);
+    }
   }
 
   // --- Transport events ---
@@ -321,7 +373,7 @@
 
       // Rebuild when user checks/unticks
       document.addEventListener("change", (e) => {
-        if (e.target.classList?.contains("track-check") || e.target.classList?.contains("check-all")) {
+        if (e.target.classList?.contains("track-check")) {
           rebuildQueueFromChecks({ maintainCurrent: true, autoplay: false });
         }
       });
@@ -361,21 +413,58 @@
 
   // --- Play buttons in lists (event delegation) ---
   document.addEventListener("click", (e) => {
-    const btn = e.target.closest(".play-btn");
+    const btn = e.target.closest(".play-btn, .js-inline-play");
     if (!btn) return;
 
-    const src = btn.dataset.src || "";
-    const name = btn.dataset.name || "Untitled";
-    const id = btn.dataset.id || null;
+    const li = btn.closest("li");
+    const audioEl = li?.querySelector("audio.inline-audio");
+
+    const src =
+      btn.dataset.src ||
+      li?.dataset.src ||
+      (audioEl ? audioEl.getAttribute("src") : "") ||
+      "";
+
+    const name =
+      btn.dataset.name ||
+      li?.dataset.name ||
+      li?.querySelector(".flex-grow-1")?.textContent?.trim() ||
+      li?.querySelector(".fw-semibold")?.textContent?.trim() ||
+      "Untitled";
+
+    const id = btn.dataset.id || li?.dataset.trackId || li?.dataset.id || null;
     if (!src) return;
 
-    // Try to find in current queue first
     let i = tracks.findIndex((t) => t.src === src || (id && String(t.id) === String(id)));
+
+    // Same row → toggle pause/play
+    if (i !== -1 && i === idx && audio.src) {
+      if (audio.paused) audio.play(); else audio.pause();
+      setPlaypauseLabel();
+      return;
+    }
+
     if (i === -1) {
-      // Not in queue: append it (even if not checked)
       tracks.push({ id: id ? id : null, name, src });
       i = tracks.length - 1;
     }
     load(i, true);
   });
+
+
 })();
+
+// Playlist "Check All" toggles every row, then one rebuild
+document.addEventListener("change", (e) => {
+  if (e.target && e.target.id === "playlist-check-all") {
+    const list = document.getElementById("playlist-tracks");
+    if (!list) return;
+    const checked = e.target.checked;
+
+    list.querySelectorAll(".track-check").forEach((cb) => {
+      cb.checked = checked;
+    });
+
+    rebuildQueueFromChecks({ maintainCurrent: true, autoplay: false });
+  }
+});

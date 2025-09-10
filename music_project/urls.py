@@ -17,6 +17,7 @@ urlpatterns = [
     path("ratings/", include("ratings.urls")),       # rating system
     path("save/", include("save_system.urls")),      # save system
     path("follow/", include(("follow_system.urls", "follow"), namespace="follow")),   # follow system 
+    path("playlist/", include("playlist.urls", namespace="playlist")), # Playlist system
 
     # Third-party
     path("accounts/", include("allauth.urls")),      # login / signup / logout

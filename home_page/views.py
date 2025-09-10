@@ -7,7 +7,7 @@ from django.template.loader import render_to_string
 from django.utils.http import urlencode
 
 from album.models import Album, AlbumTrack
-from tracks.models import Track
+from tracks.models import Track, Favorite
 from ratings.utils import annotate_albums, annotate_tracks
 from save_system.models import SavedTrack
 from tracks.utils import annotate_is_in_my_albums
@@ -25,18 +25,20 @@ def index(request):
     Homepage: hero + latest public albums + top 10 albums & tracks by weighted score.
     """
 
-    # ---------------- Latest 12 public albums (for grid) ---------------- #
+    # ---------------- Latest 10 public albums (for grid) ---------------- #
     public_albums = (
         annotate_albums(
             Album.objects.filter(is_public=True).select_related("owner")
         )
         .annotate(track_count=Count("album_tracks", distinct=True))
-        .order_by("-created_at")[:12]
+        .order_by("-created_at")[:10]
     )
 
     # ---------------- Top 10 Albums (weighted: avg * count) ---------------- #
     albums_top = (
-        annotate_albums(Album.objects.filter(is_public=True))
+        annotate_albums(
+            Album.objects.filter(is_public=True).select_related("owner")
+        )
         .filter(rating_count__gt=0)  # only those with votes
         .annotate(
             rating_score=ExpressionWrapper(
@@ -52,7 +54,7 @@ def index(request):
         track_id=OuterRef("pk"), album__is_public=True
     )
 
-    tracks_top = (
+    tracks_top_qs = (
         annotate_tracks(Track.objects.filter(Exists(in_public_album)))
         .filter(rating_count__gt=0)
         .annotate(
@@ -63,21 +65,25 @@ def index(request):
         )
         .order_by("-rating_score", "-rating_count", "-rating_avg", "-created_at")[:10]
     )
-    
-    # ensure the flag is set for icons:
-    annotate_is_in_my_albums(list(tracks_top), request.user)  # cast to list to evaluate and annotate
 
-    # ---------------- Mark which tracks are already saved by this user ---------------- #
-    if request.user.is_authenticated:
-        saved_ids = set(
-            SavedTrack.objects.filter(owner=request.user, original_track__in=tracks_top)
-            .values_list("original_track_id", flat=True)
+    # Evaluate so we can attach per-user flags
+    tracks_top = list(tracks_top_qs)
+
+    # ------- Favourites flag for current user (sets .is_favorited on each track) -------
+    if request.user.is_authenticated and tracks_top:
+        fav_ids = set(
+            Favorite.objects.filter(
+                owner=request.user, track_id__in=[t.id for t in tracks_top]
+            ).values_list("track_id", flat=True)
         )
         for t in tracks_top:
-            t.is_in_my_albums = t.id in saved_ids
+            t.is_favorited = t.id in fav_ids
     else:
         for t in tracks_top:
-            t.is_in_my_albums = False
+            t.is_favorited = False
+
+    # ------- 💾/🗃️ flag (is_in_my_albums) via your existing helper -------
+    annotate_is_in_my_albums(tracks_top, request.user)
 
     return render(
         request,
@@ -88,8 +94,6 @@ def index(request):
             "tracks_top": tracks_top,
         },
     )
-
-
 
 
 def search(request):

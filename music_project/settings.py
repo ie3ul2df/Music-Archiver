@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "ratings",
     "save_system",
     "follow_system",
+    "playlist",
 ]
 
 SITE_ID = 1
@@ -122,6 +123,7 @@ TEMPLATES = [
                 "basket.contexts.basket_contents",
                 "profile_page.context_processors.user_profile",
                 "save_system.context_processors.user_albums_for_save",
+                'playlist.context_processors.playlist_membership',
             ],
         },
     },

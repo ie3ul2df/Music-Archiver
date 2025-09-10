@@ -89,7 +89,7 @@
     <h3 class="mb-3">🎵 Top 10 Tracks</h3>
     <ul class="list-group">
       {% for track in tracks_top %}
-        {% include "tracks/_track_card.html" with track=track album=None is_favorited=track.is_favorited|default:False avg=track.rating_avg count=track.rating_count %}
+        {% include "tracks/_track_card.html" with track=track album=None is_favorited=track.is_favorited|default:False avg=track.rating_avg count=track.rating_count in_playlist=track.in_playlist %}
       {% empty %}
         <li class="list-group-item text-muted">No tracks ranked yet.</li>
       {% endfor %}

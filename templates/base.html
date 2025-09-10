@@ -129,7 +129,15 @@
     <script src="{% static 'js/cookies.js' %}" defer></script>
     <script src="{% static 'js/ratings.js' %}" defer></script>
     <script src="{% static 'js/track_card.js' %}"></script>
+    <script src="{% static 'js/playlist_ui.js' %}" defer></script>
     {% block extra_js %}{% endblock %}
     {% block extra_modals %}{% endblock %}
+
+    {% if in_playlist_ids %}
+      <div id="playlist-meta" data-in-ids="{{ in_playlist_ids|join:',' }}" hidden></div>
+    {% else %}
+      <div id="playlist-meta" data-in-ids="" hidden></div>
+    {% endif %}
+
   </body>
 </html>
