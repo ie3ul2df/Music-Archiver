@@ -112,40 +112,22 @@
   }
 
   // --- Build queue from checked rows (DOM order) ---
-  function getCheckedTracksInDOMOrder() {
-    const arr = [];
-
-    // Prefer playlist scope; else active tab; else document
-    const playlistUL = document.getElementById("playlist-tracks");
-    const activePane  = document.querySelector(".tab-pane.show.active");
-    const scope = playlistUL || activePane || document;
-
-    // IMPORTANT: include .track-card (playlist) as well as .track-item (others)
+  function getCheckedTracksInDOMOrder(scopeEl = null) {
+    const scope = scopeEl || document.querySelector(".tab-pane.show.active") || document;
     const rows = scope.querySelectorAll("ul.tracks li.track-item, ul.tracks li.track-card");
+    const arr = [];
 
     rows.forEach((li) => {
       const cb = li.querySelector(".track-check");
       if (!cb || !cb.checked) return;
 
-      // Find a source URL (playlist rows have <audio.inline-audio>, not .play-btn data-src)
       const playBtn = li.querySelector(".play-btn, .js-inline-play");
       const audioEl = li.querySelector("audio.inline-audio");
-      const src =
-        playBtn?.dataset?.src ||
-        li.dataset.src ||
-        (audioEl ? audioEl.getAttribute("src") : "") ||
-        "";
-
+      const src = playBtn?.dataset?.src || li.dataset.src || (audioEl ? audioEl.getAttribute("src") : "") || "";
       if (!src) return;
 
-      // ID can be on button or the <li> (playlist has data-track-id)
-      const id =
-        playBtn?.dataset?.id ||
-        li.dataset.trackId ||   // ✅ prefer real track id
-        li.dataset.id ||
-        null;
+      const id = playBtn?.dataset?.id || li.dataset.trackId || li.dataset.id || null;
 
-      // Name: try data-name, then common title spans
       const name =
         playBtn?.dataset?.name ||
         li.dataset.name ||
@@ -156,7 +138,6 @@
       arr.push({ id, name, src });
     });
 
-    // De-dup by src
     const seen = new Set();
     return arr.filter((t) => {
       if (!t.src || seen.has(t.src)) return false;
@@ -165,12 +146,9 @@
     });
   }
 
-
-  function rebuildQueueFromChecks({ maintainCurrent = true, autoplay = false } = {}) {
-    if (!checkboxMode()) return;
-
+  function rebuildQueueFromChecks({ maintainCurrent = true, autoplay = false, scope = null } = {}) {
     const currentSrc = tracks[idx]?.src || null;
-    const newQ = getCheckedTracksInDOMOrder();
+    const newQ = getCheckedTracksInDOMOrder(scope);
     tracks = newQ;
 
     if (!tracks.length) {
@@ -183,26 +161,17 @@
       return;
     }
 
-    const newIndex = maintainCurrent && currentSrc
-      ? tracks.findIndex((t) => t.src === currentSrc)
-      : -1;
+    const newIndex = maintainCurrent && currentSrc ? tracks.findIndex((t) => t.src === currentSrc) : -1;
 
     if (newIndex !== -1) {
       idx = newIndex;
       setNowPlaying("Now");
       highlightActiveButton();
       setPlaypauseLabel();
-
-      // ✅ If caller requested autoplay, actually start playing again.
       if (autoplay) {
-        const same =
-          !!audio.currentSrc && tracks[idx] && audio.currentSrc === tracks[idx].src;
-        if (same) {
-          audio.play();
-          setPlaypauseLabel();
-        } else {
-          load(idx, true); // source changed; reload this item
-        }
+        const same = !!audio.currentSrc && tracks[idx] && audio.currentSrc === tracks[idx].src;
+        same ? audio.play() : load(idx, true);
+        setPlaypauseLabel();
       }
     } else {
       idx = 0;
@@ -211,7 +180,6 @@
       if (autoplay) load(0, true);
     }
   }
-
 
   // --- Core ---
   function load(i, autoplay = true) {
@@ -253,28 +221,18 @@
   }
 
   function togglePlayPause() {
-    // If a source is already loaded, the button should only toggle play/pause.
     if (audio.src) {
-      if (audio.paused) {
-        audio.play();
-      } else {
-        audio.pause();
-      }
+      audio.paused ? audio.play() : audio.pause();
       setPlaypauseLabel();
       return;
     }
-
-    // No source yet — build a queue from checked rows if any and start.
-    const anyChecked = document.querySelector(".track-check:checked");
-    if (anyChecked) {
-      rebuildQueueFromChecks({ maintainCurrent: false, autoplay: true });
+    const pane = document.querySelector(".tab-pane.show.active");
+    const anyCheckedInActive = (pane || document).querySelector(".track-check:checked");
+    if (anyCheckedInActive) {
+      rebuildQueueFromChecks({ maintainCurrent: false, autoplay: true, scope: pane || document });
       return;
     }
-
-    // Fallback: use existing queue if present
-    if (tracks.length) {
-      load(0, true);
-    }
+    if (tracks.length) load(0, true);
   }
 
   // --- Transport events ---
@@ -419,11 +377,7 @@
     const li = btn.closest("li");
     const audioEl = li?.querySelector("audio.inline-audio");
 
-    const src =
-      btn.dataset.src ||
-      li?.dataset.src ||
-      (audioEl ? audioEl.getAttribute("src") : "") ||
-      "";
+    const src = btn.dataset.src || li?.dataset.src || (audioEl ? audioEl.getAttribute("src") : "") || "";
 
     const name =
       btn.dataset.name ||
@@ -439,7 +393,8 @@
 
     // Same row → toggle pause/play
     if (i !== -1 && i === idx && audio.src) {
-      if (audio.paused) audio.play(); else audio.pause();
+      if (audio.paused) audio.play();
+      else audio.pause();
       setPlaypauseLabel();
       return;
     }
@@ -451,20 +406,59 @@
     load(i, true);
   });
 
+  // Playlist/Favourites/Recent "Check All" toggles every row, then rebuild
+  // the queue. When switching lists, previously checked tracks in other lists
+  // are cleared so only one group plays at a time.
+  document.addEventListener("change", (e) => {
+    const id = e.target?.id;
+    const map = {
+      "playlist-check-all": "playlist-tracks",
+      "favorites-check-all": "favorites-tracks",
+      "recent-check-all": "recent-tracks",
+    };
+    if (!id || !(id in map)) return;
 
-})();
+    const checked = !!e.target.checked;
+    const list = document.getElementById(map[id]);
+    const pane = list?.closest(".tab-pane");
 
-// Playlist "Check All" toggles every row, then one rebuild
-document.addEventListener("change", (e) => {
-  if (e.target && e.target.id === "playlist-check-all") {
-    const list = document.getElementById("playlist-tracks");
-    if (!list) return;
-    const checked = e.target.checked;
+    if (list) {
+      list.querySelectorAll(".track-check").forEach((cb) => {
+        cb.checked = checked;
+      });
+    }
 
-    list.querySelectorAll(".track-check").forEach((cb) => {
-      cb.checked = checked;
+    // Optional: uncheck other groups when one is checked
+    if (checked) {
+      Object.entries(map).forEach(([otherId, otherListId]) => {
+        if (otherId === id) return;
+        const otherChk = document.getElementById(otherId);
+        if (otherChk) otherChk.checked = false;
+        const otherList = document.getElementById(otherListId);
+        if (otherList)
+          otherList.querySelectorAll(".track-check").forEach((cb) => {
+            cb.checked = false;
+          });
+      });
+    }
+
+    // Single rebuild, scoped to the correct tab/list
+    rebuildQueueFromChecks({
+      maintainCurrent: false,
+      autoplay: true, // start immediately if you like
+      scope: pane || list || document,
     });
+  });
 
-    rebuildQueueFromChecks({ maintainCurrent: true, autoplay: false });
-  }
-});
+  document.addEventListener("change", (e) => {
+    if (e.target.classList?.contains("track-check")) {
+      const list = e.target.closest("ul.tracks");
+      const pane = e.target.closest(".tab-pane");
+      rebuildQueueFromChecks({
+        maintainCurrent: true,
+        autoplay: false,
+        scope: pane || list || document,
+      });
+    }
+  });
+})();
