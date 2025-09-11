@@ -3,28 +3,9 @@
 
 <ul class="list-group">
   {% for at in items %}
-  
-    {# at = AlbumTrack object, with at.track as the Track #}
-    {% with 
-        is_favorited=at.track.is_favorited|default:False 
-        in_playlist=at.track.in_playlist|default:False 
-        avg=at.track_avg|default:0 
-        count=at.track_count|default:0 
-    %}
-        {% include "tracks/_track_card.html" with 
-            track=at.track 
-            album=album 
-            album_item_id=at.id 
-            is_owner=is_owner 
-            at=at 
-            show_checkbox=False 
-            is_favorited=is_favorited 
-            in_playlist=in_playlist 
-            avg=avg 
-            count=count 
-        %}
+    {% with fav=at.is_favorited inpl=at.track.in_playlist|default:False avg=at.track_avg|default:0 cnt=at.track_count|default:0 %}
+      {% include "tracks/_track_card.html" with track=at.track album=album album_item_id=at.id is_owner=is_owner at=at show_checkbox=False is_favorited=fav in_playlist=inpl avg=avg count=cnt %}
     {% endwith %}
-
   {% empty %}
     <li class="list-group-item">No tracks in this album yet.</li>
   {% endfor %}

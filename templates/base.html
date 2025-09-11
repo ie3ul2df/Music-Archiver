@@ -139,5 +139,13 @@
       <div id="playlist-meta" data-in-ids="" hidden></div>
     {% endif %}
 
+    <div id="state-meta"
+        data-fav-ids="{{ favorite_ids|join:',' }}"
+        data-my-ids="{{ my_collection_ids|join:',' }}"
+        hidden>
+    </div>
+
+    <script src="{% static 'js/track_state_normalizer.js' %}"></script>
+
   </body>
 </html>

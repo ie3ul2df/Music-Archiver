@@ -15,7 +15,7 @@ from .models import Album, AlbumTrack
 from .forms import AlbumForm
 from tracks.models import Track, Favorite
 from tracks.forms import TrackForm
-from tracks.utils import mark_track_ownership, annotate_is_in_my_albums
+from tracks.utils import mark_track_ownership, annotate_is_in_my_albums, annotate_in_playlist
 from ratings.utils import annotate_albums, annotate_tracks
 from plans.utils import can_add_album
 from save_system.models import SavedTrack
@@ -49,12 +49,9 @@ def _can_view_album(album, user):
 @login_required
 def album_tracks_fragment(request, pk):
     album = get_object_or_404(Album, pk=pk)
-
-    # ✅ Security: only owner or public albums
     if not (album.owner_id == request.user.id) and not getattr(album, "is_public", False):
         return HttpResponseForbidden("Not allowed.")
 
-    # ✅ Base queryset: AlbumTrack with related Track
     items = (
         AlbumTrack.objects.filter(album=album)
         .select_related("track", "track__owner")
@@ -65,22 +62,22 @@ def album_tracks_fragment(request, pk):
         .order_by("position", "id")
     )
 
-    # ✅ Favourite flag
     if request.user.is_authenticated:
         fav_subq = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
         items = items.annotate(is_favorited=Exists(fav_subq))
     else:
         items = items.annotate(is_favorited=Value(False, output_field=BooleanField()))
 
-    # ✅ Saved-to-my-albums flag
+    # ✅ These ensure _track_card.html has consistent booleans everywhere
+    items = list(items)
     annotate_is_in_my_albums(items, request.user, attr="track")
+    annotate_in_playlist(items, request.user, attr="track")
 
-    context = {
-        "album": album,
-        "items": items,
-        "is_owner": (album.owner_id == request.user.id),
-    }
-    return render(request, "album/_album_tracks_fragment.html", context)
+    return render(
+        request,
+        "album/_album_tracks_fragment.html",
+        {"album": album, "items": items, "is_owner": album.owner_id == request.user.id},
+    )
 
 # ---------------------- Album functions ---------------------- #
 # ---------------------- Album functions ---------------------- #
@@ -122,16 +119,14 @@ def album_list(request):
             messages.success(request, "Album created.")
             return redirect("album:album_list")
 
-    # --- Your albums (order + ratings) (MOSTLY UNCHANGED) ---
+    # --- Your albums (order + ratings) ---
     qs = Album.objects.filter(owner=request.user)
     if _has_field(Album, "order"):
         qs = qs.order_by("order", "id")
     else:
         qs = qs.order_by("-created_at", "id")
 
-    # NEW: prefetch album tracks with annotations needed by _track_card.html
-    # - track_avg / track_count: per-track rating aggregates
-    # - is_favorited: whether current user has favorited the track
+    # Prefetch album tracks with per-track annotations for _track_card.html
     fav_subq = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
     items_qs = (
         AlbumTrack.objects.select_related("track", "track__owner")
@@ -142,38 +137,48 @@ def album_list(request):
         )
         .order_by("position", "id")
     )
-    qs = qs.prefetch_related(
-        Prefetch("album_tracks", queryset=items_qs)
-    )
+    qs = qs.prefetch_related(Prefetch("album_tracks", queryset=items_qs))
 
-    # Keep your album-level rating annotations
-    albums = annotate_albums(qs)  # adds rating_avg & rating_count to albums
+    # Album-level annotations (avg/count on Album itself)
+    albums = list(annotate_albums(qs))
 
-    # NEW: ensure each prefetched track advertises membership in "my albums"
-    # This helps _track_card.html decide 🗃️ vs 💾 for the Save button.
-    # (We set a simple attribute on the track objects already in memory.)
-    albums = list(albums)
+    # Ensure each Track inside those albums has consistent flags used by _track_card.html
     for alb in albums:
-        for at in getattr(alb, "album_tracks").all():
-            # Guarantee the attribute exists for template logic:
-            setattr(at.track, "is_in_my_albums", True)
+        ats = list(getattr(alb, "album_tracks").all())
+        # already has: at.is_favorited, at.track_avg, at.track_count (from items_qs)
+        # add:
+        annotate_is_in_my_albums(ats, request.user, attr="track")  # sets at.track.is_in_my_albums
+        annotate_in_playlist(ats, request.user, attr="track")      # sets at.track.in_playlist
 
-    # --- Saved items for tabs (UNCHANGED) ---
+    # --- Saved items for tabs (kept intact, but optimized and flagged) ---
     try:
         from save_system.models import SavedAlbum, SavedTrack
 
         saved_albums = (
             SavedAlbum.objects
             .filter(owner=request.user)
-            .select_related("original_album")
+            .select_related("original_album", "original_album__owner")
             .order_by("-saved_at")
         )
+
+        # We want _track_card.html to behave the same for saved tracks
+        fav_track_subq = Favorite.objects.filter(
+            owner=request.user, track=OuterRef("original_track_id")
+        )
+
         saved_tracks = (
             SavedTrack.objects
             .filter(owner=request.user)
-            .select_related("original_track", "album")
+            .select_related("original_track", "original_track__owner", "album")
+            .annotate(is_favorited=Exists(fav_track_subq))  # attach fav on SavedTrack row
             .order_by("-saved_at")
         )
+
+        # annotate flags on the track objects (original_track) so templates can use them directly
+        tracks_only = [s.original_track for s in saved_tracks if s.original_track]
+        annotate_is_in_my_albums(tracks_only, request.user)  # sets .is_in_my_albums
+        annotate_in_playlist(tracks_only, request.user)      # sets .in_playlist
+
     except Exception:
         saved_albums = []
         saved_tracks = []
@@ -187,6 +192,7 @@ def album_list(request):
             "saved_tracks": saved_tracks,
         },
     )
+
 
 @login_required
 def album_search(request):
@@ -208,6 +214,7 @@ def album_search(request):
             "edit_url": reverse("album:ajax_rename_album", args=[a.id]),
         })
     return JsonResponse({"results": results})
+
 
 
 @login_required

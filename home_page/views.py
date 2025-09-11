@@ -1,6 +1,6 @@
 # //--------------------------- home_page/views.py ---------------------------//
 from django.shortcuts import render, redirect
-from django.db.models import Avg, Count, Exists, OuterRef, FloatField, F, ExpressionWrapper, Q
+from django.db.models import Avg, Count, Exists, OuterRef, FloatField, F, ExpressionWrapper, Q, BooleanField, Prefetch, Value
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.template.loader import render_to_string
@@ -11,7 +11,8 @@ from tracks.models import Track, Favorite
 from ratings.utils import annotate_albums, annotate_tracks
 from save_system.models import SavedTrack
 from tracks.utils import annotate_is_in_my_albums
-
+from django.contrib.auth.decorators import login_required
+from playlist.models import Playlist, PlaylistItem
 
 SEARCH_LIMIT = 50
 
@@ -19,7 +20,7 @@ SEARCH_LIMIT = 50
 def _is_ajax(request) -> bool:
     return request.headers.get("x-requested-with") == "XMLHttpRequest"
 
-
+@login_required
 def index(request):
     """
     Homepage: hero + latest public albums + top 10 albums & tracks by weighted score.
@@ -33,9 +34,11 @@ def index(request):
         .annotate(track_count=Count("album_tracks", distinct=True))
         .order_by("-created_at")[:10]
     )
+    # NOTE: If you ever render track lists inside `_album_card.html` for this grid too,
+    # you can hydrate `public_albums` exactly like `albums_top` (same Prefetch block).
 
     # ---------------- Top 10 Albums (weighted: avg * count) ---------------- #
-    albums_top = (
+    albums_top_qs = (
         annotate_albums(
             Album.objects.filter(is_public=True).select_related("owner")
         )
@@ -48,6 +51,56 @@ def index(request):
         )
         .order_by("-rating_score", "-rating_count", "-rating_avg", "-created_at")[:10]
     )
+
+    # Prefetch album_tracks with the per-track flags needed by _track_card.html
+    # - at.is_favorited (Exists subquery against tracks.Favorite)
+    # - at.track_avg / at.track_count (per-track rating aggregates)
+    if request.user.is_authenticated:
+        fav_subq = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
+        items_qs = (
+            AlbumTrack.objects.select_related("track", "track__owner")
+            .annotate(
+                is_favorited=Exists(fav_subq),
+                track_avg=Avg("track__ratings__stars"),
+                track_count=Count("track__ratings", distinct=True),
+            )
+            .order_by("position", "id")
+        )
+    else:
+        items_qs = (
+            AlbumTrack.objects.select_related("track", "track__owner")
+            .annotate(
+                is_favorited=Value(False, output_field=BooleanField()),
+                track_avg=Avg("track__ratings__stars"),
+                track_count=Count("track__ratings", distinct=True),
+            )
+            .order_by("position", "id")
+        )
+
+    albums_top_qs = albums_top_qs.prefetch_related(
+        Prefetch("album_tracks", queryset=items_qs)
+    )
+
+    # Evaluate so we can attach per-user flags like playlist and "in my albums"
+    albums_top = list(albums_top_qs)
+
+    # Build playlist membership set once (✓/➕ state)
+    in_playlist_ids = set()
+    if request.user.is_authenticated:
+        pl = Playlist.objects.filter(owner=request.user, name="My Playlist").first()
+        if pl:
+            in_playlist_ids = set(
+                PlaylistItem.objects.filter(playlist=pl).values_list("track_id", flat=True)
+            )
+
+    # Attach:
+    #  - at.track.in_playlist   (for ✓/➕ button)
+    #  - at.track.is_in_my_albums (🗃 vs 💾) via your helper
+    for alb in albums_top:
+        ats = list(alb.album_tracks.all())
+        annotate_is_in_my_albums(ats, request.user, attr="track")
+        for at in ats:
+            at.track.in_playlist = (at.track.id in in_playlist_ids)
 
     # ---------------- Top 10 Tracks (must belong to a public album) ---------------- #
     in_public_album = AlbumTrack.objects.filter(
@@ -90,11 +143,10 @@ def index(request):
         "home_page/index.html",
         {
             "public_albums": public_albums,
-            "albums_top": albums_top,
+            "albums_top": albums_top,   # hydrated albums with track-level flags
             "tracks_top": tracks_top,
         },
     )
-
 
 def search(request):
     """

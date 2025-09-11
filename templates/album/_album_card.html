@@ -18,7 +18,8 @@
     <!-- 👤 Owner -->
     {% if album.owner %}
       <div class="small text-muted">
-        <a class="text-decoration-none small text-muted" href="{{ owner_url }}">
+        <a class="text-decoration-none small text-muted"
+          href="{% if owner_url %}{{ owner_url }}{% else %}{% url 'user_tracks' album.owner.username %}{% endif %}">
           🔗 {{ album.owner.username }}
         </a>
       </div>

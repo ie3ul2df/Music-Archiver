@@ -159,8 +159,6 @@ def track_list(request):
     )
 
 
-
-
 @login_required
 @require_POST
 def reorder_tracks(request):
