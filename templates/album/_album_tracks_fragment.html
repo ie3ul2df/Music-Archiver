@@ -1,7 +1,31 @@
-<ul class="list-group list-group-flush">
+{# templates/album/_album_tracks_fragment.html #}
+{# expects: album, items (AlbumTrack queryset), is_owner (bool) #}
+
+<ul class="list-group">
   {% for at in items %}
-    {% include "tracks/_track_card.html" with at=at track=at.track album=album album_item_id=at.id is_owner=is_owner is_favorited=at.is_favorited avg=at.track_avg count=at.track_count %}
+  
+    {# at = AlbumTrack object, with at.track as the Track #}
+    {% with 
+        is_favorited=at.track.is_favorited|default:False 
+        in_playlist=at.track.in_playlist|default:False 
+        avg=at.track_avg|default:0 
+        count=at.track_count|default:0 
+    %}
+        {% include "tracks/_track_card.html" with 
+            track=at.track 
+            album=album 
+            album_item_id=at.id 
+            is_owner=is_owner 
+            at=at 
+            show_checkbox=False 
+            is_favorited=is_favorited 
+            in_playlist=in_playlist 
+            avg=avg 
+            count=count 
+        %}
+    {% endwith %}
+
   {% empty %}
-    <li class="list-group-item text-muted">No tracks</li>
+    <li class="list-group-item">No tracks in this album yet.</li>
   {% endfor %}
 </ul>

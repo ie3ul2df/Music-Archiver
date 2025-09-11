@@ -1,17 +1,75 @@
-<li class="list-group-item d-flex justify-content-between align-items-center" data-album-id="{{ album.id }}">
-  <div class="me-3">
-    <a href="{% url 'album:album_detail' album.pk %}" class="fw-bold text-decoration-none">
-      {{ album.name }}
-    </a>
-    <div class="small text-muted">    
-      <a class="text-decoration-none small text-muted" href="{% url 'user_tracks' album.owner.username %}">
-        🔗 {{ album.owner.username }}
+<li class="list-group-item d-flex justify-content-between align-items-center flex-wrap"
+    data-id="{{ album.pk }}">
+
+  <div class="d-flex flex-column flex-grow-1">
+
+    <!-- Album header -->
+    <div>
+      <a href="{% url 'album:album_detail' album.pk %}" class="fw-bold text-decoration-none">
+        {{ album.name }}
       </a>
+      {% if album.is_public %}
+        <span class="badge bg-success ms-2">Public</span>
+      {% else %}
+        <span class="badge bg-secondary ms-2">Private</span>
+      {% endif %}
     </div>
+
+    <!-- 👤 Owner -->
+    {% if album.owner %}
+      <div class="small text-muted">
+        <a class="text-decoration-none small text-muted" href="{{ owner_url }}">
+          🔗 {{ album.owner.username }}
+        </a>
+      </div>
+    {% endif %}
+
+    <!-- ⭐ Rating -->
+    <div class="mt-1">
+      {% include "ratings/_stars.html" with type="album" id=album.id avg=album.rating_avg count=album.rating_count user_rating=None %}
+    </div>
+
+    <!-- 🎵 Track list -->
+    {% if album.album_tracks.exists %}
+      <ul class="list-group mt-2">
+        {% for at in album.album_tracks.all %}
+          {% with fav=at.is_favorited inpl=at.track.in_playlist|default:False avg=at.track_avg|default:0 cnt=at.track_count|default:0 %}
+            {% if request.user.id == album.owner.id %}
+              {% include "tracks/_track_card.html" with track=at.track album=album album_item_id=at.id is_owner=True at=at show_checkbox=False is_favorited=fav in_playlist=inpl avg=avg count=cnt %}
+            {% else %}
+              {% include "tracks/_track_card.html" with track=at.track album=album album_item_id=at.id is_owner=False at=at show_checkbox=False is_favorited=fav in_playlist=inpl avg=avg count=cnt %}
+            {% endif %}
+          {% endwith %}
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="small text-muted mt-2">No tracks in this album yet.</div>
+    {% endif %}
+
+
+
   </div>
 
-  <!-- ⭐ Album stars -->
-  <div class="ms-auto">
-    {% include "ratings/_stars.html" with type="album" id=album.id avg=avg count=count user_rating=None %}
+  <!-- CRUD buttons -->
+  <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group">
+    <a href="{% url 'album:album_detail' album.pk %}" class="btn btn-outline-primary">👁 View</a>
+    <button type="button"
+            class="btn btn-outline-secondary rename-album-btn"
+            data-url="{{ rename_url }}"
+            data-current-name="{{ album.name }}">
+      ✏ Edit
+    </button>
+    <a href="{{ toggle_visibility_url }}" class="btn btn-outline-warning">
+      {% if album.is_public %}🔒 Make Private{% else %}🌍 Make Public{% endif %}
+    </a>
+    <button type="button"
+            class="btn btn-outline-danger"
+            data-bs-toggle="modal"
+            data-bs-target="#deleteAlbumModal"
+            data-url="{{ delete_url }}"
+            data-album-name="{{ album.name }}">
+      🗑 Delete
+    </button>
   </div>
+
 </li>

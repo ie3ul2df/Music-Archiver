@@ -72,118 +72,64 @@
       <!-- Album list -->
       <ul id="album-list" class="list-group">
         {% for a in albums %}
-        <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap" data-id="{{ a.pk }}">
-          <div class="d-flex flex-column">
-            <div>
-              <a href="{% url 'album:album_detail' a.pk %}" class="fw-bold text-decoration-none">{{ a.name }}</a>
-              {% if a.is_public %}
-                <span class="badge bg-success ms-2">Public</span>
-              {% else %}
-                <span class="badge bg-secondary ms-2">Private</span>
-              {% endif %}
-            </div>
 
-            <!-- ⭐ Rating -->
-            <div class="mt-1">
-              {% include "ratings/_stars.html" with type="album" id=a.id avg=a.rating_avg count=a.rating_count user_rating=None %}
-            </div>
+          {% url 'user_tracks' a.owner.username as owner_url %}
+          {% url 'album:album_tracks_fragment' a.pk as tracks_url %}
+          {% url 'album:ajax_rename_album' a.pk as rename_url %}
+          {% url 'album:toggle_album_visibility' a.pk as toggle_visibility_url %}
+          {% url 'album:ajax_delete_album' a.pk as delete_url %}
 
-            <!-- 🔽 Tracks toggle (AJAX) -->
-            <div class="mt-2">
-              <button type="button"
-                      class="btn btn-sm btn-outline-secondary js-load-tracks"
-                      data-url="{% url 'album:album_tracks_fragment' a.pk %}"
-                      data-target="#album-{{ a.pk }}-tracks">
-                Show tracks
-              </button>
-            </div>
-
-            <!-- AJAX target -->
-            <div id="album-{{ a.pk }}-tracks" class="mt-2 d-none"></div>
-          </div>
-
-          <!-- Album CRUD Buttons  -->
-          <!-- Album CRUD Buttons  -->
-          <!-- Album CRUD Buttons  -->
-           
-          <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group">
-            <a href="{% url 'album:album_detail' a.pk %}" class="btn btn-outline-primary">👁 View</a>
-            <button type="button"
-                    class="btn btn-outline-secondary rename-album-btn"
-                    data-url="{% url 'album:ajax_rename_album' a.pk %}"
-                    data-current-name="{{ a.name }}">
-              ✏ Edit
-            </button>
-            <a href="{% url 'album:toggle_album_visibility' a.pk %}" class="btn btn-outline-warning">
-              {% if a.is_public %}🔒 Make Private{% else %}🌍 Make Public{% endif %}
-            </a>
-            <button type="button"
-                    class="btn btn-outline-danger"
-                    data-bs-toggle="modal"
-                    data-bs-target="#deleteAlbumModal"
-                    data-url="{% url 'album:ajax_delete_album' a.pk %}"
-                    data-album-name="{{ a.name }}">
-              🗑 Delete
-            </button>
-          </div>
-        </li>
+          {% include "album/_album_card.html" with album=a owner_url=owner_url tracks_url=tracks_url rename_url=rename_url toggle_visibility_url=toggle_visibility_url delete_url=delete_url %}
+        
         {% empty %}
           <li class="list-group-item">No albums yet.</li>
         {% endfor %}
       </ul>
-
     </div>
 
     <!-- ================= Saved Albums ================= -->
     <div class="tab-pane fade" id="saved-albums-tabpane" role="tabpanel" aria-labelledby="saved-albums-tab" tabindex="0">
       <h2 class="h4 mb-3">Saved Albums</h2>
-      <ul class="list-group">
-        {% for s in saved_albums %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <div class="d-flex flex-column">
-            <div class="fw-semibold">{{ s.name_snapshot }}</div>
-            <small class="text-muted">
-              Saved on {{ s.saved_at|date:"Y-m-d H:i" }} {% if s.original_album %} ·
-              <a class="text-decoration-none" href="{% url 'album:album_detail' s.original_album.pk %}">Open original</a> {% else %} ·
-              <span class="text-danger">Original removed</span>
-              {% endif %}
-            </small>
-          </div>
-          {% if s.has_updates %}
-          <span class="badge bg-warning text-dark">Updated</span>
-          {% endif %}
-        </li>
-        {% empty %}
-        <li class="list-group-item">No saved albums.</li>
-        {% endfor %}
-      </ul>
+        <ul class="list-group">
+          {% for s in saved_albums %}
+            {% if s.original_album %}
+              {% url 'user_tracks' s.original_album.owner.username as owner_url %}
+              {% url 'album:album_tracks_fragment' s.original_album.pk as tracks_url %}
+              {% url 'album:ajax_rename_album' s.original_album.pk as rename_url %}
+              {% url 'album:toggle_album_visibility' s.original_album.pk as toggle_visibility_url %}
+              {% url 'album:ajax_delete_album' s.original_album.pk as delete_url %}
+
+              {% include "album/_album_card.html" with album=s.original_album owner_url=owner_url tracks_url=tracks_url rename_url=rename_url toggle_visibility_url=toggle_visibility_url delete_url=delete_url %}
+            {% else %}
+              <li class="list-group-item">
+                <span class="fw-semibold">{{ s.name_snapshot }}</span>
+                <small class="text-danger ms-2">Original removed</small>
+              </li>
+            {% endif %}
+          {% empty %}
+            <li class="list-group-item">No saved albums.</li>
+          {% endfor %}
+        </ul>
     </div>
 
     <!-- ================= Saved Tracks ================= -->
     <div class="tab-pane fade" id="saved-tracks-tabpane" role="tabpanel" aria-labelledby="saved-tracks-tab" tabindex="0">
       <h2 class="h4 mb-3">Saved Tracks</h2>
-      <ul class="list-group">
-        {% for s in saved_tracks %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <div class="d-flex flex-column">
-            <div class="fw-semibold">{{ s.name_snapshot }}</div>
-            <small class="text-muted">
-              Saved on {{ s.saved_at|date:"Y-m-d H:i" }} · Filed in
-              <a class="text-decoration-none" href="{% url 'album:album_detail' s.album.pk %}">{{ s.album.name }}</a>
-              {% if s.original_track %} {# if you have a track detail route, link it here; otherwise omit #} {% else %} ·
-              <span class="text-danger">Original removed</span>
-              {% endif %}
-            </small>
-          </div>
-          {% if s.has_updates %}
-          <span class="badge bg-warning text-dark">Updated</span>
-          {% endif %}
-        </li>
-        {% empty %}
-        <li class="list-group-item">No saved tracks.</li>
-        {% endfor %}
-      </ul>
+        <ul class="list-group">
+          {% for s in saved_tracks %}
+            {% if s.original_track %}
+              {% with fav=s.original_track.is_favorited inpl=s.original_track.in_playlist|default:False %}
+                {% include "tracks/_track_card.html" with track=s.original_track album=s.album album_item_id=None is_owner=False at=None show_checkbox=False is_favorited=fav in_playlist=inpl avg=avg count=cnt %}
+              {% endwith %}
+            {% else %}
+              <li class="list-group-item">Original removed</li>
+            {% endif %}
+          {% empty %}
+            <li class="list-group-item">No saved tracks.</li>
+          {% endfor %}
+        </ul>
     </div>
+
   </div>
 </div>
 
