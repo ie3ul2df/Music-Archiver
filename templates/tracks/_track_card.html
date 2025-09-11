@@ -94,7 +94,7 @@
         data-url="{% url 'playlist:toggle' track.id %}"
         data-in="{% if inpl %}1{% else %}0{% endif %}"
         aria-pressed="{{ inpl|yesno:'true,false' }}">
-        {% if inpl %}✓ In{% else %}➕{% endif %}
+        {% if inpl %}✓{% else %}➕{% endif %}
       </button>
     {% endwith %}
 

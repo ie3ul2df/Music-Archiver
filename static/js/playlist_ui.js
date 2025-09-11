@@ -33,7 +33,7 @@
     btn.setAttribute("aria-pressed", inPlaylist ? "true" : "false");
     btn.classList.toggle("btn-success", inPlaylist);
     btn.classList.toggle("btn-outline-success", !inPlaylist);
-    btn.textContent = inPlaylist ? "✓ In" : "➕";
+    btn.textContent = inPlaylist ? "✓" : "➕";
   }
 
   function getInitialInState(btn) {
