@@ -72,7 +72,7 @@
         <ul class="list-group list-group-flush tracks" id="playlist-tracks"
             data-reorder-url="{% url 'playlist:reorder' %}">
           {% for item in playlist_items %}
-            {% include "tracks/_track_card.html" with track=item.track album=None album_item_id=item.id is_owner=True in_playlist=True show_checkbox=True is_favorited=item.track.is_favorited in_playlist=track.in_playlist %}
+            {% include "tracks/_track_card.html" with track=item.track album=None album_item_id=None is_owner=False show_checkbox=True is_favorited=item.track.is_favorited in_playlist=True display_name=item.display_name %} 
           {% empty %}
             <li class="list-group-item text-muted">No tracks in your playlist yet.</li>
           {% endfor %}

@@ -11,8 +11,9 @@ from django.utils import timezone
 from django.db import IntegrityError
 from django.contrib.auth import get_user_model
 from django.db.models import (
-    Max, Exists, OuterRef, Prefetch, Avg, Count,
+    Max, Exists, OuterRef, Prefetch, Avg, Count, Subquery, F
 )
+from django.db.models.functions import Coalesce
 
 from .models import Track, Listen, Favorite
 from .forms import TrackForm
@@ -53,13 +54,29 @@ def track_list(request):
 
     if request.user.is_authenticated:
         playlist, _ = Playlist.objects.get_or_create(owner=request.user, name="My Playlist")
+
+        # Your chosen label from ANY of your albums containing this track
+        user_label_sq = (
+            AlbumTrack.objects
+            .filter(album__owner=request.user, track_id=OuterRef("track_id"))
+            .exclude(custom_name__isnull=True)
+            .exclude(custom_name="")
+            .values("custom_name")[:1]
+        )
+
         playlist_items = (
-            PlaylistItem.objects.select_related("track")
+            PlaylistItem.objects
+            .select_related("track")
             .filter(playlist=playlist)
+            .annotate(
+                # preferred display name: your custom label, else original track name
+                display_name=Coalesce(Subquery(user_label_sq), F("track__name"))
+            )
             .order_by("position", "id")
         )
-        # initial toggle state for all templates
+
         in_playlist_ids = set(playlist_items.values_list("track_id", flat=True))
+
 
     # ------------------------------- FAVOURITES -------------------------------- #
     fav_ids = list(
@@ -143,6 +160,7 @@ def track_list(request):
         for it in playlist_items:
             it.track.is_favorited = it.track.id in fav_id_set
             it.track.in_playlist = True
+            it.track.display_name = it.display_name
 
     # ------------------------------- RENDER ------------------------------------ #
     return render(
