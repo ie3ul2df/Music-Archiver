@@ -96,40 +96,52 @@
       {% endfor %} {% endif %} {% block content %}{% endblock %}
     </main>
 
-    <!-- Global Track Card Modal -->
+    <!-- Global Save to Albums Modal -->
     {% if request.user.is_authenticated %}
+    {% url 'save_system:bulk_save_tracks' as bulk_save_url %}
     <div class="modal fade" id="saveToAlbumModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-sm">
-        <form class="modal-content" id="save-to-album-form" method="post">
+        <form class="modal-content"
+              id="save-to-album-form"
+              method="post"
+              {% if bulk_save_url %}action="{{ bulk_save_url }}"{% endif %}>
           {% csrf_token %}
+          <!-- hidden field populated by JS for bulk/single saves -->
+          <input type="hidden" name="track_ids" id="save-track-ids">
+
           <div class="modal-header">
-            <h6 class="modal-title">Save to your album</h6>
+            <h6 class="modal-title">Save to your album
+              <small class="text-muted ms-2">(selected: <span class="js-selected-count">0</span>)</small>
+            </h6>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
+
           <div class="modal-body">
             <label class="form-label" for="save-album-select">Choose album</label>
             <select class="form-select" name="album_id" id="save-album-select" required>
               {% for a in save_albums %}
                 <option value="{{ a.id }}">{{ a.name }}</option>
               {% empty %}
-                <option disabled>No albums yet</option>
+                <option value="" disabled>No albums yet</option>
               {% endfor %}
             </select>
           </div>
+
           <div class="modal-footer">
             <button class="btn btn-primary" type="submit">Save</button>
           </div>
         </form>
       </div>
     </div>
-
-    <script src="{% static 'js/save_system.js' %}" defer></script>
     {% endif %}
+
     <!-- Global scripts -->
     <script src="{% static 'js/cookies.js' %}" defer></script>
     <script src="{% static 'js/ratings.js' %}" defer></script>
     <script src="{% static 'js/track_card.js' %}"></script>
     <script src="{% static 'js/playlist_ui.js' %}" defer></script>
+    <script src="{% static 'js/save_system.js' %}" defer></script>
+    <script src="{% static 'js/album_bulk_toolbar.js' %}" defer></script>
     {% block extra_js %}{% endblock %}
     {% block extra_modals %}{% endblock %}
 

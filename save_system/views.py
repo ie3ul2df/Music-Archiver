@@ -1,10 +1,11 @@
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponseBadRequest
 from django.db import IntegrityError
 from django.db.models import Max
 from django.utils.decorators import method_decorator
+from django.contrib import messages
 
 from album.models import Album, AlbumTrack
 from tracks.models import Track
@@ -113,3 +114,25 @@ def save_track(request, pk):
         "attached": attached_created,  # album link created?
     })
 
+
+
+@login_required
+def bulk_save_tracks(request):
+    if request.method != "POST":
+        messages.error(request, "Invalid request.")
+        return redirect("album:album_list")
+
+    track_ids = [int(x) for x in request.POST.get("track_ids", "").split(",") if x.isdigit()]
+    album_id  = request.POST.get("album_id")
+
+    if not track_ids or not album_id:
+        messages.error(request, "Missing track IDs or album.")
+        return redirect("album:album_list")
+
+    album = get_object_or_404(Album, pk=album_id, owner=request.user)
+
+    # TODO: your logic to attach tracks to album here
+    # e.g., for tid in track_ids: attach if not already there
+
+    messages.success(request, f"Saved {len(track_ids)} track(s) to “{album.name}”.")
+    return redirect("album:album_list")

@@ -1,10 +1,31 @@
-<li class="list-group-item d-flex justify-content-between align-items-center flex-wrap"
+{# templates/album/_album_card.html #}
+<li class="album list-group-item d-flex justify-content-between align-items-center flex-wrap"
     data-id="{{ album.pk }}">
 
   <div class="d-flex flex-column flex-grow-1">
 
-    <!-- Album header -->
-    <div>
+    {# --- Owner CRUD (unchanged) --- #}
+    {% if request.user.is_authenticated and request.user.id == album.owner_id %}
+      {% if request.resolver_match.url_name != "home" %}
+        <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group">
+          <a href="{% url 'album:album_detail' album.pk %}" class="btn btn-outline-primary">👁 View</a>
+          <button type="button" class="btn btn-outline-secondary rename-album-btn"
+                  data-url="{{ rename_url }}"
+                  data-current-name="{{ album.name }}">✏ Edit</button>
+          <a href="{{ toggle_visibility_url }}" class="btn btn-outline-warning">
+            {% if album.is_public %}🔒 Make Private{% else %}🌍 Make Public{% endif %}
+          </a>
+          <button type="button" class="btn btn-outline-danger"
+                  data-bs-toggle="modal"
+                  data-bs-target="#deleteAlbumModal"
+                  data-url="{{ delete_url }}"
+                  data-album-name="{{ album.name }}">🗑 Delete</button>
+        </div>
+      {% endif %}
+    {% endif %}
+
+    {# --- Album header --- #}
+    <div class="mt-2">
       <a href="{% url 'album:album_detail' album.pk %}" class="fw-bold text-decoration-none">
         {{ album.name }}
       </a>
@@ -15,30 +36,57 @@
       {% endif %}
     </div>
 
-    <!-- 👤 Owner -->
+    {# --- Owner link --- #}
     {% if album.owner %}
       <div class="small text-muted">
         <a class="text-decoration-none small text-muted"
-          href="{% if owner_url %}{{ owner_url }}{% else %}{% url 'user_tracks' album.owner.username %}{% endif %}">
+           href="{% if owner_url %}{{ owner_url }}{% else %}{% url 'user_tracks' album.owner.username %}{% endif %}">
           🔗 {{ album.owner.username }}
         </a>
       </div>
     {% endif %}
 
-    <!-- ⭐ Rating -->
+    {# --- Stars --- #}
     <div class="mt-1">
       {% include "ratings/_stars.html" with type="album" id=album.id avg=album.rating_avg count=album.rating_count user_rating=None %}
     </div>
 
+    {# --- Bulk mini-toolbar (for any signed-in user) --- #}
+    {% if request.user.is_authenticated %}
+      <div class="d-flex align-items-center gap-2 mt-3 flex-wrap">
+        <div class="form-check me-2">
+          <input class="form-check-input check-all" type="checkbox" id="check-all-{{ album.id }}">
+          <label class="form-check-label small" for="check-all-{{ album.id }}">Select all</label>
+        </div>
+
+        <button type="button"
+                class="btn btn-sm btn-outline-success js-add-selected"
+                title="Add selected tracks to player">
+          ➕ Add to player
+        </button>
+
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary js-save-selected"
+                data-save-url="{% url 'save_system:bulk_save_tracks' %}"
+                data-bs-toggle="modal"
+                data-bs-target="#saveToAlbumModal">
+          💾 Save to album
+        </button>
+
+
+      </div>
+    {% endif %}
+
+    {# --- Track list --- #}
     <!-- 🎵 Track list -->
     {% if album.album_tracks.exists %}
       <ul class="list-group mt-2">
         {% for at in album.album_tracks.all %}
           {% with fav=at.is_favorited inpl=at.track.in_playlist|default:False avg=at.track_avg|default:0 cnt=at.track_count|default:0 %}
             {% if request.user.id == album.owner.id %}
-              {% include "tracks/_track_card.html" with track=at.track album=album album_item_id=at.id is_owner=True at=at show_checkbox=False is_favorited=fav in_playlist=inpl avg=avg count=cnt %}
+              {% include "tracks/_track_card.html" with track=at.track album=album album_item_id=at.id is_owner=True at=at show_checkbox=True is_favorited=fav in_playlist=inpl avg=avg count=cnt %}
             {% else %}
-              {% include "tracks/_track_card.html" with track=at.track album=album album_item_id=at.id is_owner=False at=at show_checkbox=False is_favorited=fav in_playlist=inpl avg=avg count=cnt %}
+              {% include "tracks/_track_card.html" with track=at.track album=album album_item_id=at.id is_owner=False at=at show_checkbox=True is_favorited=fav in_playlist=inpl avg=avg count=cnt %}
             {% endif %}
           {% endwith %}
         {% endfor %}
@@ -46,31 +94,4 @@
     {% else %}
       <div class="small text-muted mt-2">No tracks in this album yet.</div>
     {% endif %}
-
-
-
-  </div>
-
-  <!-- CRUD buttons -->
-  <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group">
-    <a href="{% url 'album:album_detail' album.pk %}" class="btn btn-outline-primary">👁 View</a>
-    <button type="button"
-            class="btn btn-outline-secondary rename-album-btn"
-            data-url="{{ rename_url }}"
-            data-current-name="{{ album.name }}">
-      ✏ Edit
-    </button>
-    <a href="{{ toggle_visibility_url }}" class="btn btn-outline-warning">
-      {% if album.is_public %}🔒 Make Private{% else %}🌍 Make Public{% endif %}
-    </a>
-    <button type="button"
-            class="btn btn-outline-danger"
-            data-bs-toggle="modal"
-            data-bs-target="#deleteAlbumModal"
-            data-url="{{ delete_url }}"
-            data-album-name="{{ album.name }}">
-      🗑 Delete
-    </button>
-  </div>
-
 </li>
