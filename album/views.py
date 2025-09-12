@@ -4,7 +4,7 @@ import json
 from django.urls import reverse, NoReverseMatch
 from django.http import HttpResponseForbidden
 from django.db import transaction
-from django.db.models import Case, When, IntegerField, F, Q, Count, Avg, Count, Exists, OuterRef, Value, BooleanField, Prefetch
+from django.db.models import Case, When, IntegerField, F, Q, Count, Avg, Count, Exists, OuterRef, Value, BooleanField, Prefetch, Max
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseBadRequest
@@ -423,9 +423,20 @@ def albums_reorder(request):
     return JsonResponse({"ok": True, "updated": final_ids})
 
 
+
+
+
+
+# //--------------------------- divider_title ---------------------------//
+# //--------------------------- divider_title ---------------------------//
+# //--------------------------- divider_title ---------------------------//
+
+
+
 @login_required
 def album_detail(request, pk):
-    """Show album with tracks.
+    """
+    Show album with tracks.
     - Owner: can edit (add tracks, reorder, delete)
     - Visitor: can only view if album is public
     """
@@ -435,32 +446,35 @@ def album_detail(request, pk):
         Q(pk=pk) & (Q(owner=request.user) | Q(is_public=True))
     )
 
-    # Annotate ratings
+    # Annotate ratings for the album
     album = annotate_albums(Album.objects.filter(pk=album.pk)).first()
     is_owner = album.owner == request.user
 
-    # Handle POST only if user owns the album
+    # --- Handle POST (only add-track form here; other actions handled by AJAX views) ---
     if is_owner and request.method == "POST":
-        form = TrackForm(request.POST, request.FILES, owner=request.user)
-        if form.is_valid():
-            track = form.save()
-            last = AlbumTrack.objects.filter(album=album).order_by("-position").first()
-            pos = (last.position + 1) if last else 0
-            AlbumTrack.objects.create(album=album, track=track, position=pos)
-            messages.success(request, "Track added to album.")
-            return redirect("album:album_detail", pk=album.pk)
-        messages.error(request, "Fix the errors and try again.")
+        if "name" in request.POST and ("source_url" in request.POST or "audio_file" in request.FILES):
+            form = TrackForm(request.POST, request.FILES, owner=request.user)
+            if form.is_valid():
+                track = form.save()
+                last_pos = AlbumTrack.objects.filter(album=album).aggregate(m=Max("position"))["m"] or -1
+                pos = last_pos + 1
+                AlbumTrack.objects.create(album=album, track=track, position=pos)
+                messages.success(request, "Track added to album.")
+                return redirect("album:album_detail", pk=album.pk)
+            messages.error(request, "Fix the errors and try again.")
+        else:
+            # Not an add-track POST → let AJAX endpoints handle it
+            form = TrackForm(owner=request.user)
     else:
         form = TrackForm(owner=request.user) if is_owner else None
 
-    # Tracks with rating annotations
+    # --- Tracks with annotations ---
     items = (
         AlbumTrack.objects.filter(album=album)
         .select_related("track")
         .annotate(
             track_avg=Avg("track__ratings__stars"),
             track_count=Count("track__ratings", distinct=True),
-            # ✅ mark favourited for the current user on each AlbumTrack row
             is_favorited=Exists(
                 Favorite.objects.filter(owner=request.user, track_id=OuterRef("track_id"))
             ),
@@ -468,13 +482,10 @@ def album_detail(request, pk):
         .order_by("position", "id")
     )
 
-    # existing:
     mark_track_ownership(items, request.user)
-
-    # add this:
     annotate_is_in_my_albums(items, request.user, attr="track")
 
-    # ✅ mark whether each track is already saved in one of the user's albums
+    # mark whether each track is already saved in one of the user's albums
     saved_ids = set()
     if request.user.is_authenticated:
         saved_ids = set(
@@ -486,20 +497,36 @@ def album_detail(request, pk):
     for it in items:
         it.track.is_in_my_albums = it.track.id in saved_ids
 
-    # Choose template
+    # Template choice
     template_name = "album/album_detail.html" if is_owner else "album/public_album_detail.html"
 
-    return render(
-        request,
-        template_name,
-        {
-            "album": album,
-            "items": items,
-            "form": form,            # None for visitors
-            "is_owner": is_owner,
-            "has_storage": True,     # TODO: integrate with storage plans
-        },
-    )
+    # URLs for _album_card.html include
+    context = {
+        "album": album,
+        "items": items,
+        "form": form,
+        "is_owner": is_owner,
+        "has_storage": True,  # TODO: connect with storage plans
+        "owner_url": reverse("user_tracks", args=[album.owner.username]),
+        "rename_url": reverse("album:ajax_rename_album", args=[album.pk]),
+        "toggle_visibility_url": reverse("album:toggle_album_visibility", args=[album.pk]),
+        "delete_url": reverse("album:ajax_delete_album", args=[album.pk]),
+        "reorder_url": reverse("album:album_reorder_tracks", args=[album.pk]),
+    }
+
+    return render(request, template_name, context)
+
+
+
+
+
+
+
+# //--------------------------- divider_title ---------------------------//
+# //--------------------------- divider_title ---------------------------//
+# //--------------------------- divider_title ---------------------------//
+
+
 
 
 def public_album_detail(request, slug):

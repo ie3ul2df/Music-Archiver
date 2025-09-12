@@ -46,7 +46,11 @@
 
     {# --- Album header --- #}
     <div class="mt-2">
-      <a href="{% url 'album:album_detail' album.pk %}" class="fw-bold text-decoration-none">
+    <div class="mt-2">
+      <a href="{% url 'album:album_detail' album.pk %}"
+        class="fw-bold text-decoration-none"
+        id="album-name-{{ album.id }}"
+        data-role="album-name">
         {{ album.name }}
       </a>
       {% if album.is_public %}
@@ -101,7 +105,9 @@
     {# --- Track list --- #}
     {% with ats=album.album_tracks_annotated|default:album.album_tracks.all %}
       {% if ats|length %}
-        <ul class="list-group mt-2">
+        <ul id="track-list"
+            class="list-group mt-2"
+            data-reorder-url="{% if reorder_url %}{{ reorder_url }}{% else %}{% url 'album:album_reorder_tracks' album.pk %}{% endif %}">
           {% for at in ats %}
             {% with fav=at.is_favorited inpl=at.track.in_playlist|default:False avg=at.track_avg|default:0 cnt=at.track_count|default:0 %}
               {% if request.user.id == album.owner.id %}
