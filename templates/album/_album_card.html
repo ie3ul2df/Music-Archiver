@@ -62,8 +62,9 @@
 
         <button type="button"
                 class="btn btn-sm btn-outline-success js-add-selected"
-                title="Add selected tracks to player">
-          ➕ Add to player
+                data-url="{% url 'playlist:bulk_add' %}"
+                title="Add selected tracks to playlist">
+          ➕ Add to playlist
         </button>
 
         <button type="button"

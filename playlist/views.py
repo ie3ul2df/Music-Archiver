@@ -104,3 +104,35 @@ def playlist_clear(request):
     pl = _get_default_playlist(request.user)
     pl.items.all().delete()
     return JsonResponse({"ok": True})
+
+
+@login_required
+def bulk_add_to_playlist(request):
+    """
+    Add multiple tracks to the user's default playlist.
+    Skips duplicates gracefully.
+    """
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "Invalid method"}, status=405)
+
+    ids = request.POST.get("track_ids", "")
+    track_ids = [int(x) for x in ids.split(",") if x.isdigit()]
+
+    playlist, _ = Playlist.objects.get_or_create(owner=request.user, name="My Playlist")
+
+    added, skipped = 0, 0
+    for tid in track_ids:
+        track = Track.objects.filter(pk=tid).first()
+        if not track:
+            continue
+        if PlaylistItem.objects.filter(playlist=playlist, track=track).exists():
+            skipped += 1
+        else:
+            PlaylistItem.objects.create(
+                playlist=playlist,
+                track=track,
+                position=playlist.items.count()
+            )
+            added += 1
+
+    return JsonResponse({"ok": True, "added": added, "skipped": skipped})

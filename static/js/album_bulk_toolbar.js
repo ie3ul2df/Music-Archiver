@@ -97,46 +97,44 @@
     const btnSaveBulk = e.target.closest(".js-save-selected");
     const btnSaveOne = e.target.closest(".js-save");
 
-    // Bulk: Add to player
+    // Bulk: Add to playlist (add-only, no toggle)
     if (btnAddBulk) {
       const albumEl = closestAlbum(btnAddBulk);
       if (!albumEl) return;
+
       const ids = getSelectedTrackIds(albumEl);
       if (!ids.length) {
         alert("Select at least one track.");
         return;
       }
 
-      // For each selected row, call its per-row 'add-to-playlist' URL
-      const rows = getSelectedTrackCheckboxes(albumEl).map((cb) => cb.closest("li, .track-row, .list-group-item"));
-      const tasks = [];
-      const buttonsUpdated = [];
-
-      for (const row of rows) {
-        const perRowBtn = row?.querySelector(".add-to-playlist");
-        const url = perRowBtn?.dataset?.url;
-        if (!url) continue;
-        tasks.push(
-          post(url).then(() => {
-            // Best-effort UI update
-            if (perRowBtn) {
-              perRowBtn.classList.add("btn-success");
-              perRowBtn.classList.remove("btn-outline-success");
-              perRowBtn.textContent = "✓";
-              perRowBtn.setAttribute("aria-pressed", "true");
-              perRowBtn.dataset.in = "1";
-              buttonsUpdated.push(perRowBtn);
-            }
-          })
-        );
-      }
-
+      const url = btnAddBulk.dataset.url; // bulk_add endpoint
       try {
-        await Promise.all(tasks);
-        alert(`Added ${tasks.length} track(s) to player.`);
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "X-CSRFToken": csrftoken },
+          body: new URLSearchParams({ track_ids: ids.join(",") }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert(`Added ${data.added} track(s), skipped ${data.skipped} duplicate(s).`);
+          // Optional: update UI by turning per-row buttons into ✓
+          ids.forEach((tid) => {
+            const rowBtn = albumEl.querySelector(`.add-to-playlist[data-track="${tid}"]`);
+            if (rowBtn) {
+              rowBtn.classList.add("btn-success");
+              rowBtn.classList.remove("btn-outline-success");
+              rowBtn.textContent = "✓";
+              rowBtn.dataset.in = "1";
+              rowBtn.setAttribute("aria-pressed", "true");
+            }
+          });
+        } else {
+          alert("Could not add tracks to playlist.");
+        }
       } catch (err) {
         console.error(err);
-        alert("Some tracks could not be added. Please try again.");
+        alert("Network error while adding tracks.");
       }
       return;
     }
@@ -220,13 +218,9 @@
         });
 
         if (res.ok) {
-          // Close modal
+          const data = await res.json();
           bootstrap.Modal.getInstance(document.getElementById("saveToAlbumModal"))?.hide();
-
-          // Optional: replace with a toast/snackbar for nicer UX
-          alert("Track(s) saved successfully.");
-
-          // Reload so UI reflects changes (you can remove this if you plan to update DOM instead)
+          alert(`Added ${data.added} track(s), skipped ${data.skipped} duplicate(s).`);
           window.location.reload();
         } else {
           alert("Could not save to album.");
