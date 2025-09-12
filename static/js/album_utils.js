@@ -147,17 +147,73 @@
     }
   });
 
-  // Delete album: prefill modal
-  onModalShow("deleteAlbumModal", ({ modal, trigger }) => {
+  // Prefill the Rename Track modal everywhere (list + detail)
+  onModalShow("renameTrackModal", ({ modal, trigger }) => {
     if (!trigger) return;
-    const url = trigger.getAttribute("data-url");
-    const name = trigger.getAttribute("data-album-name") || "";
-    const form = modal.querySelector("#deleteAlbumForm");
-    const label = modal.querySelector("#deleteAlbumName");
-    if (form) form.action = url || "";
-    if (label) label.textContent = name;
+    const url = trigger.getAttribute("data-url") || "";
+    const current = trigger.getAttribute("data-track-name") || "";
+    const form = modal.querySelector("#renameTrackForm");
+    const input = modal.querySelector("#renameTrackInput");
+    if (form) form.action = url;
+    if (input) {
+      input.value = current;
+      setTimeout(() => input.focus(), 50);
+    }
   });
 
   // expose
   w.AlbumUtils = { getCookie, getCSRF, debounce, postJSON, postForm, onModalShow, qs, qsa };
+
+  // Submit via fetch to avoid redirect; update ALL matching rows inline
+  document.addEventListener("submit", async (e) => {
+    if (e.target?.id !== "renameTrackForm") return;
+    e.preventDefault();
+
+    const form = e.target;
+    const url = form.action;
+    const name = (form.querySelector("#renameTrackInput")?.value || "").trim();
+    if (!url || !name) return;
+
+    try {
+      const fd = new FormData();
+      fd.append("name", name);
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": AlbumUtils.getCSRF(),
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: fd,
+      });
+
+      const isJSON = (res.headers.get("content-type") || "").includes("application/json");
+      const data = isJSON ? await res.json() : null;
+
+      const label = data?.name || name;
+
+      // 1) Best: locate the exact row by album_item_id returned by the server
+      let li = data?.album_item_id ? document.querySelector(`li.track-card[data-id="${data.album_item_id}"]`) : null;
+
+      // 2) Fallback: match the button by the *pathname* (avoid absolute vs relative mismatch)
+      if (!li) {
+        const pathname = new URL(url, location.origin).pathname;
+        const safe = window.CSS && CSS.escape ? CSS.escape(pathname) : pathname;
+        const btn = document.querySelector(`.rename-track-btn[data-url="${safe}"]`);
+        li = btn ? btn.closest("li.track-card") : null;
+      }
+
+      if (li) {
+        const titleEl = li.querySelector('[data-role="track-title"], .fw-semibold');
+        if (titleEl) titleEl.textContent = label;
+        // keep the modal trigger(s) in sync so re-opening shows the new name
+        li.querySelectorAll(".rename-track-btn").forEach((b) => b.setAttribute("data-track-name", label));
+      }
+
+      bootstrap.Modal.getInstance(document.getElementById("renameTrackModal"))?.hide();
+    } catch (err) {
+      console.error("Track rename failed:", err);
+      alert(err.message || "Rename failed. Please try again.");
+    }
+  });
 })(window);

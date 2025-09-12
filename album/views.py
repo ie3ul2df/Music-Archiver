@@ -679,34 +679,40 @@ def track_create(request):
     return render(request, "tracks/track_form.html", {"form": form})
 
 
+
+
 @login_required
 @require_POST
 def album_rename_track(request, pk, item_id):
-    """Rename a specific track in the album.
-
-    - If the track belongs to me, rename the original Track.
-    - If it belongs to someone else, set a custom_name just for this album.
-    """
     album = get_object_or_404(Album, pk=pk, owner=request.user)
     item = get_object_or_404(AlbumTrack, pk=item_id, album=album)
 
     new_name = (request.POST.get("name") or "").strip()
     if not new_name:
-        messages.error(request, "Track name cannot be empty.")
-        return redirect("album:album_detail", pk=pk)
+      if request.headers.get("x-requested-with") == "XMLHttpRequest":
+          return JsonResponse({"ok": False, "error": "Track name cannot be empty."}, status=400)
+      messages.error(request, "Track name cannot be empty.")
+      return redirect("album:album_detail", pk=pk)
 
     if item.track.owner_id == request.user.id:
-        # My track → rename the track itself
         item.track.name = new_name
         item.track.save(update_fields=["name"])
-        messages.success(request, f'Track renamed to “{new_name}”.')
     else:
-        # Someone else’s track → just override label for this album
         item.custom_name = new_name
         item.save(update_fields=["custom_name"])
-        messages.success(request, f'Track relabeled as “{new_name}” in this album.')
 
+    # AJAX → JSON
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({
+            "ok": True,
+            "album_item_id": item.id,
+            "name": item.custom_name or item.track.name,
+        })
+
+    # Non-AJAX → redirect
+    messages.success(request, f'Track renamed to “{new_name}”.')
     return redirect("album:album_detail", pk=pk)
+
 
 
 @login_required

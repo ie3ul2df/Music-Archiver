@@ -105,11 +105,16 @@
     {# --- Track list --- #}
     {% with ats=album.album_tracks_annotated|default:album.album_tracks.all %}
       {% if ats|length %}
-        <ul id="track-list"
-            class="list-group mt-2"
-            data-reorder-url="{% if reorder_url %}{{ reorder_url }}{% else %}{% url 'album:album_reorder_tracks' album.pk %}{% endif %}">
+        <ul
+          class="list-group mt-2 album-tracklist"
+          id="album-tracklist-{{ album.id }}"
+          data-album-id="{{ album.id }}"
+          {% if tracks_url %} data-tracks-url="{{ tracks_url }}"{% endif %}
+          {% if reorder_url %} data-reorder-url="{{ reorder_url }}"{% endif %}
+        >
+          {# Render server-side as a fallback (or keep empty if you always lazy-load) #}
           {% for at in ats %}
-            {% with fav=at.is_favorited inpl=at.track.in_playlist|default:False avg=at.track_avg|default:0 cnt=at.track_count|default:0 %}
+            {% with fav=at.is_favorited inpl=at.track.in_playlist|default:False avg=at.track_avg|default:0 cnt=at.track_count|default:0 is_owner=request.user.id|yesno:"True,False" %}
               {% if request.user.id == album.owner.id %}
                 {% include "tracks/_track_card.html" with track=at.track album=album album_item_id=at.id is_owner=True at=at show_checkbox=True is_favorited=fav in_playlist=inpl avg=avg count=cnt %}
               {% else %}
@@ -121,6 +126,6 @@
       {% else %}
         <div class="small text-muted mt-2">No tracks in this album yet.</div>
       {% endif %}
-  {% endwith %}
+    {% endwith %}
 
 </li>

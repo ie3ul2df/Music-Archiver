@@ -115,7 +115,7 @@
           {% for s in saved_tracks %}
             {% if s.original_track %}
               {% with fav=s.original_track.is_favorited|default:False inpl=s.original_track.in_playlist|default:False avg=s.original_track.rating_avg|default:0 cnt=s.original_track.rating_count|default:0 %}
-                {% include "tracks/_track_card.html" with track=s.original_track album=s.album album_item_id=None is_owner=False at=None show_checkbox=False is_favorited=fav in_playlist=inpl avg=avg count=cnt %}
+                {% include "tracks/_track_card.html" with track=s.original_track album=s.album album_item_id=None is_owner=False at=None show_checkbox=False is_favorited=fav in_playlist=inpl avg=avg count=cnt display_name=s.name_snapshot|default:s.original_track.name %}  
               {% endwith %}
             {% else %}
               <li class="list-group-item"><span class="fw-semibold">{{ s.name_snapshot }}</span> <small class="text-danger ms-2">Original removed</small></li>

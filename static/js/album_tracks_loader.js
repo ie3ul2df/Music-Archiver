@@ -7,7 +7,7 @@ document.addEventListener("click", async (e) => {
   const target = document.querySelector(targetSel);
   if (!url || !target) return;
 
-  // prevent double-click concurrent loads
+  // Prevent double-click concurrent loads
   if (btn.dataset.loading === "1") return;
 
   // First click → fetch HTML, then reveal
@@ -27,16 +27,17 @@ document.addEventListener("click", async (e) => {
       target.dataset.loaded = "1";
       target.classList.remove("d-none");
 
-      // 🔹 hydrate any newly inserted playlist toggle buttons
+      // Hydrate newly inserted playlist toggle buttons, if helper exists
       if (window.normalizePlaylistButtons) {
         window.normalizePlaylistButtons(target);
       }
 
       btn.textContent = "Hide tracks";
-      btn.setAttribute("data-prev-label", prev); // keep previous label if you like
+      btn.setAttribute("data-prev-label", prev);
     } catch (err) {
       console.error("Failed to load tracks:", err);
       btn.textContent = "Retry load";
+      target.classList.add("d-none");
     } finally {
       btn.dataset.loading = "0";
       btn.disabled = false;
@@ -48,6 +49,4 @@ document.addEventListener("click", async (e) => {
   // Subsequent clicks → just toggle visibility
   const hidden = target.classList.toggle("d-none");
   btn.textContent = hidden ? "Show tracks" : "Hide tracks";
-
-  // If you ever re-fetch instead of caching, you could call normalize here again.
 });

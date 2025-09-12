@@ -14,8 +14,10 @@
     {% endif %}
 
     <!-- Title -->
-    <span class="fw-semibold me-1">
-      {% if at and at.custom_name %}
+    <span class="fw-semibold me-1" data-role="track-title">
+      {% if display_name %}
+        {{ display_name }}
+      {% elif at and at.custom_name %}
         {{ at.custom_name }}
       {% else %}
         {{ track.name }}
@@ -66,9 +68,10 @@
         <button type="button"
                 class="btn btn-sm btn-outline-secondary rename-track-btn"
                 data-url="{% url 'album:album_rename_track' album.id album_item_id %}"
-                data-track-name="{{ track.name }}"
+                data-track-name="{% if at and at.custom_name %}{{ at.custom_name }}{% else %}{{ track.name }}{% endif %}"
                 data-bs-toggle="modal"
                 data-bs-target="#renameTrackModal">✏</button>
+
 
         {% if track.is_my_track %}
           <button type="button"
