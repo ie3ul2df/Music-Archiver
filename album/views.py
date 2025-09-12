@@ -1,7 +1,7 @@
 # ----------------------- album/views.py ----------------------- #
 
 import json
-from django.urls import reverse
+from django.urls import reverse, NoReverseMatch
 from django.http import HttpResponseForbidden
 from django.db import transaction
 from django.db.models import Case, When, IntegerField, F, Q, Count, Avg, Count, Exists, OuterRef, Value, BooleanField, Prefetch
@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
+from django.template.loader import render_to_string
 
 from .models import Album, AlbumTrack
 from .forms import AlbumForm
@@ -19,7 +20,7 @@ from tracks.utils import mark_track_ownership, annotate_is_in_my_albums, annotat
 from ratings.utils import annotate_albums, annotate_tracks
 from plans.utils import can_add_album
 from save_system.models import SavedTrack
-
+from playlist.models import Playlist, PlaylistItem
 
 # ---------- Helpers ----------
 
@@ -194,27 +195,143 @@ def album_list(request):
     )
 
 
+def _maybe_reverse(name, *args, **kwargs):
+    try:
+        return reverse(name, args=args, kwargs=kwargs)
+    except NoReverseMatch:
+        return None
+
+
 @login_required
-def album_search(request):
-    q = request.GET.get("q", "").strip()
-    albums = Album.objects.filter(owner=request.user)
-    if q:
-        albums = albums.filter(name__icontains=q)
+def unified_search(request):
+    q = (request.GET.get("q") or "").strip()
+    if not q:
+        return JsonResponse({"albums_html": "", "tracks_html": ""})
 
-    albums = annotate_albums(albums)  # ⭐ add rating fields if available
+    user = request.user
 
-    results = []
+    # ✓ / ➕ playlist state
+    try:
+        playlist, _ = Playlist.objects.get_or_create(owner=user, name="My Playlist")
+        in_playlist_ids = set(
+            PlaylistItem.objects.filter(playlist=playlist).values_list("track_id", flat=True)
+        )
+    except Exception:
+        in_playlist_ids = set()
+
+    # favorite subquery for track annotations
+    fav_sub = Favorite.objects.filter(owner=user, track_id=OuterRef("track_id"))
+
+    # ---- ALBUMS: prefetch annotated AlbumTracks -> album.album_tracks_annotated ----
+    at_qs = (
+        AlbumTrack.objects.select_related("track", "track__owner")
+        .annotate(
+            is_favorited=Exists(fav_sub),
+            track_avg=Avg("track__ratings__stars"),
+            track_count=Count("track__ratings", distinct=True),
+        )
+        .order_by("position", "id")
+    )
+
+    albums = (
+        Album.objects.filter(owner=user, name__icontains=q)
+        .prefetch_related(Prefetch("album_tracks", queryset=at_qs, to_attr="album_tracks_annotated"))
+        .order_by("name")[:20]
+    )
+
+    # add in_playlist flag to prefetched tracks
     for a in albums:
-        results.append({
-            "id": a.id,
-            "name": a.name,
-            "is_public": a.is_public,
-            "detail_url": reverse("album:album_detail", args=[a.id]),
-            "toggle_url": reverse("album:toggle_album_visibility", args=[a.id]), 
-            "edit_url": reverse("album:ajax_rename_album", args=[a.id]),
-        })
-    return JsonResponse({"results": results})
+        for at in getattr(a, "album_tracks_annotated", []):
+            at.track.in_playlist = (at.track_id in in_playlist_ids)
 
+    # render full album cards with URLs passed in (NEVER None — provide fallbacks)
+    album_cards = []
+    for a in albums:
+        # detail URL (used for fallbacks)
+        detail_url = (
+            _maybe_reverse("album:album_detail", a.pk)
+            or _maybe_reverse("album:detail", a.pk)
+            or f"/album/{a.pk}/"
+        )
+        base = detail_url.rstrip("/")
+
+        rename_url = (
+            _maybe_reverse("album:album_rename", a.pk)
+            or _maybe_reverse("album:album_update", a.pk)
+            or _maybe_reverse("album:rename", a.pk)
+            or _maybe_reverse("album:update", a.pk)
+            or f"{base}/rename/"
+        )
+
+        toggle_visibility_url = (
+            _maybe_reverse("album:album_toggle_visibility", a.pk)
+            or _maybe_reverse("album:toggle_visibility", a.pk)
+            or _maybe_reverse("album:toggle", a.pk)
+            or f"{base}/toggle-visibility/"
+        )
+
+        delete_url = (
+            _maybe_reverse("album:album_delete", a.pk)
+            or _maybe_reverse("album:delete", a.pk)
+            or f"{base}/delete/"
+        )
+
+        reorder_url = (
+            _maybe_reverse("album:album_reorder_tracks", a.pk)
+            or _maybe_reverse("album:reorder_tracks", a.pk)
+            or f"{base}/tracks/reorder/"
+        )
+
+        album_cards.append(
+            render_to_string(
+                "album/_album_card.html",
+                {
+                    "album": a,
+                    "rename_url": rename_url,
+                    "toggle_visibility_url": toggle_visibility_url,
+                    "delete_url": delete_url,
+                    "reorder_url": reorder_url,  # use this in data-reorder-url (see note below)
+                    "owner_url": None,           # optional; your template has a fallback
+                },
+                request=request,
+            )
+        )
+
+    albums_html = "".join(album_cards)
+
+    # ---- TRACKS: render _track_card.html for matches inside user's albums ----
+    at_hits = (
+        AlbumTrack.objects.select_related("album", "track", "track__owner")
+        .filter(album__owner=user, track__name__icontains=q)
+        .annotate(
+            is_favorited=Exists(fav_sub),
+            track_avg=Avg("track__ratings__stars"),
+            track_count=Count("track__ratings", distinct=True),
+        )
+        .order_by("album__name", "position", "id")[:50]
+    )
+
+    tracks_html = "".join(
+        render_to_string(
+            "tracks/_track_card.html",
+            {
+                "track": at.track,
+                "album": at.album,
+                "album_item_id": at.id,
+                "is_owner": (at.album.owner_id == user.id),
+                "is_favorited": bool(at.is_favorited),
+                "in_playlist": (at.track_id in in_playlist_ids),
+                "avg": at.track_avg or 0,
+                "count": at.track_count or 0,
+                "show_checkbox": True,
+                "at": at,
+            },
+            request=request,
+        )
+        for at in at_hits
+    )
+
+    return JsonResponse({"albums_html": albums_html, "tracks_html": tracks_html})
 
 
 @login_required

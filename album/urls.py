@@ -12,7 +12,7 @@ urlpatterns = [
 
     # Drag & drop / search
     path("reorder/", views.albums_reorder, name="albums_reorder"),
-    path("search/", views.album_search, name="album_search"),
+    path("search/", views.unified_search, name="unified_search"),
 
     # Public view
     path("p/<slug:slug>/", views.public_album_detail, name="public_album_detail"),

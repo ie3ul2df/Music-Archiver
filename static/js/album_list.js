@@ -4,11 +4,12 @@
   const U = window.AlbumUtils || {};
 
   // ========== Delete Album (modal + submit) ==========
-  U.onModalShow && U.onModalShow("deleteAlbumModal", ({ modal, trigger }) => {
-    if (!trigger) return;
-    modal.querySelector("#albumName").textContent = trigger.getAttribute("data-album-name") || "";
-    modal.querySelector("#deleteAlbumForm").action = trigger.getAttribute("data-url");
-  });
+  U.onModalShow &&
+    U.onModalShow("deleteAlbumModal", ({ modal, trigger }) => {
+      if (!trigger) return;
+      modal.querySelector("#albumName").textContent = trigger.getAttribute("data-album-name") || "";
+      modal.querySelector("#deleteAlbumForm").action = trigger.getAttribute("data-url");
+    });
 
   document.addEventListener("DOMContentLoaded", () => {
     const delForm = document.getElementById("deleteAlbumForm");
@@ -35,72 +36,117 @@
     });
   });
 
-  // ========== Album search (debounced) ==========
-  document.addEventListener("DOMContentLoaded", () => {
-    const form = document.getElementById("album-search-form");
-    const input = document.getElementById("album-search-input");
-    const list = document.getElementById("album-list");
-    if (!form || !input || !list) return;
+  // ========== Album + track search (debounced, restores on clear, server-rendered HTML) ==========
+  const form = document.getElementById("album-search-form");
+  const input = document.getElementById("album-search-input");
+  const list = document.getElementById("album-list");
+  const SEARCH_URL = form?.dataset?.url || "/album/search/";
 
-    const renderRow = (a) => {
-      const li = document.createElement("li");
-      li.className = "list-group-item d-flex justify-content-between align-items-center flex-wrap";
-      li.dataset.id = a.id;
-      li.innerHTML = `
-        <div class="d-flex flex-column">
-          <div>
-            <a href="${a.detail_url}" class="fw-bold text-decoration-none album-name">${a.name}</a>
-            ${a.is_public ? '<span class="badge bg-success ms-2">Public</span>' : '<span class="badge bg-secondary ms-2">Private</span>'}
-          </div>
-          <!-- (Optional) You can inject rating stars fragment here if your API returns the HTML -->
-        </div>
+  if (input && list) {
+    // --- base snapshot of the full page list (unfiltered) ---
+    let originalListHTML = list.innerHTML;
 
-        <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group">
-          <a href="${a.detail_url}" class="btn btn-outline-primary">👁 View</a>
-          <button type="button"
-                  class="btn btn-outline-secondary rename-album-btn"
-                  data-bs-toggle="modal"
-                  data-bs-target="#renameAlbumModal"
-                  data-url="${a.edit_url}"
-                  data-current-name="${a.name}">
-            ✏ Edit
-          </button>
-          <a href="${a.toggle_url}" class="btn btn-outline-warning">
-            ${a.is_public ? "🔒 Make Private" : "🌍 Make Public"}
-          </a>
-          <button type="button"
-                  class="btn btn-outline-danger"
-                  data-bs-toggle="modal"
-                  data-bs-target="#deleteAlbumModal"
-                  data-url="${a.delete_url || a.delete_ajax_url || a.edit_url}"
-                  data-album-name="${a.name}">
-            🗑 Delete
-          </button>
-        </div>
-      `;
-      return li;
+    // patch a single album name inside the base snapshot (used when renaming during search)
+    window.patchBaseAlbumName = (id, newName) => {
+      const wrap = document.createElement("div");
+      wrap.innerHTML = originalListHTML;
+      const li = wrap.querySelector(`li[data-id="${CSS.escape(id)}"]`);
+      if (!li) return;
+      const titleEl = li.querySelector("a.fw-bold, .album-name");
+      if (titleEl) titleEl.textContent = newName;
+      const btn = li.querySelector(".rename-album-btn");
+      if (btn) btn.setAttribute("data-current-name", newName);
+      originalListHTML = wrap.innerHTML; // write back
     };
 
-    const runSearch = U.debounce(async () => {
-      try {
-        const r = await fetch(`/album/search/?q=${encodeURIComponent(input.value)}`);
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data = await r.json();
+    // refresh the base snapshot (use this only when NOT searching)
+    window.updateAlbumListSnapshot = () => {
+      originalListHTML = list.innerHTML;
+    };
 
-        list.innerHTML = "";
-        if (!data.results?.length) {
-          list.innerHTML = `<li class="list-group-item">No albums found.</li>`;
-          return;
-        }
-        data.results.forEach((a) => list.appendChild(renderRow(a)));
-      } catch (err) {
-        console.error("Album search error:", err);
+    const restoreOriginal = () => {
+      list.innerHTML = originalListHTML;
+    };
+
+    const debounce = (fn, ms) => {
+      let t;
+      return (...a) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...a), ms);
+      };
+    };
+
+    let lastQuery = "";
+    let aborter = null;
+
+    const performSearch = async (q) => {
+      if (!q) {
+        restoreOriginal();
+        return;
       }
-    }, 300);
 
-    input.addEventListener("keyup", runSearch);
-    form.addEventListener("submit", (e) => e.preventDefault());
-  });
+      if (aborter) aborter.abort();
+      aborter = new AbortController();
+
+      const r = await fetch(`${SEARCH_URL}?q=${encodeURIComponent(q)}`, { signal: aborter.signal });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+
+      const hasAlbums = data.albums_html?.trim();
+      const hasTracks = data.tracks_html?.trim();
+
+      list.innerHTML = "";
+
+      if (!hasAlbums && !hasTracks) {
+        list.innerHTML = `<li class="list-group-item">No results found.</li>`;
+        return;
+      }
+
+      if (hasAlbums) {
+        const h = document.createElement("li");
+        h.className = "list-group-item active";
+        h.textContent = "Albums";
+        list.appendChild(h);
+
+        const wrap = document.createElement("div");
+        wrap.innerHTML = data.albums_html;
+        wrap.childNodes.forEach((n) => {
+          if (n.nodeType === 1) list.appendChild(n);
+        });
+      }
+
+      if (hasTracks) {
+        const h = document.createElement("li");
+        h.className = "list-group-item active";
+        h.textContent = "Tracks";
+        list.appendChild(h);
+
+        const wrap = document.createElement("div");
+        wrap.innerHTML = data.tracks_html;
+        wrap.childNodes.forEach((n) => {
+          if (n.nodeType === 1) list.appendChild(n);
+        });
+      }
+    };
+
+    const runSearch = debounce(async () => {
+      const q = (input.value || "").trim();
+      if (q === lastQuery) return;
+      lastQuery = q;
+      try {
+        await performSearch(q);
+      } catch (err) {
+        if (err.name !== "AbortError") console.error("Unified search error:", err);
+      }
+    }, 250);
+
+    if (!input.dataset.bound) {
+      input.dataset.bound = "1";
+      input.addEventListener("keyup", runSearch);
+      input.addEventListener("input", runSearch);
+      form?.addEventListener("submit", (e) => e.preventDefault());
+    }
+  }
 
   // ========== Create album (AJAX) ==========
   document.addEventListener("DOMContentLoaded", () => {
@@ -161,57 +207,70 @@
     });
   });
 
-  // ========== Rename Album (modal + submit) ==========
+  // ========== Rename Album (modal + submit; uses Bootstrap trigger) ==========
   document.addEventListener("DOMContentLoaded", () => {
     const renameModal = document.getElementById("renameAlbumModal");
-    const renameForm  = document.getElementById("renameAlbumForm");
+    const renameForm = document.getElementById("renameAlbumForm");
     const renameInput = document.getElementById("renameAlbumInput");
-    let renameUrl = null;
-    let albumLi = null;
 
-    // Static buttons present on initial render
-    document.querySelectorAll(".rename-album-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        renameUrl = btn.getAttribute("data-url");
-        albumLi   = btn.closest("li.list-group-item");
-        renameInput.value = btn.getAttribute("data-current-name") || "";
-        new bootstrap.Modal(renameModal).show();
+    // set by onModalShow so submit can find the right row back
+    let lastTriggerBtn = null;
+
+    // When the modal is about to show, fill fields from the button that opened it
+    if (U.onModalShow) {
+      U.onModalShow("renameAlbumModal", ({ modal, trigger }) => {
+        lastTriggerBtn = trigger || null;
+
+        const url = trigger?.getAttribute("data-url") || "";
+        const name = trigger?.getAttribute("data-current-name") || "";
+
+        if (renameForm) renameForm.setAttribute("action", url);
+        if (renameInput) renameInput.value = name;
       });
-    });
+    }
 
-    // Also handle dynamically injected rows (from search/create)
-    U.onModalShow && U.onModalShow("renameAlbumModal", ({ trigger }) => {
-      if (!trigger) return;
-      renameUrl = trigger.getAttribute("data-url");
-      albumLi   = trigger.closest("li.list-group-item");
-      renameInput.value = trigger.getAttribute("data-current-name") || "";
-    });
-
+    // Submit via AJAX to renameForm.action
     if (renameForm) {
       renameForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        if (!renameUrl) return;
-        const newName = (renameInput.value || "").trim();
-        if (!newName) return alert("Name cannot be empty");
+
+        const url = renameForm.getAttribute("action");
+        const newName = (renameInput?.value || "").trim();
+
+        if (!url) return alert("Missing rename URL.");
+        if (!newName) return alert("Name cannot be empty.");
 
         try {
-          const data = await U.postForm(renameUrl, { name: newName });
-          if (data.ok) {
-            if (albumLi) {
-              const link = albumLi.querySelector("a.fw-bold, .album-name");
-              if (link) link.textContent = data.name || newName;
-              const btn = albumLi.querySelector(".rename-album-btn");
-              if (btn) btn.setAttribute("data-current-name", data.name || newName);
-            } else {
-              const any = document.querySelector(
-                `a[href="${data.detail_url}"].fw-bold, a.album-name[href="${data.detail_url}"]`
-              );
-              if (any) any.textContent = data.name || newName;
-            }
-            bootstrap.Modal.getInstance(renameModal)?.hide();
-          } else {
-            alert(data.error || "Rename failed");
+          const data = await U.postForm(url, { name: newName }); // expects {ok, name, detail_url?}
+          if (!data || data.ok === false) {
+            alert((data && data.error) || "Rename failed");
+            return;
           }
+
+          // Update the row that contained the trigger button
+          let li = lastTriggerBtn?.closest("li.list-group-item");
+          if (!li) {
+            // fallback: find by matching data-url (works for static or injected rows)
+            try {
+              const selector = `.rename-album-btn[data-url="${CSS.escape(url)}"]`;
+              li = document.querySelector(selector)?.closest("li.list-group-item") || null;
+            } catch (_) {}
+          }
+
+          // Update visible name + the button's current-name
+          const newLabel = data.name || newName;
+          if (li) {
+            const titleEl = li.querySelector("a.fw-bold, .album-name");
+            if (titleEl) titleEl.textContent = newLabel;
+            const btn = li.querySelector(".rename-album-btn");
+            if (btn) btn.setAttribute("data-current-name", newLabel);
+          }
+
+          // Close modal
+          bootstrap.Modal.getInstance(renameModal)?.hide();
+
+          // Keep the cached “original list” in sync for restoring after search clear
+          window.updateAlbumListSnapshot?.();
         } catch (err) {
           console.error("Rename error:", err);
           alert("Something went wrong renaming album.");
