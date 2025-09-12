@@ -116,23 +116,40 @@ def save_track(request, pk):
 
 
 
+
 @login_required
 def bulk_save_tracks(request):
     if request.method != "POST":
-        messages.error(request, "Invalid request.")
         return redirect("album:album_list")
 
     track_ids = [int(x) for x in request.POST.get("track_ids", "").split(",") if x.isdigit()]
-    album_id  = request.POST.get("album_id")
-
+    album_id = request.POST.get("album_id")
     if not track_ids or not album_id:
-        messages.error(request, "Missing track IDs or album.")
+        messages.error(request, "Missing tracks or album.")
         return redirect("album:album_list")
 
     album = get_object_or_404(Album, pk=album_id, owner=request.user)
 
-    # TODO: your logic to attach tracks to album here
-    # e.g., for tid in track_ids: attach if not already there
+    added, skipped = 0, 0
+    for tid in track_ids:
+        try:
+            track = Track.objects.get(pk=tid)
+        except Track.DoesNotExist:
+            skipped += 1
+            continue
 
-    messages.success(request, f"Saved {len(track_ids)} track(s) to “{album.name}”.")
+        # Don’t try to create duplicates
+        if AlbumTrack.objects.filter(album=album, track=track).exists():
+            skipped += 1
+            continue
+
+        AlbumTrack.objects.create(album=album, track=track)
+        added += 1
+
+    if added and skipped:
+        messages.success(request, f"Saved {added} track(s); {skipped} already there.")
+    elif added:
+        messages.success(request, f"Saved {added} track(s).")
+    else:
+        messages.info(request, f"All selected tracks were already in “{album.name}”.")
     return redirect("album:album_list")

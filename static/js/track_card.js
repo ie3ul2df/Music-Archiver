@@ -33,10 +33,11 @@
       const trackId = row?.dataset.trackId;
       const saveUrl = saveBtn.dataset.saveUrl;
       const modalEl = document.getElementById("saveToAlbumModal");
-      if (!modalEl || !trackId || !saveUrl) return;
+      const form = document.getElementById("save-to-album-form");
+      if (!modalEl || !form || !trackId || !saveUrl) return;
 
       document.getElementById("save-track-id").value = trackId;
-      document.getElementById("save-url").value = saveUrl;
+      form.setAttribute("action", saveUrl);
 
       const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
       modal.show();
@@ -62,29 +63,30 @@
   });
 
   // Save form submit
-  const saveForm = document.getElementById("save-to-album-form");
-  if (saveForm) {
-    saveForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const albumId = document.getElementById("save-album-select").value;
-      const saveUrl = document.getElementById("save-url").value;
+  // const saveForm = document.getElementById("save-to-album-form");
+  // if (saveForm && !saveForm.dataset.bound) {
+  //   saveForm.dataset.bound = "1";
+  //   saveForm.addEventListener("submit", async (e) => {
+  //     e.preventDefault();
+  //     const albumId = document.getElementById("save-album-select").value;
+  //     const saveUrl = saveForm.getAttribute("action"); // <-- use form action
 
-      const fd = new FormData();
-      fd.append("album_id", albumId);
+  //     const fd = new FormData();
+  //     fd.append("album_id", albumId);
 
-      const res = await fetch(saveUrl, {
-        method: "POST",
-        headers: { "X-CSRFToken": csrftoken() },
-        body: fd,
-      });
+  //     const res = await fetch(saveUrl, {
+  //       method: "POST",
+  //       headers: { "X-CSRFToken": csrftoken() },
+  //       body: fd,
+  //     });
 
-      if (res.ok) {
-        bootstrap.Modal.getInstance(document.getElementById("saveToAlbumModal"))?.hide();
-      } else {
-        alert("Could not save to album.");
-      }
-    });
-  }
+  //     if (res.ok) {
+  //       bootstrap.Modal.getInstance(document.getElementById("saveToAlbumModal"))?.hide();
+  //     } else {
+  //       alert("Could not save to album.");
+  //     }
+  //   });
+  // }
 
   // Log play on <audio> 'play'
   document.addEventListener(

@@ -23,49 +23,49 @@
   });
 
   // 2) Submit the modal form via fetch to form.action, sending album_id
-  if (form) {
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
+  // if (form) {
+  //   form.addEventListener("submit", async (e) => {
+  //     e.preventDefault();
 
-      const actionUrl = form.getAttribute("action");
-      const select = document.getElementById("save-album-select");
-      const albumId = select ? select.value : "";
+  //     const actionUrl = form.getAttribute("action");
+  //     const select = document.getElementById("save-album-select");
+  //     const albumId = select ? select.value : "";
 
-      if (!actionUrl || !albumId) {
-        alert("Missing save URL or album.");
-        return;
-      }
+  //     if (!actionUrl || !albumId) {
+  //       alert("Missing save URL or album.");
+  //       return;
+  //     }
 
-      try {
-        const resp = await fetch(actionUrl, {
-          method: "POST",
-          headers: {
-            "X-CSRFToken": csrfToken,
-            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-          },
-          body: new URLSearchParams({ album_id: albumId }).toString(),
-        });
+  //     try {
+  //       const resp = await fetch(actionUrl, {
+  //         method: "POST",
+  //         headers: {
+  //           "X-CSRFToken": csrfToken,
+  //           "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+  //         },
+  //         body: new URLSearchParams({ album_id: albumId }).toString(),
+  //       });
 
-        // Expect JSON { ok: True/False, created: True/False }
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok || !data || data.ok === false) {
-          alert((data && data.error) || "Could not save track.");
-          return;
-        }
+  //       // Expect JSON { ok: True/False, created: True/False }
+  //       const data = await resp.json().catch(() => ({}));
+  //       if (!resp.ok || !data || data.ok === false) {
+  //         alert((data && data.error) || "Could not save track.");
+  //         return;
+  //       }
 
-        // Close modal on success
-        if (modalEl) {
-          const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-          modal.hide();
-        }
-        alert(data.created ? "Track saved ✓" : "Track already saved.");
+  //       // Close modal on success
+  //       if (modalEl) {
+  //         const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+  //         modal.hide();
+  //       }
+  //       alert(data.created ? "Track saved ✓" : "Track already saved.");
 
-      } catch (err) {
-        console.error("Save track error", err);
-        alert("Network error.");
-      }
-    });
-  }
+  //     } catch (err) {
+  //       console.error("Save track error", err);
+  //       alert("Network error.");
+  //     }
+  //   });
+  // }
 
   // 3) (Optional) Intercept "Save Album" links to POST via fetch
   document.addEventListener("click", async (e) => {

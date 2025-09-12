@@ -192,28 +192,49 @@
     }
   });
 
-  // ---------- Form submit guard (ensure an album is chosen) ----------
-  // Guarded submit for the "Save to album" modal
-  document.addEventListener("submit", (e) => {
-    const form = e.target.matches("#save-to-album-form") ? e.target : e.target.closest("#save-to-album-form");
-    if (!form) return; // not our form
-
-    const idsEl = form.querySelector("#save-track-ids");
-    const albumSel = form.querySelector("#save-album-select");
-
-    // If either is missing, don't crash—just allow normal submit (server can validate)
-    if (!idsEl || !albumSel) return;
-
-    // Client validation
-    if (!idsEl.value.trim()) {
+  // ---------- Form submit via AJAX (Save to album modal) ----------
+  const saveForm = document.getElementById("save-to-album-form");
+  if (saveForm && !saveForm.dataset.bound) {
+    saveForm.dataset.bound = "1"; // prevent double binding
+    saveForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      alert("No tracks selected.");
-      return;
-    }
-    if (!albumSel.value) {
-      e.preventDefault();
-      alert("Please choose an album to save into.");
-      return;
-    }
-  });
+
+      const albumId = document.getElementById("save-album-select")?.value;
+      const ids = document.getElementById("save-track-ids")?.value;
+      const saveUrl = saveForm.getAttribute("action");
+
+      if (!albumId || !ids || !saveUrl) {
+        alert("Missing album or tracks.");
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append("album_id", albumId);
+      fd.append("track_ids", ids);
+
+      try {
+        const res = await fetch(saveUrl, {
+          method: "POST",
+          headers: { "X-CSRFToken": getCookie("csrftoken") },
+          body: fd,
+        });
+
+        if (res.ok) {
+          // Close modal
+          bootstrap.Modal.getInstance(document.getElementById("saveToAlbumModal"))?.hide();
+
+          // Optional: replace with a toast/snackbar for nicer UX
+          alert("Track(s) saved successfully.");
+
+          // Reload so UI reflects changes (you can remove this if you plan to update DOM instead)
+          window.location.reload();
+        } else {
+          alert("Could not save to album.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Network error while saving tracks.");
+      }
+    });
+  }
 })();

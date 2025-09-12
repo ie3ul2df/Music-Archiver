@@ -1,6 +1,7 @@
 {# templates/album/_album_card.html #}
 <li class="album list-group-item d-flex justify-content-between align-items-center flex-wrap"
-    data-id="{{ album.pk }}">
+    data-id="{{ album.pk }}"
+    data-reorder-url="{% url 'album:album_reorder_tracks' album.pk %}">
 
   <div class="d-flex flex-column flex-grow-1">
 

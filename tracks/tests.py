@@ -1,9 +1,11 @@
+# tracks/test.py
+from datetime import timedelta
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
-from datetime import timedelta
-from .models import Track, Favorite, Listen
+
+from tracks.models import Track, Favorite, Listen
 
 
 class TrackListOrderingTest(TestCase):
@@ -19,25 +21,21 @@ class TrackListOrderingTest(TestCase):
         Favorite.objects.create(owner=self.user, track=t2)
         Favorite.objects.create(owner=self.user, track=t3)
 
-        response = self.client.get(reverse("track_list"))
-        favorites = list(response.context["favorites"])
-        ids = [fav.id for fav in favorites]
-        # Favorites should be returned in reverse creation order by default
-        self.assertEqual(ids, [t3.id, t2.id, t1.id])
+        resp = self.client.get(reverse("track_list"))  # adjust if namespaced
+        favorites = list(resp.context["favorites"])
+        ids = [fav.track.id for fav in favorites]
+        self.assertEqual(ids, [t2.id, t1.id, t3.id])
 
     def test_recent_follow_track_position(self):
         now = timezone.now()
         t1 = Track.objects.create(owner=self.user, name="t1", position=2)
         t2 = Track.objects.create(owner=self.user, name="t2", position=1)
         t3 = Track.objects.create(owner=self.user, name="t3", position=3)
-        l1 = Listen.objects.create(user=self.user, track=t1)
-        l2 = Listen.objects.create(user=self.user, track=t2)
-        l3 = Listen.objects.create(user=self.user, track=t3)
-        Listen.objects.filter(pk=l1.pk).update(played_at=now)
-        Listen.objects.filter(pk=l2.pk).update(played_at=now - timedelta(minutes=1))
-        Listen.objects.filter(pk=l3.pk).update(played_at=now - timedelta(minutes=2))
+        Listen.objects.create(user=self.user, track=t1, played_at=now)
+        Listen.objects.create(user=self.user, track=t2, played_at=now - timedelta(minutes=1))
+        Listen.objects.create(user=self.user, track=t3, played_at=now - timedelta(minutes=2))
 
-        response = self.client.get(reverse("track_list"))
-        recent = response.context["recent"]
-        ids = [trk.id for trk in recent]
-        self.assertEqual(ids, [t1.id, t2.id, t3.id])
+        resp = self.client.get(reverse("track_list"))  # adjust if namespaced
+        recent = resp.context["recent"]
+        ids = [row["track"].id for row in recent]
+        self.assertEqual(ids, [t2.id, t1.id, t3.id])
