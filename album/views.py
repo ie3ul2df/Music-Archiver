@@ -689,29 +689,44 @@ def album_rename_track(request, pk, item_id):
 
     new_name = (request.POST.get("name") or "").strip()
     if not new_name:
-      if request.headers.get("x-requested-with") == "XMLHttpRequest":
-          return JsonResponse({"ok": False, "error": "Track name cannot be empty."}, status=400)
-      messages.error(request, "Track name cannot be empty.")
-      return redirect("album:album_detail", pk=pk)
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"ok": False, "error": "Track name cannot be empty."}, status=400)
+        messages.error(request, "Track name cannot be empty.")
+        return redirect("album:album_detail", pk=pk)
 
-    if item.track.owner_id == request.user.id:
-        item.track.name = new_name
-        item.track.save(update_fields=["name"])
-    else:
-        item.custom_name = new_name
-        item.save(update_fields=["custom_name"])
+    is_owner = (item.track.owner_id == request.user.id)
 
-    # AJAX → JSON
+    with transaction.atomic():
+        if is_owner:
+            # Global rename for your track
+            item.track.name = new_name
+            item.track.save(update_fields=["name"])
+
+            # Optional: clear any stale custom names you might have for this track
+            # AlbumTrack.objects.filter(album__owner=request.user, track=item.track)\
+            #     .update(custom_name=None)
+        else:
+            # Set on this item…
+            item.custom_name = new_name
+            item.save(update_fields=["custom_name"])
+            # …and propagate to all your albums containing the same original track
+            AlbumTrack.objects.filter(
+                album__owner=request.user,
+                track=item.track,
+            ).update(custom_name=new_name)
+
     if request.headers.get("x-requested-with") == "XMLHttpRequest":
         return JsonResponse({
             "ok": True,
             "album_item_id": item.id,
-            "name": item.custom_name or item.track.name,
+            "name": item.custom_name or item.track.name,  # the label to show
+            "scope": "track",          # tells the UI to update all cards for this track
+            "track_id": item.track_id, # so JS can locate them
         })
 
-    # Non-AJAX → redirect
-    messages.success(request, f'Track renamed to “{new_name}”.')
+    messages.success(request, f'Name updated to “{new_name}”.')
     return redirect("album:album_detail", pk=pk)
+
 
 
 
