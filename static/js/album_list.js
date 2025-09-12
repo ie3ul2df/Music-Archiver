@@ -56,7 +56,7 @@
       if (titleEl) titleEl.textContent = newName;
       const btn = li.querySelector(".rename-album-btn");
       if (btn) btn.setAttribute("data-current-name", newName);
-      originalListHTML = wrap.innerHTML; // write back
+      originalListHTML = wrap.innerHTML; // persist patched HTML
     };
 
     // refresh the base snapshot (use this only when NOT searching)
@@ -269,8 +269,16 @@
           // Close modal
           bootstrap.Modal.getInstance(renameModal)?.hide();
 
-          // Keep the cached “original list” in sync for restoring after search clear
-          window.updateAlbumListSnapshot?.();
+          // Keep the cached snapshot correct
+          const isSearching = !!(document.getElementById("album-search-input")?.value || "").trim();
+          const albumId = li?.dataset.id;
+          if (isSearching && albumId && window.patchBaseAlbumName) {
+            // We’re in search mode: patch the cached “original list” DOM with just this album’s new name
+            window.patchBaseAlbumName(albumId, newLabel);
+          } else {
+            // Not searching: safe to overwrite snapshot with current DOM
+            window.updateAlbumListSnapshot?.();
+          }
         } catch (err) {
           console.error("Rename error:", err);
           alert("Something went wrong renaming album.");
