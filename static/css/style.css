@@ -102,3 +102,18 @@ li.track-item.dragging {
   opacity: 0.6;
   background: #f8f9fa;
 }
+
+/* Sorting Styles */
+.sortable-item.dragging {
+  opacity: 0.5;
+}
+.sortable-ready {
+  user-select: none;
+}
+
+#album-list > li.reorder-item {
+  cursor: grab;
+}
+.album-tracklist > li.reorder-item {
+  cursor: move;
+}

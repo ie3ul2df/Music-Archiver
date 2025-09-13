@@ -78,7 +78,8 @@
       </div>
 
       <!-- Album list -->
-      <ul id="album-list" class="list-group">
+      <ul id="album-list" class="list-group"
+          data-reorder-url="{% url 'album:ajax_reorder_albums' %}">
         {% for a in albums %}
 
           {% url 'user_tracks' a.owner.username as owner_url %}
@@ -93,6 +94,7 @@
           <li class="list-group-item">No albums yet.</li>
         {% endfor %}
       </ul>
+      
     </div>
 
     <!-- ================= Saved Albums ================= -->

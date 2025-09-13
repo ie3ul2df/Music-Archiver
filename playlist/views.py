@@ -3,6 +3,7 @@ from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbid
 from django.views.decorators.http import require_GET, require_POST
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
+from django.db import transaction
 from django.db.models import Max
 from .models import Playlist, PlaylistItem
 from tracks.models import Track
@@ -115,3 +116,39 @@ def bulk_add_to_playlist(request):
             added += 1
 
     return JsonResponse({"ok": True, "added": added, "skipped": skipped})
+
+
+@login_required
+@require_POST
+def reorder(request):
+    """
+    Persist order for the current user's default playlist (or whichever one you're showing).
+    Expects JSON: { "order": [playlist_item_id, ...] }
+    """
+    try:
+        payload = json.loads(request.body or "{}")
+        order = [int(x) for x in payload.get("order", [])]
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Bad JSON"}, status=400)
+
+    if not order:
+        return JsonResponse({"ok": True})
+
+    playlist, _ = Playlist.objects.get_or_create(owner=request.user, name="My Playlist")
+    items = PlaylistItem.objects.filter(playlist=playlist, id__in=order)
+    by_id = {it.id: it for it in items}
+
+    pos = 1
+    to_update = []
+    for iid in order:
+        it = by_id.get(iid)
+        if it:
+            it.position = pos
+            to_update.append(it)
+            pos += 1
+
+    with transaction.atomic():
+        if to_update:
+            PlaylistItem.objects.bulk_update(to_update, ["position"])
+
+    return JsonResponse({"ok": True})

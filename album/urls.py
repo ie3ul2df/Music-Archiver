@@ -32,8 +32,9 @@ urlpatterns = [
     # (Optional alias for any old code still calling “remove”)
     path("<int:pk>/tracks/<int:item_id>/remove/", views.album_detach_track, name="album_remove_track"),
 
-    # Visibility
+    # Other
     path("<int:pk>/toggle-visibility/", views.toggle_album_visibility, name="toggle_album_visibility"),
-    
+    path("ajax/reorder/", views.ajax_reorder_albums, name="ajax_reorder_albums"),
+    path("<int:pk>/tracks/reorder/", views.album_reorder_tracks, name="album_reorder_tracks"),
     path("fragment/<int:pk>/tracks/", views.album_tracks_fragment, name="album_tracks_fragment"),
 ]

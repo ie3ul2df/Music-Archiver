@@ -661,3 +661,91 @@ def album_bulk_detach(request, pk):
                 AlbumTrack.objects.filter(pk=at.pk).update(position=i)
 
     return JsonResponse({"ok": True, "removed": to_remove, "album_id": album.id})
+
+
+
+@login_required
+@require_POST
+def ajax_reorder_albums(request):
+    """
+    Save user's album list order. Expects JSON: { "order": [album_id, ...] }
+    """
+    try:
+        payload = json.loads(request.body or "{}")
+        order = [int(x) for x in payload.get("order", [])]
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Bad JSON"}, status=400)
+
+    if not order:
+        return JsonResponse({"ok": True})
+
+    albums = Album.objects.filter(owner=request.user, id__in=order)
+    by_id = {a.id: a for a in albums}
+
+    pos = 1
+    to_update = []
+    for aid in order:
+        a = by_id.get(aid)
+        if a:
+            a.order = pos
+            to_update.append(a)
+            pos += 1
+
+    with transaction.atomic():
+        if to_update:
+            Album.objects.bulk_update(to_update, ["order"])
+
+    return JsonResponse({"ok": True})
+
+
+
+
+@login_required
+@require_POST
+def album_reorder_tracks(request, pk):
+    """
+    Reorder tracks within a specific album.
+    Expects JSON: { "order": [albumtrack_id, ...] }  (AlbumTrack IDs, not Track IDs)
+    """
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
+
+    try:
+        payload = json.loads(request.body or "{}")
+        incoming = [int(x) for x in payload.get("order", [])]
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Bad JSON"}, status=400)
+
+    # Current rows in stable order
+    current_qs = AlbumTrack.objects.filter(album=album).order_by("position", "id")
+    all_ids = list(current_qs.values_list("id", flat=True))
+    if not all_ids:
+        return JsonResponse({"ok": True})
+
+    # Build final ordered list: first the incoming order (validated), then leftovers
+    seen = set()
+    final_ids = []
+    for aid in incoming:
+        if aid in all_ids and aid not in seen:
+            final_ids.append(aid)
+            seen.add(aid)
+    for aid in all_ids:
+        if aid not in seen:
+            final_ids.append(aid)
+
+    # Map each AlbumTrack id -> new position 1..n
+    mapping = {aid: idx + 1 for idx, aid in enumerate(final_ids)}
+
+    # Two-phase, collision-free update:
+    with transaction.atomic():
+        # Phase 1: bump everything away so UNIQUE(album, position) never collides
+        AlbumTrack.objects.filter(album=album).update(position=F("position") + 1_000_000)
+
+        # Phase 2: assign the real positions in one go with CASE
+        whens = [When(id=aid, then=Value(pos)) for aid, pos in mapping.items()]
+        AlbumTrack.objects.filter(album=album, id__in=mapping.keys()).update(
+            position=Case(*whens, output_field=IntegerField())
+        )
+
+    return JsonResponse({"ok": True})
+
+

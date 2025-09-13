@@ -2,8 +2,9 @@
 {# expects: track, (optional) album, (optional) album_item_id, (optional) is_owner, optionally: is_favorited (bool), in_playlist (bool), show_checkbox (bool) #}
 
 <li class="list-group-item p-2 track-card track-item d-flex flex-column gap-2"
-    {% if album_item_id %} data-id="{{ album_item_id }}" draggable="{% if is_owner %}true{% else %}false{% endif %}"{% endif %}
-    data-track-id="{{ track.id }}">
+    data-id="{% if album_item_id %}{{ album_item_id }}{% elif playlist_item_id %}{{ playlist_item_id }}{% else %}{{ track.id }}{% endif %}"
+    data-track-id="{{ track.id }}"
+    draggable="true">
   <div class="d-flex align-items-center gap-2 flex-wrap">
 
     {% if show_checkbox %}

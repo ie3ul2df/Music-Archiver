@@ -31,4 +31,7 @@ urlpatterns = [
     
     # Delete track
     path("<int:pk>/delete/", views.delete_track, name="delete_track"),
+    
+    # NEW: save favourites order
+    path("api/favorites/reorder/", views.favorites_reorder, name="favorites_reorder"),
 ]

@@ -43,13 +43,18 @@ class Favorite(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # NEW: persisted sort order
+    position = models.PositiveIntegerField(default=0)
+
     class Meta:
         unique_together = (("owner", "track"),)
-        ordering = ["-created_at"]
-        indexes = [models.Index(fields=["owner", "created_at"])]
+        ordering = ["position", "-created_at"]  # <- use saved order first
+        indexes = [
+            models.Index(fields=["owner", "created_at"]),
+            models.Index(fields=["owner", "position"]),
+        ]
 
-    def __str__(self):
-        return f"{self.owner} ♥ {self.track}"
+
 
 class Listen(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="listens")

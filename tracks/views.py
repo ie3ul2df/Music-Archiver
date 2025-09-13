@@ -8,7 +8,7 @@ from django.http import JsonResponse, HttpResponseBadRequest
 from django.contrib import messages
 from django.http import FileResponse, HttpResponseNotFound, HttpResponseRedirect
 from django.utils import timezone
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.contrib.auth import get_user_model
 from django.db.models import (
     Max, Exists, OuterRef, Prefetch, Avg, Count, Subquery, F
@@ -79,12 +79,14 @@ def track_list(request):
 
 
     # ------------------------------- FAVOURITES -------------------------------- #
-    fav_ids = list(
-        Favorite.objects.filter(owner=request.user).values_list("track_id", flat=True)
+    fav_rows = (
+        Favorite.objects.filter(owner=request.user)
+        .order_by("position", "-created_at")
+        .values_list("track_id", flat=True)
     )
-    fav_id_set = set(fav_ids)
+    fav_id_set = set(fav_rows)
 
-    # Subquery to pull your chosen custom_name for any album that has this track
+    # Subquery to pull your custom label from any of your albums
     user_label_sq = (
         AlbumTrack.objects
         .filter(album__owner=request.user, track_id=OuterRef("pk"))
@@ -93,25 +95,25 @@ def track_list(request):
         .values("custom_name")[:1]
     )
 
-    favorites_qs = (
-        annotate_tracks(Track.objects.filter(id__in=fav_ids))
+    # Fetch tracks in bulk with annotations, then reassemble in fav order
+    tracks_by_id = (
+        annotate_tracks(Track.objects.filter(id__in=fav_id_set))
         .annotate(display_name=Coalesce(Subquery(user_label_sq), F("name")))
+        .in_bulk()
     )
 
-    fav_order = request.session.get(f"fav_order_{request.user.id}", [])
-    if fav_order:
-        order_pos = {tid: i for i, tid in enumerate(fav_order)}
-        favorites = sorted(favorites_qs, key=lambda t: order_pos.get(t.id, 10**9))
-    else:
-        favorites = list(favorites_qs.order_by("-created_at")[:25])
-
-    for t in favorites:
+    favorites = []
+    for tid in fav_rows:
+        t = tracks_by_id.get(tid)
+        if not t:
+            continue
         t.is_favorited = True
         t.in_playlist = t.id in in_playlist_ids
-        # convenience so templates can always use track.display_name
         t.display_name = getattr(t, "display_name", t.name)
+        favorites.append(t)
 
     annotate_is_in_my_albums(favorites, request.user)
+
 
     # ---------------------------- RECENTLY PLAYED ------------------------------ #
     latest_per_track = (
@@ -288,9 +290,44 @@ def favorites_list(request):
     favs = (
         Favorite.objects.filter(owner=request.user)
         .select_related("track")
-        .order_by("-created_at")
+        .order_by("position", "-created_at")   # ⬅️ saved order
     )
     return render(request, "tracks/favorites.html", {"favorites": favs})
+
+
+@login_required
+@require_POST
+def favorites_reorder(request):
+    import json
+    from django.db import transaction
+
+    try:
+        payload = json.loads(request.body or "{}")
+        order = [int(x) for x in payload.get("order", [])]
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Bad JSON"}, status=400)
+
+    if not order:
+        return JsonResponse({"ok": True})
+
+    favs = Favorite.objects.select_related("track").filter(owner=request.user, track_id__in=order)
+    by_tid = {f.track_id: f for f in favs}
+
+    pos = 1
+    to_update = []
+    for tid in order:
+        f = by_tid.get(tid)
+        if f:
+            f.position = pos
+            to_update.append(f)
+            pos += 1
+
+    with transaction.atomic():
+        if to_update:
+            Favorite.objects.bulk_update(to_update, ["position"])
+
+    return JsonResponse({"ok": True})
+
 
 
 @login_required

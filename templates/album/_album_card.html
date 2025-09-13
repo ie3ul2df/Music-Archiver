@@ -1,6 +1,7 @@
 {# templates/album/_album_card.html #}
 <li class="album list-group-item d-flex justify-content-between align-items-center flex-wrap"
-    data-id="{{ album.pk }}">
+    data-id="{{ album.pk }}"
+    draggable="true">
 
   <div class="d-flex flex-column flex-grow-1">
 
@@ -126,12 +127,9 @@
     {# --- Track list --- #}
     {% with ats=album.album_tracks_annotated|default:album.album_tracks.all %}
       {% if ats|length %}
-        <ul
-          class="list-group mt-2 album-tracklist"
-          id="album-tracklist-{{ album.id }}"
-          data-album-id="{{ album.id }}"
-          {% if tracks_url %} data-tracks-url="{{ tracks_url }}"{% endif %}
-        >
+          <ul id="album-tracklist-{{ album.id }}"
+              class="list-group mt-2 album-tracklist"
+              data-reorder-url="{% url 'album:album_reorder_tracks' album.id %}">
           {# Render server-side as a fallback (or keep empty if you always lazy-load) #}
           {% for at in ats %}
             {% with fav=at.is_favorited inpl=at.track.in_playlist|default:False avg=at.track_avg|default:0 cnt=at.track_count|default:0 is_owner=request.user.id|yesno:"True,False" %}

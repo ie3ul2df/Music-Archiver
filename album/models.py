@@ -21,8 +21,8 @@ class Album(models.Model):
     order = models.PositiveIntegerField(default=0)
 
     class Meta:
-        ordering = ["order", "-created_at"]
-        indexes = [models.Index(fields=["slug"])]
+        ordering = ["order", "id"]
+        indexes = [models.Index(fields=["owner", "order"])]
 
     def _make_unique_slug(self) -> str:
         """
