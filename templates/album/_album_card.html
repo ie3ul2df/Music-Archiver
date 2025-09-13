@@ -75,6 +75,19 @@
       {% include "ratings/_stars.html" with type="album" id=album.id avg=album.rating_avg count=album.rating_count user_rating=None %}
     </div>
 
+    {% if show_search %}
+      <div class="input-group mt-3" data-album-search="{{ album.id }}">
+        <span class="input-group-text">🔎</span>
+        <input
+          type="search"
+          class="form-control album-track-search"
+          placeholder="Search tracks in this album"
+          aria-label="Search tracks in this album"
+          data-target="#album-tracklist-{{ album.id }}">
+        <button class="btn btn-outline-secondary album-track-search-clear" type="button">Clear</button>
+      </div>
+    {% endif %}
+
     {# --- Bulk mini-toolbar (for any signed-in user) --- #}
     {% if request.user.is_authenticated %}
       <div class="d-flex align-items-center gap-2 mt-3 flex-wrap">
