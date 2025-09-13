@@ -36,118 +36,6 @@
     });
   });
 
-  // ========== Album + track search (debounced, restores on clear, server-rendered HTML) ==========
-  const form = document.getElementById("album-search-form");
-  const input = document.getElementById("album-search-input");
-  const list = document.getElementById("album-list");
-  const SEARCH_URL = form?.dataset?.url || "/album/search/";
-
-  if (input && list) {
-    // --- base snapshot of the full page list (unfiltered) ---
-    let originalListHTML = list.innerHTML;
-
-    // patch a single album name inside the base snapshot (used when renaming during search)
-    window.patchBaseAlbumName = (id, newName) => {
-      const wrap = document.createElement("div");
-      wrap.innerHTML = originalListHTML;
-      const li = wrap.querySelector(`li[data-id="${CSS.escape(id)}"]`);
-      if (!li) return;
-      const titleEl = li.querySelector("a.fw-bold, .album-name");
-      if (titleEl) titleEl.textContent = newName;
-      const btn = li.querySelector(".rename-album-btn");
-      if (btn) btn.setAttribute("data-current-name", newName);
-      originalListHTML = wrap.innerHTML; // persist patched HTML
-    };
-
-    // refresh the base snapshot (use this only when NOT searching)
-    window.updateAlbumListSnapshot = () => {
-      originalListHTML = list.innerHTML;
-    };
-
-    const restoreOriginal = () => {
-      list.innerHTML = originalListHTML;
-    };
-
-    const debounce = (fn, ms) => {
-      let t;
-      return (...a) => {
-        clearTimeout(t);
-        t = setTimeout(() => fn(...a), ms);
-      };
-    };
-
-    let lastQuery = "";
-    let aborter = null;
-
-    const performSearch = async (q) => {
-      if (!q) {
-        restoreOriginal();
-        return;
-      }
-
-      if (aborter) aborter.abort();
-      aborter = new AbortController();
-
-      const r = await fetch(`${SEARCH_URL}?q=${encodeURIComponent(q)}`, { signal: aborter.signal });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const data = await r.json();
-
-      const hasAlbums = data.albums_html?.trim();
-      const hasTracks = data.tracks_html?.trim();
-
-      list.innerHTML = "";
-
-      if (!hasAlbums && !hasTracks) {
-        list.innerHTML = `<li class="list-group-item">No results found.</li>`;
-        return;
-      }
-
-      if (hasAlbums) {
-        const h = document.createElement("li");
-        h.className = "list-group-item active";
-        h.textContent = "Albums";
-        list.appendChild(h);
-
-        const wrap = document.createElement("div");
-        wrap.innerHTML = data.albums_html;
-        wrap.childNodes.forEach((n) => {
-          if (n.nodeType === 1) list.appendChild(n);
-        });
-      }
-
-      if (hasTracks) {
-        const h = document.createElement("li");
-        h.className = "list-group-item active";
-        h.textContent = "Tracks";
-        list.appendChild(h);
-
-        const wrap = document.createElement("div");
-        wrap.innerHTML = data.tracks_html;
-        wrap.childNodes.forEach((n) => {
-          if (n.nodeType === 1) list.appendChild(n);
-        });
-      }
-    };
-
-    const runSearch = debounce(async () => {
-      const q = (input.value || "").trim();
-      if (q === lastQuery) return;
-      lastQuery = q;
-      try {
-        await performSearch(q);
-      } catch (err) {
-        if (err.name !== "AbortError") console.error("Unified search error:", err);
-      }
-    }, 250);
-
-    if (!input.dataset.bound) {
-      input.dataset.bound = "1";
-      input.addEventListener("keyup", runSearch);
-      input.addEventListener("input", runSearch);
-      form?.addEventListener("submit", (e) => e.preventDefault());
-    }
-  }
-
   // ========== Create album (AJAX) ==========
   document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("album-create-form");
@@ -285,6 +173,128 @@
         }
       });
     }
+  });
+})();
+
+// ========== Unified search (input-group style) ==========
+(function () {
+  "use strict";
+
+  const wrap = document.getElementById("album-search");
+  const input = wrap?.querySelector(".js-unified-search");
+  const targetSel = input?.getAttribute("data-target") || "#album-list";
+  const list = document.querySelector(targetSel);
+  const SEARCH_URL = wrap?.dataset?.searchUrl || "/album/search/";
+
+  if (!wrap || !input || !list) return;
+
+  // --- base snapshot of the full page list (unfiltered) ---
+  let originalListHTML = list.innerHTML;
+
+  // allow other code (rename) to patch snapshot
+  window.patchBaseAlbumName = (id, newName) => {
+    const wrapDiv = document.createElement("div");
+    wrapDiv.innerHTML = originalListHTML;
+    const li = wrapDiv.querySelector(`li[data-id="${window.CSS && CSS.escape ? CSS.escape(String(id)) : id}"]`);
+    if (!li) return;
+    const titleEl = li.querySelector('[data-role="album-name"], a.fw-bold, .album-name');
+    if (titleEl) titleEl.textContent = newName;
+    const btn = li.querySelector(".rename-album-btn");
+    if (btn) btn.setAttribute("data-current-name", newName);
+    originalListHTML = wrapDiv.innerHTML;
+  };
+
+  window.updateAlbumListSnapshot = () => {
+    originalListHTML = list.innerHTML;
+  };
+
+  const restoreOriginal = () => {
+    list.innerHTML = originalListHTML;
+  };
+
+  const debounce = (fn, ms) => {
+    let t;
+    return (...a) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...a), ms);
+    };
+  };
+
+  let lastQuery = "";
+  let aborter = null;
+
+  async function performSearch(q) {
+    if (!q) {
+      restoreOriginal();
+      return;
+    }
+
+    if (aborter) aborter.abort();
+    aborter = new AbortController();
+
+    const r = await fetch(`${SEARCH_URL}?q=${encodeURIComponent(q)}`, { signal: aborter.signal });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+
+    const hasAlbums = (data.albums_html || "").trim();
+    const hasTracks = (data.tracks_html || "").trim();
+
+    list.innerHTML = "";
+
+    if (!hasAlbums && !hasTracks) {
+      list.innerHTML = `<li class="list-group-item">No results found.</li>`;
+      return;
+    }
+
+    if (hasAlbums) {
+      const h = document.createElement("li");
+      h.className = "list-group-item active";
+      h.textContent = "Albums";
+      list.appendChild(h);
+
+      const wrap = document.createElement("div");
+      wrap.innerHTML = data.albums_html;
+      wrap.childNodes.forEach((n) => {
+        if (n.nodeType === 1) list.appendChild(n);
+      });
+    }
+
+    if (hasTracks) {
+      const h = document.createElement("li");
+      h.className = "list-group-item active";
+      h.textContent = "Tracks";
+      list.appendChild(h);
+
+      const wrap = document.createElement("div");
+      wrap.innerHTML = data.tracks_html;
+      wrap.childNodes.forEach((n) => {
+        if (n.nodeType === 1) list.appendChild(n);
+      });
+    }
+  }
+
+  const runSearch = debounce(async () => {
+    const q = (input.value || "").trim();
+    if (q === lastQuery) return;
+    lastQuery = q;
+    try {
+      await performSearch(q);
+    } catch (err) {
+      if (err.name !== "AbortError") console.error("Unified search error:", err);
+    }
+  }, 250);
+
+  input.addEventListener("input", runSearch);
+  input.addEventListener("keyup", runSearch);
+
+  // Clear button restores snapshot
+  wrap.addEventListener("click", (e) => {
+    const btn = e.target.closest(".js-unified-search-clear");
+    if (!btn) return;
+    input.value = "";
+    lastQuery = "";
+    restoreOriginal();
+    input.focus();
   });
 })();
 

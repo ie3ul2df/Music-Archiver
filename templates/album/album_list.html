@@ -57,9 +57,17 @@
         <h2 class="mb-0">Your Albums</h2>
 
         <!-- Search form -->
-        <form id="album-search-form" class="d-flex gap-2">
-          <input id="album-search-input" type="text" class="form-control" placeholder="Search Tracks & Albums..." aria-label="Search albums" />
-        </form>
+        <div class="input-group mb-3" id="album-search"
+            data-search-url="{% url 'album:unified_search' %}">
+          <span class="input-group-text">🔎</span>
+          <input
+            type="search"
+            class="form-control js-unified-search"
+            placeholder="Search Tracks & Albums..."
+            aria-label="Search albums"
+            data-target="#album-list">
+          <button class="btn btn-outline-secondary js-unified-search-clear" type="button">Clear</button>
+        </div>
 
         <!-- Create new album (AJAX) -->
         <form id="album-create-form" action="{% url 'album:ajax_add_album' %}" method="post" class="d-flex gap-2">
