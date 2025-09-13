@@ -276,11 +276,6 @@ def unified_search(request):
             or f"{base}/delete/"
         )
 
-        reorder_url = (
-            _maybe_reverse("album:album_reorder_tracks", a.pk)
-            or _maybe_reverse("album:reorder_tracks", a.pk)
-            or f"{base}/tracks/reorder/"
-        )
 
         album_cards.append(
             render_to_string(
@@ -290,8 +285,7 @@ def unified_search(request):
                     "rename_url": rename_url,
                     "toggle_visibility_url": toggle_visibility_url,
                     "delete_url": delete_url,
-                    "reorder_url": reorder_url,  # use this in data-reorder-url (see note below)
-                    "owner_url": None,           # optional; your template has a fallback
+                    "owner_url": None,          
                 },
                 request=request,
             )
@@ -385,49 +379,12 @@ def ajax_delete_album(request, pk):
     return JsonResponse({"ok": True, "id": pk})
 
 
-@login_required
-@require_POST
-def albums_reorder(request):
-    if not _has_field(Album, "order"):
-        return JsonResponse({"ok": False, "error": "Ordering is not enabled for albums."}, status=400)
-
-    try:
-        data = json.loads(request.body.decode("utf-8"))
-        id_list = [int(x) for x in data.get("order", [])]
-    except Exception:
-        return HttpResponseBadRequest("Invalid JSON payload.")
-
-    user_qs = Album.objects.filter(owner=request.user)
-    user_ids = list(user_qs.values_list("id", flat=True))
-    if not user_ids:
-        return JsonResponse({"ok": True, "updated": []})
-
-    # Build final ids: keep client order that belongs to the user, then append missing
-    seen = set()
-    final_ids = []
-    for aid in id_list:
-        if aid in user_ids and aid not in seen:
-            final_ids.append(aid); seen.add(aid)
-    for aid in user_ids:
-        if aid not in seen:
-            final_ids.append(aid)
-
-    with transaction.atomic():
-        user_qs.update(order=F("order") + 1_000_000)
-        case = Case(
-            *[When(id=aid, then=pos) for pos, aid in enumerate(final_ids)],
-            output_field=IntegerField(),
-        )
-        user_qs.filter(id__in=final_ids).update(order=case)
-
-    return JsonResponse({"ok": True, "updated": final_ids})
-
 
 @login_required
 def album_detail(request, pk):
     """
     Show album with tracks.
-    - Owner: can edit (add tracks, reorder, delete)
+    - Owner: can edit (add tracks, delete)
     - Visitor: can only view if album is public
     """
 
@@ -501,7 +458,6 @@ def album_detail(request, pk):
         "rename_url": reverse("album:ajax_rename_album", args=[album.pk]),
         "toggle_visibility_url": reverse("album:toggle_album_visibility", args=[album.pk]),
         "delete_url": reverse("album:ajax_delete_album", args=[album.pk]),
-        "reorder_url": reverse("album:album_reorder_tracks", args=[album.pk]),
     }
 
     return render(request, template_name, context)
@@ -577,57 +533,6 @@ def album_remove_track(request, pk, item_id):
     item.delete()
     messages.success(request, "Removed from album.")
     return redirect("album:album_detail", pk=pk)
-
-
-@login_required
-@require_POST
-def album_reorder_tracks(request, pk):
-    """Reorder tracks inside one album without violating (album_id, position) uniqueness."""
-    album = get_object_or_404(Album, pk=pk, owner=request.user)
-
-    # Parse payload
-    try:
-      data = json.loads(request.body.decode("utf-8"))
-      id_list = [int(x) for x in data.get("order", [])]
-    except Exception:
-      return HttpResponseBadRequest("Invalid JSON payload.")
-
-    # Get ALL AlbumTrack ids for this album in current order
-    all_ids = list(
-        AlbumTrack.objects
-        .filter(album=album)
-        .order_by("position", "id")
-        .values_list("id", flat=True)
-    )
-    if not all_ids:
-        return JsonResponse({"ok": True, "updated": []})
-
-    # Build a final order that contains every item exactly once:
-    # 1) keep ids provided by the client (that belong to this album), in that order
-    # 2) append any missing ids in their current order
-    seen = set()
-    final_order = []
-    for iid in id_list:
-        if iid in all_ids and iid not in seen:
-            final_order.append(iid)
-            seen.add(iid)
-    for iid in all_ids:
-        if iid not in seen:
-            final_order.append(iid)
-
-    # Two-phase update using a large offset to avoid UNIQUE collisions in SQLite
-    with transaction.atomic():
-        # Move ALL rows for this album far away
-        AlbumTrack.objects.filter(album=album).update(position=F("position") + 1_000_000)
-
-        # Assign final positions with a CASE
-        case = Case(
-            *[When(id=iid, then=pos) for pos, iid in enumerate(final_order)],
-            output_field=IntegerField(),
-        )
-        AlbumTrack.objects.filter(album=album, id__in=final_order).update(position=case)
-
-    return JsonResponse({"ok": True, "updated": final_order})
 
 
 @login_required

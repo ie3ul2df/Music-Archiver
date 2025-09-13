@@ -13,18 +13,14 @@ urlpatterns = [
 
     # API / AJAX for tracks
     path("api/tracks.json", views.tracks_json, name="tracks_json"),
-    path("api/tracks/reorder/", views.reorder_tracks, name="reorder_tracks"),
     path("api/favorites/toggle/<int:track_id>/", views.toggle_favorite, name="toggle_favorite"),
     path("api/plays/<int:track_id>/", views.log_play, name="log_play"),
 
-    # Isolated per-list reorder endpoints
-    path("api/favorites/reorder/", views.favorites_reorder, name="favorites_reorder"),
-    path("api/recent/reorder/", views.recent_reorder, name="recent_reorder"),
+    # Clear recent list
     path("tracks/api/recent/clear/", views.clear_recent, name="clear_recent"),
 
     # Legacy aliases (keep if you want backwards compatibility)
     path("json/", views.tracks_json, name="tracks_json_legacy"),
-    path("reorder/", views.reorder_tracks, name="reorder_tracks_legacy"),
     path("<int:track_id>/fav/", views.toggle_favorite, name="toggle_favorite_legacy"),
     
     # Download track

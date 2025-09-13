@@ -3,53 +3,6 @@
   "use strict";
   const U = window.AlbumUtils || {};
 
-  // ========== Drag & Drop reorder (album detail only) ==========
-  const list = document.getElementById("track-list");
-  if (list) {
-    function getDragAfterElement(container, y) {
-      const els = [...container.querySelectorAll("li[data-id]:not(.dragging)")];
-      let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
-      for (const el of els) {
-        const box = el.getBoundingClientRect();
-        const offset = y - (box.top + box.height / 2);
-        if (offset < 0 && offset > closest.offset) closest = { offset, element: el };
-      }
-      return closest.element;
-    }
-
-    let dragItem = null;
-
-    list.addEventListener("dragstart", (e) => {
-      const li = e.target.closest("li[data-id]");
-      if (!li) return;
-      dragItem = li;
-      li.classList.add("dragging");
-      e.dataTransfer.effectAllowed = "move";
-      try {
-        e.dataTransfer.setData("text/plain", li.dataset.id);
-      } catch {}
-    });
-
-    list.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      if (!dragItem) return;
-      const after = getDragAfterElement(list, e.clientY);
-      if (after == null) list.appendChild(dragItem);
-      else list.insertBefore(dragItem, after);
-    });
-
-    list.addEventListener("dragend", () => {
-      if (dragItem) dragItem.classList.remove("dragging");
-      dragItem = null;
-
-      const ids = [...list.querySelectorAll("li[data-id]")].map((li) => parseInt(li.dataset.id, 10));
-      U.postJSON(list.dataset.reorderUrl, { order: ids }).catch((err) => {
-        console.error("Reorder error:", err);
-        alert("Failed to save order.");
-      });
-    });
-  }
-
   // ========== Track DELETE (🗑) ==========
   U.onModalShow &&
     U.onModalShow("deleteTrackModal", ({ modal, trigger }) => {

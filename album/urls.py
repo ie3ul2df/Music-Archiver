@@ -11,7 +11,6 @@ urlpatterns = [
     path("<int:pk>/", views.album_detail, name="album_detail"),
 
     # Drag & drop / search
-    path("reorder/", views.albums_reorder, name="albums_reorder"),
     path("search/", views.unified_search, name="unified_search"),
 
     # Public view
@@ -24,7 +23,6 @@ urlpatterns = [
 
     # Tracks inside an album
     path("<int:pk>/tracks/add/", views.album_add_track, name="album_add_track"),
-    path("<int:pk>/tracks/reorder/", views.album_reorder_tracks, name="album_reorder_tracks"),
     path("<int:pk>/tracks/<int:item_id>/rename/", views.album_rename_track, name="album_rename_track"),
 
     # ⛔ Detach (new canonical name)

@@ -69,8 +69,7 @@
           </div>
         </div>
 
-        <ul class="list-group list-group-flush tracks" id="playlist-tracks"
-            data-reorder-url="{% url 'playlist:reorder' %}">
+        <ul class="list-group list-group-flush tracks" id="playlist-tracks">
           {% for item in playlist_items %}
             {% include "tracks/_track_card.html" with track=item.track album=None album_item_id=None is_owner=False show_checkbox=True is_favorited=item.track.is_favorited in_playlist=True display_name=item.display_name %} 
           {% empty %}
@@ -92,8 +91,7 @@
           </div>
         </div>
 
-        <ul class="list-group list-group-flush tracks" id="favorites-tracks"
-            data-reorder-url="{% url 'favorites_reorder' %}">
+        <ul class="list-group list-group-flush tracks" id="favorites-tracks">
           {% for track in favorites %}
             {% include "tracks/_track_card.html" with track=track album=None album_item_id=None is_owner=False show_checkbox=True is_favorited=track.is_favorited in_playlist=track.in_playlist display_name=track.display_name %}  
           {% empty %}

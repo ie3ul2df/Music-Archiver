@@ -1,7 +1,6 @@
 {# templates/album/_album_card.html #}
 <li class="album list-group-item d-flex justify-content-between align-items-center flex-wrap"
-    data-id="{{ album.pk }}"
-    data-reorder-url="{% if reorder_url %}{{ reorder_url }}{% else %}{% url 'album:album_reorder_tracks' album.pk %}{% endif %}">
+    data-id="{{ album.pk }}">
 
   <div class="d-flex flex-column flex-grow-1">
 
@@ -132,7 +131,6 @@
           id="album-tracklist-{{ album.id }}"
           data-album-id="{{ album.id }}"
           {% if tracks_url %} data-tracks-url="{{ tracks_url }}"{% endif %}
-          {% if reorder_url %} data-reorder-url="{{ reorder_url }}"{% endif %}
         >
           {# Render server-side as a fallback (or keep empty if you always lazy-load) #}
           {% for at in ats %}

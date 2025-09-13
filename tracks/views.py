@@ -206,31 +206,6 @@ def track_list(request):
     )
 
 
-@login_required
-@require_POST
-def reorder_tracks(request):
-    """Drag-and-drop ordering (global)."""
-    try:
-        data = json.loads(request.body.decode("utf-8"))
-        id_list = data.get("order", [])
-        if not isinstance(id_list, list):
-            raise ValueError
-    except Exception:
-        return HttpResponseBadRequest("Invalid JSON payload.")
-
-    user_ids = list(
-        Track.objects.filter(owner=request.user, id__in=id_list).values_list("id", flat=True)
-    )
-
-    pos = 0
-    for tid in id_list:
-        if tid in user_ids:
-            Track.objects.filter(id=tid).update(position=pos)
-            pos += 1
-
-    return JsonResponse({"ok": True, "updated": user_ids})
-
-
 # ---------- Utility Endpoints ----------
 
 def tracks_json(request):
@@ -283,20 +258,6 @@ def recently_played(request):
     return render(request, "tracks/recently_played.html", {"results": results})
 
 
-@login_required
-@require_POST
-def recent_reorder(request):
-    """Save user-defined order of recent tracks in session."""
-    try:
-        order = json.loads(request.body or "{}").get("order", [])
-        if not isinstance(order, list):
-            raise ValueError
-    except Exception:
-        return HttpResponseBadRequest("Invalid JSON")
-    request.session[f"recent_order_{request.user.id}"] = order
-    request.session.modified = True
-    return JsonResponse({"ok": True, "scope": "recent", "order": order})
-
 
 @login_required
 def clear_recent(request):
@@ -330,21 +291,6 @@ def favorites_list(request):
         .order_by("-created_at")
     )
     return render(request, "tracks/favorites.html", {"favorites": favs})
-
-
-@login_required
-@require_POST
-def favorites_reorder(request):
-    """Save user-defined order of favorites in session."""
-    try:
-        order = json.loads(request.body or "{}").get("order", [])
-        if not isinstance(order, list):
-            raise ValueError
-    except Exception:
-        return HttpResponseBadRequest("Invalid JSON")
-    request.session[f"fav_order_{request.user.id}"] = order
-    request.session.modified = True
-    return JsonResponse({"ok": True, "scope": "favorites", "order": order})
 
 
 @login_required

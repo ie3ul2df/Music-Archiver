@@ -118,9 +118,7 @@
       }
 
       // Update all buttons for this track across the page
-      document
-        .querySelectorAll(`.add-to-playlist[data-track="${trackId}"]`)
-        .forEach((b) => setPlaylistBtnState(b, inPlaylist));
+      document.querySelectorAll(`.add-to-playlist[data-track="${trackId}"]`).forEach((b) => setPlaylistBtnState(b, inPlaylist));
     } catch (err) {
       console.error(err);
       btn.textContent = "⚠ Error";
@@ -129,58 +127,6 @@
       btn.disabled = false;
     }
   });
-
-  // --- Reorder in playlist (unchanged) ---
-  const list = document.getElementById("playlist-tracks");
-  if (list) {
-    let dragging = null;
-
-    list.addEventListener("dragstart", (e) => {
-      const li = e.target.closest(".track-item");
-      if (!li) return;
-      dragging = li;
-      li.classList.add("dragging");
-      e.dataTransfer.effectAllowed = "move";
-    });
-
-    list.addEventListener("dragend", () => {
-      if (dragging) dragging.classList.remove("dragging");
-      dragging = null;
-
-      const url = list.dataset.reorderUrl;
-      const order = [...list.querySelectorAll(".track-item")].map((el) =>
-        parseInt(el.dataset.itemid, 10)
-      );
-      fetch(url, {
-        method: "POST",
-        headers: {
-          "X-CSRFToken": CSRF,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ order }),
-      }).catch((err) => console.error(err));
-    });
-
-    list.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      const after = getDragAfterElement(list, e.clientY);
-      if (!after) list.appendChild(dragging);
-      else list.insertBefore(dragging, after);
-    });
-
-    function getDragAfterElement(container, y) {
-      const els = [...container.querySelectorAll(".track-item:not(.dragging)")];
-      let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
-      for (const el of els) {
-        const box = el.getBoundingClientRect();
-        const offset = y - (box.top + box.height / 2);
-        if (offset < 0 && offset > closest.offset) {
-          closest = { offset, element: el };
-        }
-      }
-      return closest.element;
-    }
-  }
 
   // --- Clear playlist (and reset all buttons) ---
   document.addEventListener("click", async (e) => {
@@ -199,15 +145,12 @@
 
       const list = document.getElementById("playlist-tracks");
       if (list) {
-        list.innerHTML =
-          '<li class="list-group-item text-muted">No tracks in your playlist yet.</li>';
+        list.innerHTML = '<li class="list-group-item text-muted">No tracks in your playlist yet.</li>';
       }
 
       // Wipe global set and reset all toggles
       IN_SET.clear();
-      document
-        .querySelectorAll(".add-to-playlist")
-        .forEach((b) => setPlaylistBtnState(b, false));
+      document.querySelectorAll(".add-to-playlist").forEach((b) => setPlaylistBtnState(b, false));
     } catch (err) {
       console.error(err);
       btn.disabled = false;

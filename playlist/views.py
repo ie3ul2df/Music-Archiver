@@ -75,27 +75,6 @@ def playlist_toggle(request, track_id: int):
     item.delete()
     return JsonResponse({"ok": True})
 
-@login_required
-@require_POST
-def playlist_reorder(request):
-    try:
-        payload = json.loads(request.body.decode("utf-8"))
-        order = payload.get("order", [])
-        if not isinstance(order, list):
-            return HttpResponseBadRequest("Invalid payload")
-    except Exception:
-        return HttpResponseBadRequest("Bad JSON")
-
-    pl = _get_default_playlist(request.user)
-    # order is a list of PlaylistItem IDs in desired order
-    pos = 1
-    qs = PlaylistItem.objects.filter(playlist=pl, id__in=order)
-    valid_ids = set(qs.values_list("id", flat=True))
-    for item_id in order:
-        if item_id in valid_ids:
-            PlaylistItem.objects.filter(id=item_id, playlist=pl).update(position=pos)
-            pos += 1
-    return JsonResponse({"ok": True})
 
 
 @login_required
