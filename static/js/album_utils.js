@@ -137,9 +137,16 @@
           throw new Error(msg);
         }
 
-        // Redirect target (prefer server-provided)
-        const target = (payload && payload.redirect) || "/";
-        window.location.href = target;
+        const target = payload && payload.redirect;
+        if (target) {
+          window.location.href = target;
+        } else {
+          // find the delete button we used, then its card, remove it
+          const safe = window.CSS && CSS.escape ? CSS.escape(url) : url;
+          const btn = document.querySelector(`button[data-bs-target="#deleteAlbumModal"][data-url="${safe}"]`);
+          btn?.closest("li.album")?.remove();
+          bootstrap.Modal.getInstance(document.getElementById("deleteAlbumModal"))?.hide();
+        }
       } catch (err) {
         console.error(err);
         alert(err.message || "Delete failed.");
