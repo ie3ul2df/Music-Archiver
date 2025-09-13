@@ -88,7 +88,7 @@
           {% url 'album:toggle_album_visibility' a.pk as toggle_visibility_url %}
           {% url 'album:ajax_delete_album' a.pk as delete_url %}
 
-          {% include "album/_album_card.html" with album=a owner_url=owner_url tracks_url=tracks_url rename_url=rename_url toggle_visibility_url=toggle_visibility_url delete_url=delete_url %}
+          {% include "album/_album_card.html" with album=a owner_url=owner_url tracks_url=tracks_url rename_url=rename_url toggle_visibility_url=toggle_visibility_url delete_url=delete_url allow_reorder=True %}
         
         {% empty %}
           <li class="list-group-item">No albums yet.</li>

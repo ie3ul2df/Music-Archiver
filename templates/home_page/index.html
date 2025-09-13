@@ -78,7 +78,7 @@
     <h3 class="mb-3">🔥 Top 10 Albums</h3>
     <ul class="list-group">
       {% for album in albums_top %}
-        {% include "album/_album_card.html" with album=album avg=album.rating_avg count=album.rating_count %}
+        {% include "album/_album_card.html" with album=album avg=album.rating_avg count=album.rating_count allow_reorder=False %}
       {% empty %}
         <li class="list-group-item text-muted">No albums ranked yet.</li>
       {% endfor %}

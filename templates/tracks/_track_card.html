@@ -6,6 +6,9 @@
     data-track-id="{{ track.id }}"
     draggable="true">
   <div class="d-flex align-items-center gap-2 flex-wrap">
+    {% if allow_reorder %}
+      <span class="drag-handle me-2" title="Drag to reorder">☰</span>
+    {% endif %}
 
     {% if show_checkbox %}
       <input class="form-check-input track-check"

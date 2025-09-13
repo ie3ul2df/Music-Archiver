@@ -73,7 +73,7 @@
             data-reorder-url="{% url 'playlist:reorder' %}">
           {% for item in playlist_items %}
             {# pass the PlaylistItem id so reordering is precise #}
-            {% include "tracks/_track_card.html" with track=item.track playlist_item_id=item.id album=None album_item_id=None is_owner=False show_checkbox=True is_favorited=item.track.is_favorited in_playlist=True display_name=item.display_name %} 
+            {% include "tracks/_track_card.html" with track=item.track playlist_item_id=item.id album=None album_item_id=None is_owner=False show_checkbox=True is_favorited=item.track.is_favorited in_playlist=True display_name=item.display_name allow_reorder=True %} 
           {% empty %}
             <li class="list-group-item text-muted">No tracks in your playlist yet.</li>
           {% endfor %}
@@ -96,7 +96,7 @@
         <ul class="list-group list-group-flush tracks" id="favorites-tracks"
             data-reorder-url="{% url 'favorites_reorder' %}">
           {% for track in favorites %}
-            {% include "tracks/_track_card.html" with track=track album=None album_item_id=None is_owner=False show_checkbox=True is_favorited=track.is_favorited in_playlist=track.in_playlist display_name=track.display_name %}  
+            {% include "tracks/_track_card.html" with track=track album=None album_item_id=None is_owner=False show_checkbox=True is_favorited=track.is_favorited in_playlist=track.in_playlist display_name=track.display_name allow_reorder=True %}  
           {% empty %}
             <li class="list-group-item text-muted">No favourites yet.</li>
           {% endfor %}

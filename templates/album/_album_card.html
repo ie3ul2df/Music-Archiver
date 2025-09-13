@@ -127,20 +127,23 @@
     {# --- Track list --- #}
     {% with ats=album.album_tracks_annotated|default:album.album_tracks.all %}
       {% if ats|length %}
-          <ul id="album-tracklist-{{ album.id }}"
-              class="list-group mt-2 album-tracklist"
-              data-reorder-url="{% url 'album:album_reorder_tracks' album.id %}">
-          {# Render server-side as a fallback (or keep empty if you always lazy-load) #}
-          {% for at in ats %}
-            {% with fav=at.is_favorited inpl=at.track.in_playlist|default:False avg=at.track_avg|default:0 cnt=at.track_count|default:0 is_owner=request.user.id|yesno:"True,False" %}
-              {% if request.user.id == album.owner.id %}
-                {% include "tracks/_track_card.html" with track=at.track album=album album_item_id=at.id is_owner=True at=at show_checkbox=True is_favorited=fav in_playlist=inpl avg=avg count=cnt %}
-              {% else %}
-                {% include "tracks/_track_card.html" with track=at.track album=album album_item_id=at.id is_owner=False at=at show_checkbox=True is_favorited=fav in_playlist=inpl avg=avg count=cnt %}
-              {% endif %}
-            {% endwith %}
-          {% endfor %}
-        </ul>
+        {% with can_sort=allow_reorder|default:False %}
+          <ul class="list-group mt-2 album-tracklist"
+              id="album-tracklist-{{ album.id }}"
+              data-album-id="{{ album.id }}"
+              data-tracks-url="{{ tracks_url|default:'' }}"
+              {% if can_sort %}data-reorder-url="{% url 'album:album_reorder_tracks' album.id %}"{% endif %}>
+            {% for at in ats %}
+              {% with fav=at.is_favorited inpl=at.track.in_playlist|default:False avg=at.track_avg|default:0 cnt=at.track_count|default:0 %}
+                {% if request.user.id == album.owner.id %}
+                  {% include "tracks/_track_card.html" with track=at.track album=album album_item_id=at.id is_owner=True at=at show_checkbox=True is_favorited=fav in_playlist=inpl avg=avg count=cnt sortable=can_sort %}
+                {% else %}
+                  {% include "tracks/_track_card.html" with track=at.track album=album album_item_id=at.id is_owner=False at=at show_checkbox=True is_favorited=fav in_playlist=inpl avg=avg count=cnt sortable=can_sort %}
+                {% endif %}
+              {% endwith %}
+            {% endfor %}
+          </ul>
+        {% endwith %}
       {% else %}
         <div class="small text-muted mt-2">No tracks in this album yet.</div>
       {% endif %}

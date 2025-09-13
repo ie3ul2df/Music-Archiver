@@ -21,10 +21,9 @@
   if (!lists.length) return;
 
   lists.forEach((list) => {
-    // mark immediate children draggable if not already
+    // Ensure immediate children are draggable (safe even if already set)
     list.querySelectorAll(":scope > li").forEach((li) => {
       if (!li.hasAttribute("draggable")) li.setAttribute("draggable", "true");
-      li.classList.add("reorder-item");
     });
 
     let dragEl = null;
@@ -32,6 +31,15 @@
     list.addEventListener("dragstart", (e) => {
       const li = e.target.closest("li[data-id]");
       if (!li) return;
+
+      // Don't start drag from interactive controls
+      if (
+        e.target.closest("button, a, input, textarea, select, label, .js-fav, .js-save, .rename-track-btn, .js-detach, .add-to-playlist, .rename-album-btn")
+      ) {
+        e.preventDefault();
+        return;
+      }
+
       dragEl = li;
       li.classList.add("dragging");
       e.dataTransfer.effectAllowed = "move";
@@ -44,6 +52,7 @@
       if (!dragEl) return;
       if (dragEl.parentElement !== list) return; // keep inside same <ul>
       e.preventDefault();
+
       const after = getAfter(list, e.clientY);
       if (after == null) list.appendChild(dragEl);
       else list.insertBefore(dragEl, after);
@@ -54,10 +63,13 @@
     list.addEventListener("dragend", async () => {
       if (!dragEl) return;
       dragEl.classList.remove("dragging");
+
+      // Collect the new order
       const ids = [...list.querySelectorAll(":scope > li[data-id]")].map((li) => {
         const id = li.dataset.id;
-        return /^\d+$/.test(id) ? parseInt(id, 10) : id; // supports numeric or string ids
+        return /^\d+$/.test(id) ? parseInt(id, 10) : id;
       });
+
       try {
         const res = await fetch(list.dataset.reorderUrl, {
           method: "POST",
@@ -79,7 +91,8 @@
   });
 
   function getAfter(container, y) {
-    const els = [...container.querySelectorAll(":scope > li.reorder-item:not(.dragging)")];
+    // IMPORTANT: don't rely on a class that may not exist; use all child LIs
+    const els = [...container.querySelectorAll(":scope > li:not(.dragging)")];
     let closest = { offset: Number.NEGATIVE_INFINITY, el: null };
     for (const el of els) {
       const box = el.getBoundingClientRect();
