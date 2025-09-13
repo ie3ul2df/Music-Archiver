@@ -90,7 +90,7 @@
         }
       } catch (err) {
         console.error("Album create failed:", err);
-        alert("Something went wrong");
+        alert("Free users are limited to 3 albums only, upgrade for unlimited album and anlimited tracks...");
       }
     });
   });
