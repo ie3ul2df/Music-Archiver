@@ -84,7 +84,19 @@ def track_list(request):
     )
     fav_id_set = set(fav_ids)
 
-    favorites_qs = annotate_tracks(Track.objects.filter(id__in=fav_ids))
+    # Subquery to pull your chosen custom_name for any album that has this track
+    user_label_sq = (
+        AlbumTrack.objects
+        .filter(album__owner=request.user, track_id=OuterRef("pk"))
+        .exclude(custom_name__isnull=True)
+        .exclude(custom_name="")
+        .values("custom_name")[:1]
+    )
+
+    favorites_qs = (
+        annotate_tracks(Track.objects.filter(id__in=fav_ids))
+        .annotate(display_name=Coalesce(Subquery(user_label_sq), F("name")))
+    )
 
     fav_order = request.session.get(f"fav_order_{request.user.id}", [])
     if fav_order:
@@ -96,6 +108,8 @@ def track_list(request):
     for t in favorites:
         t.is_favorited = True
         t.in_playlist = t.id in in_playlist_ids
+        # convenience so templates can always use track.display_name
+        t.display_name = getattr(t, "display_name", t.name)
 
     annotate_is_in_my_albums(favorites, request.user)
 

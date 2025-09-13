@@ -95,14 +95,13 @@
         <ul class="list-group list-group-flush tracks" id="favorites-tracks"
             data-reorder-url="{% url 'favorites_reorder' %}">
           {% for track in favorites %}
-            {% include "tracks/_track_card.html" with track=track album=None album_item_id=None is_owner=False in_playlist=track.in_playlist show_checkbox=True is_favorited=track.is_favorited %}
+            {% include "tracks/_track_card.html" with track=track album=None album_item_id=None is_owner=False show_checkbox=True is_favorited=track.is_favorited in_playlist=track.in_playlist display_name=track.display_name %}  
           {% empty %}
             <li class="list-group-item text-muted">No favourites yet.</li>
           {% endfor %}
         </ul>
       </div>
     </div>
-
 
     {# ------- 🕓 Recently Played ------- #}
     <div class="tab-pane fade" id="recent" role="tabpanel">
