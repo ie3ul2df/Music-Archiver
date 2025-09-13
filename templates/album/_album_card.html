@@ -75,6 +75,7 @@
       {% include "ratings/_stars.html" with type="album" id=album.id avg=album.rating_avg count=album.rating_count user_rating=None %}
     </div>
 
+    {# --- Seach Tracks in the album --- #}
     {% if show_search %}
       <div class="input-group mt-3" data-album-search="{{ album.id }}">
         <span class="input-group-text">🔎</span>

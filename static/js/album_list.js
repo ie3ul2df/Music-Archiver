@@ -287,3 +287,73 @@
     }
   });
 })();
+
+//--------------------------- Search Through Saved Albums & tracks ---------------------------//
+
+// -------- Saved Albums / Saved Tracks search (top-level rows only) --------
+(function () {
+  "use strict";
+
+  function filterList(input) {
+    const target = input.getAttribute("data-target");
+    if (!target) return;
+    const list = document.querySelector(target);
+    if (!list) return;
+
+    const q = (input.value || "").trim().toLowerCase();
+
+    // Only DIRECT children <li> of the top list
+    const rows = Array.from(list.children).filter((el) => el.tagName === "LI" && !el.classList.contains("no-results-row"));
+
+    let shown = 0;
+    for (const li of rows) {
+      // Prefer a title element inside our partials
+      const titleEl = li.querySelector('[data-role="album-name"], [data-role="track-title"], .fw-bold, .fw-semibold');
+      const hay = ((titleEl ? titleEl.textContent : li.textContent) || "").toLowerCase();
+
+      const visible = !q || hay.includes(q);
+      li.classList.toggle("d-none", !visible);
+      if (visible) shown++;
+    }
+
+    // Add / toggle "No results" row
+    let emptyRow = list.querySelector(".no-results-row");
+    if (!emptyRow) {
+      emptyRow = document.createElement("li");
+      emptyRow.className = "list-group-item text-muted no-results-row d-none";
+      emptyRow.textContent = "No matching results.";
+      list.appendChild(emptyRow);
+    }
+    emptyRow.classList.toggle("d-none", shown !== 0);
+  }
+
+  // type to filter
+  document.addEventListener("input", (e) => {
+    if (e.target.classList?.contains("saved-search-input")) {
+      filterList(e.target);
+    }
+  });
+
+  // clear button
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".saved-search-clear");
+    if (!btn) return;
+    const group = btn.closest("[data-saved-search]");
+    const input = group?.querySelector(".saved-search-input");
+    if (input) {
+      input.value = "";
+      filterList(input);
+      input.focus();
+    }
+  });
+
+  // re-apply when tab is shown (Bootstrap)
+  document.addEventListener("shown.bs.tab", (e) => {
+    const paneSel = e.target?.getAttribute("data-bs-target");
+    const pane = paneSel && document.querySelector(paneSel);
+    if (!pane) return;
+    pane.querySelectorAll(".saved-search-input").forEach((inp) => {
+      if (inp.value.trim()) filterList(inp);
+    });
+  });
+})();
