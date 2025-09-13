@@ -123,7 +123,7 @@
 
         <ul class="list-group list-group-flush tracks" id="recent-tracks">
           {% for track in recent %}
-            {% include "tracks/_track_card.html" with track=track album=None album_item_id=None is_owner=False in_playlist=track.in_playlist show_checkbox=True is_favorited=track.is_favorited %}
+            {% include "tracks/_track_card.html" with track=track album=None album_item_id=None is_owner=False show_checkbox=True is_favorited=track.is_favorited in_playlist=track.in_playlist display_name=track.display_name %}  
           {% empty %}
             <li class="list-group-item text-muted">No recently played tracks.</li>
           {% endfor %}

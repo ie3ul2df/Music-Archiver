@@ -120,11 +120,23 @@ def track_list(request):
         .annotate(last_played=Max("played_at"))
         .order_by("-last_played")[:25]
     )
+
     recent_track_ids = [row["track"] for row in latest_per_track]
 
-    recent_tracks_by_id = annotate_tracks(
-        Track.objects.filter(id__in=recent_track_ids)
-    ).in_bulk()
+    # Subquery: pick your custom name from any of your albums
+    user_label_sq = (
+        AlbumTrack.objects
+        .filter(album__owner=request.user, track_id=OuterRef("pk"))
+        .exclude(custom_name__isnull=True)
+        .exclude(custom_name="")
+        .values("custom_name")[:1]
+    )
+
+    recent_tracks_by_id = (
+        annotate_tracks(Track.objects.filter(id__in=recent_track_ids))
+        .annotate(display_name=Coalesce(Subquery(user_label_sq), F("name")))
+        .in_bulk()
+    )
 
     recent = []
     for row in latest_per_track:
@@ -134,9 +146,12 @@ def track_list(request):
             continue
         trk.is_favorited = tid in fav_id_set
         trk.in_playlist = tid in in_playlist_ids
+        # convenience: always have display_name available
+        trk.display_name = getattr(trk, "display_name", trk.name)
         recent.append(trk)
 
     annotate_is_in_my_albums(recent, request.user)
+
 
     # ---------------------------------- ALBUMS --------------------------------- #
     fav_subquery = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
