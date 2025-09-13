@@ -45,7 +45,7 @@
               <a class="nav-link {% if request.resolver_match.url_name == 'track_list' %}active{% endif %}" href="{% url 'track_list' %}">🎵 Music Player</a>
             </li>
             <li class="nav-item">
-              <a href="{% url 'album:album_list' %}" class="btn btn-outline-primary">📂 My Albums</a>
+              <a class="nav-link {% if request.resolver_match.url_name == 'album_list' %}active{% endif %}" href="{% url 'album:album_list' %}">📂 My Albums</a>
             </li>
             <li class="nav-item">
               <a class="nav-link {% if request.resolver_match.url_name == 'plan_list' %}active{% endif %}" href="{% url 'plan_list' %}">💸 Prices</a>
