@@ -6,6 +6,7 @@ from django.db import IntegrityError
 from django.db.models import Max
 from django.utils.decorators import method_decorator
 from django.contrib import messages
+from django.template.loader import render_to_string
 
 from album.models import Album, AlbumTrack
 from tracks.models import Track
@@ -116,6 +117,51 @@ def save_track(request, pk):
 
 
 
+# @login_required
+# def bulk_save_tracks(request):
+#     if request.method != "POST":
+#         return redirect("album:album_list")
+
+#     track_ids = [int(x) for x in request.POST.get("track_ids", "").split(",") if x.isdigit()]
+#     album_id = request.POST.get("album_id")
+#     if not track_ids or not album_id:
+#         if request.headers.get("x-requested-with") == "XMLHttpRequest":
+#             return JsonResponse({"ok": False, "error": "Missing tracks or album."}, status=400)
+#         messages.error(request, "Missing tracks or album.")
+#         return redirect("album:album_list")
+
+#     album = get_object_or_404(Album, pk=album_id, owner=request.user)
+
+#     added, skipped = 0, 0
+#     for tid in track_ids:
+#         try:
+#             track = Track.objects.get(pk=tid)
+#         except Track.DoesNotExist:
+#             skipped += 1
+#             continue
+
+#         if AlbumTrack.objects.filter(album=album, track=track).exists():
+#             skipped += 1
+#             continue
+
+#         AlbumTrack.objects.create(album=album, track=track)
+#         added += 1
+
+#     # --- Return JSON if AJAX ---
+#     if request.headers.get("x-requested-with") == "XMLHttpRequest":
+#         return JsonResponse({"ok": True, "added": added, "skipped": skipped, "album": album.name})
+
+#     # --- Fallback: normal Django messages + redirect ---
+#     if added and skipped:
+#         messages.success(request, f"Saved {added} track(s); {skipped} already there.")
+#     elif added:
+#         messages.success(request, f"Saved {added} track(s).")
+#     else:
+#         messages.info(request, f"All selected tracks were already in “{album.name}”.")
+#     return redirect("album:album_list")
+
+
+
 
 @login_required
 def bulk_save_tracks(request):
@@ -124,32 +170,47 @@ def bulk_save_tracks(request):
 
     track_ids = [int(x) for x in request.POST.get("track_ids", "").split(",") if x.isdigit()]
     album_id = request.POST.get("album_id")
-    if not track_ids or not album_id:
-        messages.error(request, "Missing tracks or album.")
-        return redirect("album:album_list")
-
     album = get_object_or_404(Album, pk=album_id, owner=request.user)
 
-    added, skipped = 0, 0
+    added, skipped = [], []
     for tid in track_ids:
         try:
             track = Track.objects.get(pk=tid)
         except Track.DoesNotExist:
-            skipped += 1
+            skipped.append(tid)
             continue
 
-        # Don’t try to create duplicates
         if AlbumTrack.objects.filter(album=album, track=track).exists():
-            skipped += 1
+            skipped.append(tid)
             continue
 
-        AlbumTrack.objects.create(album=album, track=track)
-        added += 1
+        at = AlbumTrack.objects.create(album=album, track=track)
+        added.append(at)
 
-    if added and skipped:
-        messages.success(request, f"Saved {added} track(s); {skipped} already there.")
-    elif added:
-        messages.success(request, f"Saved {added} track(s).")
-    else:
-        messages.info(request, f"All selected tracks were already in “{album.name}”.")
+    # If AJAX, send JSON + rendered HTML
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        html = "".join(
+            render_to_string("tracks/_track_card.html", {
+                "track": at.track,
+                "album": album,
+                "album_item_id": at.id,
+                "is_owner": True,
+                "show_checkbox": True,
+                "is_favorited": False,
+                "in_playlist": False,
+                "avg": 0,
+                "count": 0,
+            }, request=request)
+            for at in added
+        )
+        return JsonResponse({
+            "ok": True,
+            "added": len(added),
+            "skipped": len(skipped),
+            "html": html,
+            "album_id": album.id,
+        })
+
+    # fallback redirect
+    messages.success(request, f"Saved {len(added)} track(s); {len(skipped)} skipped.")
     return redirect("album:album_list")

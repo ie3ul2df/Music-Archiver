@@ -213,22 +213,111 @@
       try {
         const res = await fetch(saveUrl, {
           method: "POST",
-          headers: { "X-CSRFToken": getCookie("csrftoken") },
+          headers: {
+            "X-CSRFToken": getCookie("csrftoken"),
+            "X-Requested-With": "XMLHttpRequest",
+          },
           body: fd,
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          bootstrap.Modal.getInstance(document.getElementById("saveToAlbumModal"))?.hide();
-          alert(`Added ${data.added} track(s), skipped ${data.skipped} duplicate(s).`);
-          window.location.reload();
-        } else {
-          alert("Could not save to album.");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        // close modal
+        bootstrap.Modal.getInstance(document.getElementById("saveToAlbumModal"))?.hide();
+
+        // success feedback
+        alert(`Added ${data.added} track(s), skipped ${data.skipped} duplicate(s).`);
+
+        // ✅ update UI without reload
+
+        // 1) Update the source album rows (mark save buttons as "already saved")
+        const trackIds = ids.split(",");
+        trackIds.forEach((id) => {
+          const row = document.querySelector(`li.track-card[data-track-id="${id}"]`);
+          if (row) {
+            const saveBtn = row.querySelector(".js-save");
+            if (saveBtn) {
+              saveBtn.textContent = "🗃️";
+              saveBtn.title = "Already saved to your albums";
+              saveBtn.classList.remove("btn-outline-secondary");
+              saveBtn.classList.add("btn-secondary");
+              saveBtn.disabled = true;
+            }
+          }
+        });
+
+        // 2) Inject new rows into the *target* album, if HTML was returned
+        if (data.html && data.album_id) {
+          const list = document.querySelector(`#album-tracklist-${data.album_id}`);
+          if (list) {
+            // remove "No tracks" message if present
+            const emptyMsg = list.parentElement.querySelector(".small.text-muted.mt-2");
+            if (emptyMsg) emptyMsg.remove();
+
+            list.insertAdjacentHTML("beforeend", data.html);
+          }
         }
       } catch (err) {
         console.error(err);
-        alert("Network error while saving tracks.");
+        alert(err.message || "Network error while saving tracks.");
       }
     });
   }
+
+  //--------------------------- Bulk Detach ---------------------------//
+  // Bulk remove selected tracks from THIS album (by AlbumTrack ids)
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".js-remove-selected");
+    if (!btn) return;
+
+    // Find the album card and its track list
+    const card = btn.closest("li.album, .album.card, .album");
+    const list = card?.querySelector(".album-tracklist");
+    if (!list) return;
+
+    // Collect selected AlbumTrack ids from checked rows
+    const checked = Array.from(list.querySelectorAll(".track-check:checked"));
+    const itemIds = checked.map((cb) => cb.closest("li.track-card")?.dataset.id).filter(Boolean);
+
+    if (itemIds.length === 0) {
+      alert("Select at least one track to remove.");
+      return;
+    }
+    if (!confirm(`Remove ${itemIds.length} track(s) from this album?`)) return;
+
+    const url = btn.dataset.url;
+    const origHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerText = "Removing…";
+
+    try {
+      const data = await post(url, { items: itemIds });
+      if (!data?.ok) throw new Error("Server error.");
+
+      // Remove rows from DOM
+      (data.removed || []).forEach((id) => {
+        const li = list.querySelector(`li.track-card[data-id="${id}"]`);
+        if (li) li.remove();
+      });
+
+      // Uncheck “select all” if present
+      const checkAll = card.querySelector(".check-all");
+      if (checkAll) checkAll.checked = false;
+
+      // If empty, show a friendly message
+      if (!list.querySelector("li.track-card")) {
+        const empty = document.createElement("div");
+        empty.className = "small text-muted mt-2";
+        empty.textContent = "No tracks in this album yet.";
+        list.after(empty);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Bulk remove failed.");
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = origHTML;
+    }
+  });
 })();

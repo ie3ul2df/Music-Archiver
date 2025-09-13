@@ -111,6 +111,14 @@
           💾 Save to album
         </button>
 
+        {% if request.user.is_authenticated and request.user.id == album.owner_id %}
+          <button type="button"
+                  class="btn btn-sm btn-outline-danger js-remove-selected"
+                  data-url="{% url 'album:album_bulk_detach' album.id %}"
+                  title="Remove selected tracks from this album">
+            ⛔ Remove selected
+          </button>
+        {% endif %}
 
       </div>
     {% endif %}

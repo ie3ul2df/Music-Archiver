@@ -29,6 +29,7 @@ urlpatterns = [
 
     # ⛔ Detach (new canonical name)
     path("<int:pk>/tracks/<int:item_id>/detach/", views.album_detach_track, name="album_detach_track"),
+    path("<int:pk>/tracks/bulk-detach/", views.album_bulk_detach, name="album_bulk_detach"),
 
     # (Optional alias for any old code still calling “remove”)
     path("<int:pk>/tracks/<int:item_id>/remove/", views.album_detach_track, name="album_remove_track"),

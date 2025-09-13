@@ -423,16 +423,6 @@ def albums_reorder(request):
     return JsonResponse({"ok": True, "updated": final_ids})
 
 
-
-
-
-
-# //--------------------------- divider_title ---------------------------//
-# //--------------------------- divider_title ---------------------------//
-# //--------------------------- divider_title ---------------------------//
-
-
-
 @login_required
 def album_detail(request, pk):
     """
@@ -517,18 +507,6 @@ def album_detail(request, pk):
     return render(request, template_name, context)
 
 
-
-
-
-
-
-# //--------------------------- divider_title ---------------------------//
-# //--------------------------- divider_title ---------------------------//
-# //--------------------------- divider_title ---------------------------//
-
-
-
-
 def public_album_detail(request, slug):
     """Public album detail page with ratings and tracks."""
     album = get_object_or_404(Album, slug=slug, is_public=True)
@@ -566,9 +544,6 @@ def public_album_detail(request, slug):
         },
     )
 
-# ---------------------- Tracks in the albums ---------------------- #
-# ---------------------- Tracks in the albums ---------------------- #
-# ---------------------- Tracks in the albums ---------------------- #
 
 @login_required
 @require_POST
@@ -679,8 +654,6 @@ def track_create(request):
     return render(request, "tracks/track_form.html", {"form": form})
 
 
-
-
 @login_required
 @require_POST
 def album_rename_track(request, pk, item_id):
@@ -729,7 +702,6 @@ def album_rename_track(request, pk, item_id):
 
 
 
-
 @login_required
 @require_POST
 def album_detach_track(request, pk, item_id):
@@ -747,3 +719,40 @@ def album_detach_track(request, pk, item_id):
 
     messages.success(request, "Removed from album.")
     return redirect("album:album_detail", pk=pk)
+
+
+
+@login_required
+@require_POST
+def album_bulk_detach(request, pk):
+    album = get_object_or_404(Album, pk=pk, owner=request.user)
+
+    # Accept JSON body or form-encoded items[]
+    items = []
+    try:
+        if (request.META.get("CONTENT_TYPE") or "").startswith("application/json"):
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+            items = payload.get("items", [])
+        else:
+            items = request.POST.getlist("items[]") or request.POST.getlist("items")
+    except Exception:
+        return HttpResponseBadRequest("Invalid payload")
+
+    # Normalize to ints
+    try:
+        item_ids = [int(x) for x in items]
+    except Exception:
+        return HttpResponseBadRequest("Invalid item IDs")
+
+    qs = AlbumTrack.objects.filter(album=album, id__in=item_ids)
+    to_remove = list(qs.values_list("id", flat=True))
+
+    with transaction.atomic():
+        qs.delete()
+        # re-pack positions to keep list tidy (optional)
+        remaining = list(AlbumTrack.objects.filter(album=album).order_by("position", "id"))
+        for i, at in enumerate(remaining):
+            if at.position != i:
+                AlbumTrack.objects.filter(pk=at.pk).update(position=i)
+
+    return JsonResponse({"ok": True, "removed": to_remove, "album_id": album.id})
