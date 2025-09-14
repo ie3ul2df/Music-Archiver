@@ -21,4 +21,5 @@ urlpatterns = [
 
     # Third-party
     path("accounts/", include("allauth.urls")),      # login / signup / logout
+    path("cloud/", include("cloud_connect.urls", namespace="cloud")), # Google configs
 ]

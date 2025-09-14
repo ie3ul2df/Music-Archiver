@@ -1,4 +1,6 @@
-{% extends "base.html" %} {% load crispy_forms_tags static %} {% block content %}
+{% extends "base.html" %}
+{% load crispy_forms_tags static %}
+{% block content %}
 <div class="container mt-5">
   <h2 class="mb-4 text-center">👤 My Profile</h2>
 
@@ -6,34 +8,22 @@
     <div class="card-body">
       <!-- Tabs -->
       <ul class="nav nav-tabs" id="profileTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-          <button class="nav-link active" id="acct-tab" data-bs-toggle="tab" data-bs-target="#acct" type="button" role="tab">Account Details</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="delivery-tab" data-bs-toggle="tab" data-bs-target="#delivery" type="button" role="tab">Delivery Information</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button" role="tab">Order History</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="social-tab" data-bs-toggle="tab" data-bs-target="#social" type="button" role="tab">Following & Followers</button>
-        </li>
+        <li class="nav-item"><button class="nav-link active" id="acct-tab" data-bs-toggle="tab" data-bs-target="#acct" type="button">🎭 Account Details</button></li>
+        <li class="nav-item"><button class="nav-link" id="delivery-tab" data-bs-toggle="tab" data-bs-target="#delivery" type="button">🚚 Delivery Information</button></li>
+        <li class="nav-item"><button class="nav-link" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button">📦 Order History</button></li>
+        <li class="nav-item"><button class="nav-link" id="social-tab" data-bs-toggle="tab" data-bs-target="#social" type="button">👥 Following & Followers</button></li>
+        <li class="nav-item"><button class="nav-link" id="cloud-tab" data-bs-toggle="tab" data-bs-target="#cloud" type="button">☁️ Cloud & Storage</button></li>
       </ul>
 
-      <form method="post" enctype="multipart/form-data" id="profile-update-form">
-        {% csrf_token %}
+      <div class="tab-content pt-3">
 
-        <div class="tab-content pt-3">
-          <!-- Tab 1: Account Details -->
-          <div class="tab-pane fade show active" id="acct" role="tabpanel" aria-labelledby="acct-tab">
+        <!-- Tab 1: 🎭 Account Details -->
+        <div class="tab-pane fade show active" id="acct" role="tabpanel">
+          <form method="post" enctype="multipart/form-data" id="profile-update-form">
+            {% csrf_token %}
             <div class="text-center mb-4">
               {% if profile.profile_image %}
-              <img
-                src="{{ profile.profile_image.url }}"
-                alt="Profile image"
-                class="rounded-circle shadow-sm"
-                style="width: 120px; height: 120px; object-fit: cover"
-              />
+              <img src="{{ profile.profile_image.url }}" alt="Profile image" class="rounded-circle shadow-sm" style="width: 120px; height: 120px; object-fit: cover"/>
               {% else %}
               <span class="display-1 text-muted">🖼️</span>
               {% endif %}
@@ -49,10 +39,13 @@
             <div class="text-end mt-4">
               <button type="submit" class="btn btn-primary">Save Changes</button>
             </div>
-          </div>
+          </form>
+        </div>
 
-          <!-- Tab 2: Delivery Information -->
-          <div class="tab-pane fade" id="delivery" role="tabpanel" aria-labelledby="delivery-tab">
+        <!-- Tab 2: 🚚 Delivery Information -->
+        <div class="tab-pane fade" id="delivery" role="tabpanel">
+          <form method="post" enctype="multipart/form-data" id="delivery-form">
+            {% csrf_token %}
             <h6 class="mb-3">Default Delivery Information</h6>
             <div class="row g-3">
               <div class="col-md-6">{{ defaults_form.default_phone_number|as_crispy_field }}</div>
@@ -66,103 +59,162 @@
             <div class="text-end mt-4">
               <button type="submit" class="btn btn-primary">Save Delivery Info</button>
             </div>
-          </div>
+          </form>
+        </div>
 
-          <!-- Tab 3: Order History -->
-          <div class="tab-pane fade" id="orders" role="tabpanel" aria-labelledby="orders-tab">
-            <h6 class="mb-3">📦 Order History</h6>
-            {% if orders %}
+        <!-- Tab 3: 📦 Order History -->
+        <div class="tab-pane fade" id="orders" role="tabpanel">
+          <h6 class="mb-3">📦 Order History</h6>
+          {% if orders %}
             <div class="table-responsive">
               <table class="table table-sm align-middle">
-                <thead class="table-light">
-                  <tr>
-                    <th>Order #</th>
-                    <th>Date</th>
-                    <th>Items</th>
-                    <th class="text-end">Total</th>
-                  </tr>
-                </thead>
+                <thead class="table-light"><tr><th>Order #</th><th>Date</th><th>Items</th><th class="text-end">Total</th></tr></thead>
                 <tbody>
                   {% for o in orders %}
                   <tr>
-                    <td>
-                      <a href="{% url 'profile:order_history' o.order_number %}" title="View order {{ o.order_number }}">
-                        {{ o.order_number|truncatechars:6 }}
-                      </a>
-                    </td>
+                    <td><a href="{% url 'profile:order_history' o.order_number %}">{{ o.order_number|truncatechars:6 }}</a></td>
                     <td>{{ o.date|date:"Y-m-d H:i" }}</td>
-                    <td>
-                      <ul class="list-unstyled mb-0 small">
-                        {% for li in o.items.all %}
-                        <li>{{ li.plan.name }} × {{ li.quantity }}</li>
-                        {% endfor %}
-                      </ul>
-                    </td>
+                    <td><ul class="list-unstyled mb-0 small">{% for li in o.items.all %}<li>{{ li.plan.name }} × {{ li.quantity }}</li>{% endfor %}</ul></td>
                     <td class="text-end">£{{ o.order_total }}</td>
                   </tr>
                   {% endfor %}
                 </tbody>
               </table>
             </div>
-            {% else %}
+          {% else %}
             <p class="text-muted mb-0">No orders yet.</p>
-            {% endif %}
-          </div>
+          {% endif %}
+        </div>
 
-          <!-- Tab 4: Following & Followers -->
-          <div class="tab-pane fade" id="social" role="tabpanel" aria-labelledby="social-tab">
-            <div class="row g-4">
-              <div class="col-12 col-lg-6">
-                <h6 class="mb-3">Following ({{ following|length }})</h6>
-                <ul class="list-group">
-                  {% for u in following %}
-                  <li class="list-group-item d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center gap-2">
-                      {% if u.userprofile and u.userprofile.profile_image %}
-                      <img src="{{ u.userprofile.profile_image.url }}" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover" alt="" />
-                      {% else %}
-                      <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 32px; height: 32px">
-                        <span class="text-muted small">@</span>
-                      </div>
-                      {% endif %}
-                      <a class="text-decoration-none" href="{% url 'profile:public_profile' u.username %}"> @{{ u.username }} </a>
-                    </div>
-                    <button class="btn btn-sm btn-outline-danger" data-follow-toggle="{% url 'follow:toggle' u.username %}">Unfollow</button>
-                  </li>
-                  {% empty %}
-                  <li class="list-group-item text-muted">Not following anyone yet.</li>
-                  {% endfor %}
-                </ul>
-              </div>
-
-              <div class="col-12 col-lg-6">
-                <h6 class="mb-3">Followers ({{ followers|length }})</h6>
-                <ul class="list-group">
-                  {% for u in followers %}
-                  <li class="list-group-item d-flex align-items-center gap-2">
+        <!-- Tab 4: 👥 Following & Followers -->
+        <div class="tab-pane fade" id="social" role="tabpanel">
+          <div class="row g-4">
+            <div class="col-12 col-lg-6">
+              <h6 class="mb-3">Following ({{ following|length }})</h6>
+              <ul class="list-group">
+                {% for u in following %}
+                <li class="list-group-item d-flex align-items-center justify-content-between">
+                  <div class="d-flex align-items-center gap-2">
                     {% if u.userprofile and u.userprofile.profile_image %}
-                    <img src="{{ u.userprofile.profile_image.url }}" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover" alt="" />
+                      <img src="{{ u.userprofile.profile_image.url }}" class="rounded-circle" style="width:32px;height:32px;object-fit:cover" alt=""/>
                     {% else %}
-                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 32px; height: 32px">
-                      <span class="text-muted small">@</span>
-                    </div>
+                      <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width:32px;height:32px"><span class="text-muted small">@</span></div>
                     {% endif %}
-                    <a class="text-decoration-none" href="{% url 'profile:public_profile' u.username %}"> @{{ u.username }} </a>
-                  </li>
-                  {% empty %}
-                  <li class="list-group-item text-muted">No followers yet.</li>
-                  {% endfor %}
-                </ul>
-              </div>
+                    <a href="{% url 'profile:public_profile' u.username %}">@{{ u.username }}</a>
+                  </div>
+                  <button class="btn btn-sm btn-outline-danger" data-follow-toggle="{% url 'follow:toggle' u.username %}">Unfollow</button>
+                </li>
+                {% empty %}<li class="list-group-item text-muted">Not following anyone yet.</li>{% endfor %}
+              </ul>
+            </div>
+            <div class="col-12 col-lg-6">
+              <h6 class="mb-3">Followers ({{ followers|length }})</h6>
+              <ul class="list-group">
+                {% for u in followers %}
+                <li class="list-group-item d-flex align-items-center gap-2">
+                  {% if u.userprofile and u.userprofile.profile_image %}
+                    <img src="{{ u.userprofile.profile_image.url }}" class="rounded-circle" style="width:32px;height:32px;object-fit:cover" alt=""/>
+                  {% else %}
+                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width:32px;height:32px"><span class="text-muted small">@</span></div>
+                  {% endif %}
+                  <a href="{% url 'profile:public_profile' u.username %}">@{{ u.username }}</a>
+                </li>
+                {% empty %}<li class="list-group-item text-muted">No followers yet.</li>{% endfor %}
+              </ul>
             </div>
           </div>
         </div>
-        {# /.tab-content #}
-      </form>
+
+        <!-- Tab 5: ☁️ Cloud & Storage -->
+        <div class="tab-pane fade" id="cloud" role="tabpanel">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0">Cloud Connections</h6>
+            <a class="btn btn-sm btn-outline-success" href="{% url 'cloud:connect' 'gdrive' %}">🔗 Connect Google Drive</a>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-lg-6">
+              <div class="card h-100">
+                <div class="card-body">
+                  <h6>Connected Accounts</h6>
+                  {% if cloud_accounts %}
+                    <ul class="list-group">{% for acc in cloud_accounts %}<li class="list-group-item d-flex justify-content-between align-items-center"><span>{{ acc.get_provider_display }} — <small class="text-muted">{{ acc.label }}</small></span><span class="badge bg-secondary">{{ acc.created_at|date:"Y-m-d" }}</span></li>{% endfor %}</ul>
+                  {% else %}<p class="text-muted mb-0">No cloud accounts yet. Click “Connect Google Drive”.</p>{% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-6">
+              <div class="card h-100">
+                <div class="card-body">
+                  <h6>Link an Album to a Drive Folder</h6>
+                  {% if my_albums %}
+                    <form id="cloud-link-form"
+                          class="row g-2"
+                          action="{% url 'cloud:link_album_folder' 0 %}"
+                          data-url-template="{% url 'cloud:link_album_folder' 999999 %}">
+                      {% csrf_token %}
+
+                      <div class="col-12">
+                        <select class="form-select" name="album_id" required>
+                          <option value="">Choose album…</option>
+                          {% for a in my_albums %}
+                            <option value="{{ a.id }}">{{ a.name }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+
+                      <div class="col-12">
+                        <select class="form-select" name="account_id" required>
+                          <option value="">Choose account…</option>
+                          {% for acc in cloud_accounts %}
+                            <option value="{{ acc.id }}">{{ acc.get_provider_display }} — {{ acc.label }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+
+                      <div class="col-12">
+                        <input type="text" name="folder_url" id="cloud-folder-url"
+                              class="form-control mb-2"
+                              placeholder="Paste Google Drive folder URL" required />
+                        <button type="submit" class="btn btn-primary w-100">Link Folder</button>
+                        <div id="link-folder-status" class="mt-2 small text-muted"></div>
+                      </div>
+                    </form>
+                  {% else %}<p class="text-muted mb-0">Create an album first, then link it here.</p>{% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mt-3">
+            <div class="card-body">
+              <h6 class="mb-3">Linked Albums</h6>
+              {% if cloud_links %}
+                <ul class="list-group">
+                  {% for link in cloud_links %}
+                    <li class="list-group-item d-flex align-items-center justify-content-between">
+                      <div>
+                        <strong>{{ link.album.name }}</strong>
+                        <span class="text-muted">— {{ link.account.get_provider_display }} ({{ link.account.label }})</span>
+                        <div class="small text-muted">Folder: <code>{{ link.folder_id }}</code>{% if link.last_sync %} · Last sync: {{ link.last_sync|date:"Y-m-d H:i" }}{% endif %}</div>
+                      </div>
+                      <button class="btn btn-sm btn-outline-primary" data-sync-url="{% url 'cloud:sync_album' link.album.id %}" onclick="syncAlbumFromCloud(this)">↻ Sync</button>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}<p class="text-muted mb-0">No albums linked yet.</p>{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
-{% endblock %} {% block extra_js %}
+{% endblock %}
+
+{% block extra_js %}
 <script src="{% static 'js/profile_country_select.js' %}"></script>
 <script src="{% static 'js/follow_system.js' %}" defer></script>
+<script src="{% static 'js/cloud.js' %}" defer></script>
 {% endblock %}

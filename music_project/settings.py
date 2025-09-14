@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "save_system",
     "follow_system",
     "playlist",
+    "cloud_connect",
 ]
 
 SITE_ID = 1
@@ -83,6 +84,14 @@ LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "home"                       # Django auth
 ACCOUNT_LOGOUT_REDIRECT_URL = "home"               # Allauth (kept alongside)
 
+# ---------------- Google Auth config ---------------- #
+# OAuth config (dev URLs shown; change in prod)
+GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
+GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
+GOOGLE_OAUTH_REDIRECT_URI = os.environ.get("GOOGLE_OAUTH_REDIRECT_URI", "http://127.0.0.1:8000/cloud/callback/gdrive/")
+GOOGLE_OAUTH_SCOPES = [
+    "https://www.googleapis.com/auth/drive.readonly",
+]
 # ---------------- Allauth config ---------------- #
 ACCOUNT_EMAIL_VERIFICATION = "none"
 

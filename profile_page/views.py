@@ -11,6 +11,7 @@ from ratings.utils import annotate_albums, annotate_tracks
 from album.models import Album 
 from tracks.models import Track
 from follow_system.models import Follow
+from cloud_connect.models import CloudAccount, CloudFolderLink
 
 @login_required
 def profile_view(request):
@@ -64,14 +65,21 @@ def profile_view(request):
         .order_by("username")
     )
 
+    cloud_accounts = CloudAccount.objects.filter(user=request.user)
+    my_albums = Album.objects.filter(owner=request.user).order_by("name")
+    cloud_links = CloudFolderLink.objects.filter(album__owner=request.user).select_related("album","account")
+    
     context = {
         "user_form": user_form,
         "profile_form": profile_form,
         "defaults_form": defaults_form,
-        "profile": profile,     # your UserProfile instance
-        "orders": orders,       # your order queryset
+        "profile": profile,     #  UserProfile instance
+        "orders": orders,       #  order queryset
         "following": following,
         "followers": followers,
+        "cloud_accounts": cloud_accounts,
+        "my_albums": my_albums,
+        "cloud_links": cloud_links,
     }
     return render(request, "profile_page/profile.html", context)
 
@@ -97,7 +105,6 @@ def order_history(request, order_number):
             "from_profile": True,  # lets template hide payment form
         },
     )
-
 
 
 def public_profile(request, username: str):
