@@ -1,79 +1,81 @@
-{# templates/profile_page/public_profile.html #} {% extends "base.html" %} {% load static %} {% block content %}
+{# templates/profile_page/public_profile.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
 <div class="container py-4">
+
   <!-- Header -->
   <div class="d-flex align-items-center justify-content-between gap-3 mb-4">
     <div class="d-flex align-items-center gap-3">
       <div>
         {% if profile and profile.profile_image %}
-        <img
-          src="{{ profile.profile_image.url }}"
-          class="rounded-circle shadow-sm"
-          alt="{{ view_user.username }} avatar"
-          style="width: 72px; height: 72px; object-fit: cover"
-        />
+          <img
+            src="{{ profile.profile_image.url }}"
+            class="rounded-circle shadow-sm"
+            alt="{{ view_user.username }} avatar"
+            style="width: 72px; height: 72px; object-fit: cover"
+          />
         {% else %}
-        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 72px; height: 72px">
-          <span class="text-muted fs-4">@</span>
-        </div>
+          <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm"
+               style="width: 72px; height: 72px">
+            <span class="text-muted fs-4">@</span>
+          </div>
         {% endif %}
       </div>
       <div>
         <h3 class="mb-0">@{{ view_user.username }}</h3>
+
         {% if profile and profile.bio %}
-        <div class="text-muted small mt-1">{{ profile.bio }}</div>
+          <div class="text-muted small mt-1">{{ profile.bio }}</div>
         {% endif %}
-        <div class="small text-muted mt-1"><strong id="followersCount">{{ followers_count }}</strong> followers · {{ following_count }} following</div>
-        {% if profile and profile.website %}
-        <div class="small mt-1">
-          <a href="{{ profile.website }}" rel="nofollow noopener" target="_blank">{{ profile.website }}</a>
+
+        <div class="small text-muted mt-1">
+          <strong id="followersCount">{{ followers_count }}</strong> followers · {{ following_count }} following
         </div>
+
+        {% if profile and profile.website %}
+          <div class="small mt-1">
+            <a href="{{ profile.website }}" rel="nofollow noopener" target="_blank">{{ profile.website }}</a>
+          </div>
         {% endif %}
       </div>
     </div>
 
     {% if request.user.is_authenticated and request.user.id != view_user.id %}
-    <button
-      class="btn btn-sm {{ is_following|yesno:'btn-outline-danger,btn-outline-primary' }}"
-      data-follow-toggle="{% url 'follow:toggle' view_user.username %}"
-      data-followers-target="#followersCount"
-    >
-      {{ is_following|yesno:"Unfollow,Follow" }}
-    </button>
+      <button
+        class="btn btn-sm {{ is_following|yesno:'btn-outline-danger,btn-outline-primary' }}"
+        data-follow-toggle="{% url 'follow:toggle' view_user.username %}"
+        data-followers-target="#followersCount">
+        {{ is_following|yesno:"Unfollow,Follow" }}
+      </button>
     {% endif %}
   </div>
 
   <!-- Tabs -->
   <ul class="nav nav-tabs" id="profileTabs" role="tablist">
     <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="albums-tab" data-bs-toggle="tab" data-bs-target="#albums" type="button" role="tab">Public Albums</button>
+      <button class="nav-link active" id="albums-tab" data-bs-toggle="tab" data-bs-target="#albums" type="button" role="tab">
+        Public Albums
+      </button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link" id="tracks-tab" data-bs-toggle="tab" data-bs-target="#tracks" type="button" role="tab">Public Tracks</button>
+      <button class="nav-link" id="tracks-tab" data-bs-toggle="tab" data-bs-target="#tracks" type="button" role="tab">
+        Public Tracks
+      </button>
     </li>
   </ul>
 
   <div class="tab-content pt-3">
+
     <!-- Public Albums -->
     <div class="tab-pane fade show active" id="albums" role="tabpanel" aria-labelledby="albums-tab">
       <ul class="list-group">
         {% for a in public_albums %}
-        <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
-          <div class="d-flex flex-column">
-            <div>
-              <a class="fw-semibold text-decoration-none" href="{% url 'album:public_album_detail' a.slug %}"> {{ a.name }} </a>
-              <span class="badge bg-success ms-2">Public</span>
-            </div>
-            <small class="text-muted mt-1">
-              {{ a.rating_avg|default:"–"|floatformat:1 }} ★ · {{ a.rating_count|default:0 }} ratings · {{ a.track_count|default:0 }} tracks
-            </small>
-            {% if a.description %}
-            <div class="small text-muted mt-1">{{ a.description|truncatechars:160 }}</div>
-            {% endif %}
-          </div>
-          <a class="btn btn-sm btn-outline-primary mt-2 mt-md-0" href="{% url 'album:public_album_detail' a.slug %}">Open</a>
-        </li>
+          {# Reuse the album card. We explicitly disable reordering/search on a public profile. #}
+          {% include "album/_album_card.html" with album=a allow_reorder=False show_search=False %}
         {% empty %}
-        <li class="list-group-item">No public albums yet.</li>
+          <li class="list-group-item">No public albums yet.</li>
         {% endfor %}
       </ul>
     </div>
@@ -82,18 +84,14 @@
     <div class="tab-pane fade" id="tracks" role="tabpanel" aria-labelledby="tracks-tab">
       <ul class="list-group">
         {% for t in public_tracks %}
-        <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
-          <div class="d-flex flex-column">
-            <span class="fw-semibold">{{ t.name }}</span>
-            <small class="text-muted mt-1"> {{ t.rating_avg|default:"–"|floatformat:1 }} ★ · {{ t.rating_count|default:0 }} ratings </small>
-          </div>
-          <a class="btn btn-sm btn-outline-primary mt-2 mt-md-0" href="{% url 'play_track' t.pk %}">▶ Play</a>
-        </li>
+          {# Reuse the track card. No album context here; keep it lightweight. #}
+          {% include "tracks/_track_card.html" with track=t show_checkbox=False allow_reorder=False avg=t.rating_avg count=t.rating_count %}
         {% empty %}
-        <li class="list-group-item">No public tracks yet.</li>
+          <li class="list-group-item">No public tracks yet.</li>
         {% endfor %}
       </ul>
     </div>
+
   </div>
 </div>
 

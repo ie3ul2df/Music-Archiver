@@ -20,7 +20,7 @@ SEARCH_LIMIT = 50
 def _is_ajax(request) -> bool:
     return request.headers.get("x-requested-with") == "XMLHttpRequest"
 
-@login_required
+
 def index(request):
     """
     Homepage: hero + latest public albums + top 10 albums & tracks by weighted score.
@@ -148,23 +148,14 @@ def index(request):
         },
     )
 
+
 def search(request):
     """
-    Global search endpoint for AJAX.
+    Global search endpoint: returns JSON for AJAX, or renders a full page when not AJAX.
     Accepts:
       - q: query string
       - t: scope ('all' | 'albums' | 'tracks' | 'users')
-    Returns JSON with rendered HTML fragments.
     """
-    if not _is_ajax(request):
-        # Keep everything on the home page as requested.
-        params = {}
-        if request.GET.get("q"):
-            params["q"] = request.GET["q"].strip()
-        if request.GET.get("t"):
-            params["t"] = request.GET["t"].lower()
-        return redirect("/" + (f"?{urlencode(params)}" if params else ""))
-
     q = (request.GET.get("q") or "").strip()
     scope = (request.GET.get("t") or "all").lower()
     User = get_user_model()
@@ -229,21 +220,17 @@ def search(request):
         "total": total,
     }
 
-    html = {
-        "albums": render_to_string(
-            "home_page/partials/_search_albums.html", context, request=request
-        ),
-        "tracks": render_to_string(
-            "home_page/partials/_search_tracks.html", context, request=request
-        ),
-        "users": render_to_string(
-            "home_page/partials/_search_users.html", context, request=request
-        ),
-        "summary": render_to_string(
-            "home_page/partials/_search_summary.html", context, request=request
-        ),
-        "empty": render_to_string(
-            "home_page/partials/_search_empty.html", context, request=request
-        ),
-    }
-    return JsonResponse({"q": q, "scope": scope, "total": total, "html": html})
+    if _is_ajax(request):
+        html = {
+            "albums": render_to_string("home_page/partials/_search_albums.html", context, request=request),
+            "tracks": render_to_string("home_page/partials/_search_tracks.html", context, request=request),
+            "users": render_to_string("home_page/partials/_search_users.html", context, request=request),
+            "summary": render_to_string("home_page/partials/_search_summary.html", context, request=request),
+            "empty": render_to_string("home_page/partials/_search_empty.html", context, request=request),
+        }
+        return JsonResponse({"q": q, "scope": scope, "total": total, "html": html})
+
+    # Non-AJAX fallback → render full results page
+    return render(request, "home_page/search.html", context)
+
+
