@@ -2,6 +2,7 @@
 from pathlib import Path
 import os
 import environ
+import dj_database_url
 from dotenv import load_dotenv
 from django.contrib.messages import constants as messages
 
@@ -24,7 +25,13 @@ DEBUG = env.bool("DEBUG", default=True)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["127.0.0.1", "localhost"])
 CSRF_TRUSTED_ORIGINS = env.list(
     "CSRF_TRUSTED_ORIGINS",
-    default=["http://127.0.0.1", "http://localhost", "https://127.0.0.1", "https://localhost"],
+        default=[
+        "http://127.0.0.1",
+        "http://localhost",
+        "https://127.0.0.1",
+        "https://localhost",
+        "https://music-archiver.herokuapp.com",
+    ],
 )
 
 # Messages -> Bootstrap mapping
@@ -219,3 +226,24 @@ if not DEBUG:
 # Default primary key field
 # --------------------------------------------------------------------------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# --------------------------------------------------------------------------------------
+# Postgre and Debug 
+# --------------------------------------------------------------------------------------
+# Debug only locally
+DEBUG = 'DEVELOPMENT' in os.environ
+
+# Database: always use DATABASE_URL if it exists
+DB_URL = os.environ.get('DATABASE_URL')
+if DB_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(DB_URL, conn_max_age=600, ssl_require=True)
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+
