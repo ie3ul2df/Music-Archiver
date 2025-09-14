@@ -20,17 +20,20 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env"))  # also parse .env file
 # Django core settings
 # --------------------------------------------------------------------------------------
 SECRET_KEY = env("SECRET_KEY", default="django-insecure-temp-key")  # override in .env
-DEBUG = env.bool("DEBUG", default=True)
 
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["127.0.0.1", "localhost"])
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[
+    "127.0.0.1",
+    "localhost",
+    "music-archiver-498e27441f42.herokuapp.com",
+])
 CSRF_TRUSTED_ORIGINS = env.list(
     "CSRF_TRUSTED_ORIGINS",
-        default=[
+    default=[
         "http://127.0.0.1",
         "http://localhost",
         "https://127.0.0.1",
         "https://localhost",
-        "https://music-archiver.herokuapp.com",
+        "https://music-archiver-498e27441f42.herokuapp.com",
     ],
 )
 
@@ -95,7 +98,7 @@ ACCOUNT_LOGOUT_REDIRECT_URL = "home"               # Allauth (kept alongside)
 # OAuth config (dev URLs shown; change in prod)
 GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
 GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
-GOOGLE_OAUTH_REDIRECT_URI = os.environ.get("GOOGLE_OAUTH_REDIRECT_URI", "http://127.0.0.1:8000/cloud/callback/gdrive/")
+GOOGLE_OAUTH_REDIRECT_URI = os.environ.get("GOOGLE_OAUTH_REDIRECT_URI", "https://music-archiver-498e27441f42.herokuapp.com/cloud/callback/gdrive/")
 GOOGLE_OAUTH_SCOPES = [
     "https://www.googleapis.com/auth/drive.readonly",
 ]
@@ -147,16 +150,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "music_project.wsgi.application"
-
-# --------------------------------------------------------------------------------------
-# Database
-# --------------------------------------------------------------------------------------
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
 
 # --------------------------------------------------------------------------------------
 # Password validation
@@ -213,6 +206,8 @@ STRIPE_WH_SECRET = os.environ.get("STRIPE_WH_SECRET")
 # --------------------------------------------------------------------------------------
 # Security hardening toggled by DEBUG
 # --------------------------------------------------------------------------------------
+# Debug only locally
+DEBUG = 'DEVELOPMENT' in os.environ
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
@@ -228,10 +223,8 @@ if not DEBUG:
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --------------------------------------------------------------------------------------
-# Postgre and Debug 
+# PostgreSQL Database Configs
 # --------------------------------------------------------------------------------------
-# Debug only locally
-DEBUG = 'DEVELOPMENT' in os.environ
 
 # Database: always use DATABASE_URL if it exists
 DB_URL = os.environ.get('DATABASE_URL')
