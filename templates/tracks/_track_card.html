@@ -49,15 +49,15 @@
       <button class="btn btn-lg border-0 fs-3 js-inline-play" title="Play/Pause">▶</button>
 
       <div class="dropdown">
-        <button class="btn btn-sm dropdown-toggle" type="button" id="dropdownMenu2" data-bs-toggle="dropdown" aria-expanded="false">
+        <button class="btn btn-sm dropdown-toggle action-dropdown-menu" type="button" id="dropdownMenu2" data-bs-toggle="dropdown" aria-expanded="false">
         More
         </button>
-        <ul class="dropdown-menu" aria-labelledby="dropdownMenu2">
+        <ul class="dropdown-menu action-dropdown-menu" aria-labelledby="dropdownMenu2">
             
             {# ♥ Favourite #}
             {% with fav=is_favorited %}
-            <li class="m-2">
-              Favourite
+            <li class="m-2 d-flex justify-content-center">
+              
               <button
                 class="btn btn-lg rounded-circle {% if fav %}btn-danger{% else %}btn-outline-danger{% endif %} js-fav"
                 data-url="{% url 'toggle_favorite' track.id %}"
@@ -69,8 +69,8 @@
             {% endwith %}
           
             {% if request.user.is_authenticated %}
-            <li class="m-2">
-              Save
+            <li class="m-2 d-flex justify-content-center">
+              
               <button class="btn btn-outline-info btn-lg border-0 js-save"
                       data-save-url="{% url 'save_system:save_track' track.id %}"
                       data-bs-toggle="modal" data-bs-target="#saveToAlbumModal"
@@ -80,14 +80,14 @@
             </li>
             {% endif %}
 
-            <li class="m-2">
-              Download
+            <li class="m-2 d-flex justify-content-center">
+              
               <a class="btn btn-lg btn-outline-secondary border-0" href="{% url 'download_track' track.id %}" title="Download">⬇</a>
             </li>
 
             {% if is_owner and album and album_item_id %}
-            <li class="m-2">
-              Rename
+            <li class="m-2 d-flex justify-content-center">
+              
               <button type="button"
                       class="btn btn-lg btn-outline-secondary border-0 rename-track-btn"
                       data-url="{% url 'album:album_rename_track' album.id album_item_id %}"
@@ -97,8 +97,8 @@
             </li>
 
               {% if track.is_my_track %}
-              Delete
-              <li class="m-2">
+              
+              <li class="m-2 d-flex justify-content-center">
                 <button type="button"
                         class="btn btn-lg btn-outline-danger delete-track-btn border-0"
                         data-track-id="{{ track.id }}"
@@ -108,8 +108,8 @@
               </li>
               {% endif %}
 
-              <li class="m-2">
-              Detach
+              <li class="m-2 d-flex justify-content-center">
+              
               <button type="button"
                       class="btn btn-lg btn-outline-warning border-0 js-detach"
                       data-detach-url="{% url 'album:album_detach_track' album.id album_item_id %}"
@@ -120,8 +120,8 @@
 
           {# ➕ / ✓ In — playlist toggle (always render; JS normalizes) #}
           {% with inpl=in_playlist %}
-          <li class="m-2">
-            Playlist
+          <li class="m-2 d-flex justify-content-center">
+            
             <button
               type="button"
               class="btn btn-lg add-to-playlist {% if inpl %}btn-success{% else %}btn-outline-success{% endif %} border-0"

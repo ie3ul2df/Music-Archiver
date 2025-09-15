@@ -22,6 +22,10 @@
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
+.action-dropdown-menu {
+  min-width: 100% !important;
+}
+
 /* ---------------------------
    Checkout page styles
 --------------------------- */
