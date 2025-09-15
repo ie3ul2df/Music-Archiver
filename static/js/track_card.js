@@ -7,6 +7,24 @@
     return m ? decodeURIComponent(m[1]) : "";
   }
 
+  function findInlinePlayButton(audioEl) {
+    const container = audioEl.closest(".track-card, li");
+    return container?.querySelector(".js-inline-play") || null;
+  }
+
+  function setInlineButtonState(audioEl, isPlaying) {
+    const btn = findInlinePlayButton(audioEl);
+    if (btn) btn.textContent = isPlaying ? "⏸" : "▶";
+  }
+
+  function pauseOtherAudios(except) {
+    document.querySelectorAll("audio").forEach((el) => {
+      if (!(el instanceof HTMLAudioElement) || el === except) return;
+      el.pause();
+      if (el.classList.contains("inline-audio")) setInlineButtonState(el, false);
+    });
+  }
+
   // Delegated clicks
   document.addEventListener("click", async (e) => {
     const favBtn = e.target.closest(".js-fav");
@@ -53,40 +71,15 @@
       audio.classList.remove("d-none");
 
       if (audio.paused) {
+        pauseOtherAudios(audio);
         audio.play().catch(() => {});
-        playBtn.textContent = "⏸";
+        setInlineButtonState(audio, true);
       } else {
         audio.pause();
-        playBtn.textContent = "▶";
+        setInlineButtonState(audio, false);
       }
     }
   });
-
-  // Save form submit
-  // const saveForm = document.getElementById("save-to-album-form");
-  // if (saveForm && !saveForm.dataset.bound) {
-  //   saveForm.dataset.bound = "1";
-  //   saveForm.addEventListener("submit", async (e) => {
-  //     e.preventDefault();
-  //     const albumId = document.getElementById("save-album-select").value;
-  //     const saveUrl = saveForm.getAttribute("action"); // <-- use form action
-
-  //     const fd = new FormData();
-  //     fd.append("album_id", albumId);
-
-  //     const res = await fetch(saveUrl, {
-  //       method: "POST",
-  //       headers: { "X-CSRFToken": csrftoken() },
-  //       body: fd,
-  //     });
-
-  //     if (res.ok) {
-  //       bootstrap.Modal.getInstance(document.getElementById("saveToAlbumModal"))?.hide();
-  //     } else {
-  //       alert("Could not save to album.");
-  //     }
-  //   });
-  // }
 
   // Log play on <audio> 'play'
   document.addEventListener(
@@ -94,10 +87,25 @@
     (e) => {
       const audio = e.target;
       if (!(audio instanceof HTMLAudioElement)) return;
+      pauseOtherAudios(audio);
+      if (audio.classList.contains("inline-audio")) {
+        audio.classList.remove("d-none");
+        setInlineButtonState(audio, true);
+      }
       const url = audio.dataset.logUrl;
       if (!url) return;
       // fire-and-forget
       fetch(url, { method: "POST", headers: { "X-CSRFToken": csrftoken() } }).catch(() => {});
+    },
+    true
+  );
+
+  document.addEventListener(
+    "pause",
+    (e) => {
+      const audio = e.target;
+      if (!(audio instanceof HTMLAudioElement)) return;
+      if (audio.classList.contains("inline-audio")) setInlineButtonState(audio, false);
     },
     true
   );
