@@ -1,5 +1,13 @@
 // --------------------------- static/js/track_list.js ---------------------------//
-
+const trackListNotify = (message, level) => {
+  if (typeof window.showMessage === "function") {
+    return window.showMessage(message, level);
+  }
+  if (typeof window.alert === "function") {
+    window.alert(message);
+  }
+  return false;
+};
 /* ---------------- CSRF helpers (global) ----------------
    We expose window.getCookie and window.getCSRF so all IIFEs can use them. */
 (function () {
@@ -98,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (data && data.ok) {
           list.innerHTML = '<li class="list-group-item text-muted">No recently played tracks.</li>';
         } else {
-          alert((data && data.error) || "Failed to clear recent list.");
+          trackListNotify((data && data.error) || "Failed to clear recent list.", "danger");
         }
       } catch (err) {
         console.error("Error clearing recent list:", err);

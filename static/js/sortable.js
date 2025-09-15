@@ -2,6 +2,16 @@
 (function () {
   "use strict";
 
+  function notify(message, level) {
+    if (typeof window.showMessage === "function") {
+      return window.showMessage(message, level);
+    }
+    if (typeof window.alert === "function") {
+      window.alert(message);
+    }
+    return false;
+  }
+
   function getCookie(name) {
     let v = null;
     if (document.cookie) {
@@ -83,7 +93,7 @@
         await res.json();
       } catch (err) {
         console.error("Reorder save failed:", err);
-        alert("Couldn't save order. Please try again.");
+        notify("Couldn't save order. Please try again.", "danger");
       } finally {
         dragEl = null;
       }

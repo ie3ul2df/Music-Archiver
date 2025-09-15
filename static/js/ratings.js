@@ -1,6 +1,16 @@
 (function () {
   "use strict";
 
+  const notify = (message, level) => {
+    if (typeof window.showMessage === "function") {
+      return window.showMessage(message, level);
+    }
+    if (typeof window.alert === "function") {
+      window.alert(message);
+    }
+    return false;
+  };
+
   // ---- CSRF from cookie (Django)
   function getCookie(name) {
     const m = document.cookie.match("(^|;)\\s*" + name + "\\s*=\\s*([^;]+)");
@@ -73,7 +83,7 @@
       });
 
       if (res.status === 401) {
-        alert("Please log in to rate.");
+        notify("Please log in to rate.", "warning");
         return;
       }
 

@@ -1,5 +1,15 @@
 // static/js/cloud.js
 (function () {
+  const notify = (message, level) => {
+    if (typeof window.showMessage === "function") {
+      return window.showMessage(message, level);
+    }
+    if (typeof window.alert === "function") {
+      window.alert(message);
+    }
+    return false;
+  };
+
   // ---- CSRF helper ----
   function getCookie(name) {
     let cookieValue = null;
@@ -28,7 +38,7 @@
       const folderUrl = fd.get("folder_url");
 
       if (!albumId || !accountId || !folderUrl) {
-        alert("⚠ Please select album, account, and paste a folder URL.");
+        notify("⚠ Please select album, account, and paste a folder URL.", "warning");
         return;
       }
 
@@ -57,11 +67,11 @@
           throw new Error(data.error || `Failed to link (HTTP ${r.status})`);
         }
 
-        alert("✅ Folder linked successfully! Use Sync to import files.");
+        notify("✅ Folder linked successfully! Use Sync to import files.", "success");
         window.location.reload();
       } catch (err) {
         console.error("Link folder failed:", err);
-        alert("❌ " + err.message);
+        notify("❌ " + err.message, "danger");
       }
     });
   }
@@ -97,7 +107,7 @@
       btn.textContent = `Synced ✓ (${data.imported} new, ${data.updated} updated)`;
     } catch (err) {
       console.error("Sync failed:", err);
-      alert("❌ " + err.message);
+      notify("❌ " + err.message, "danger");
       btn.textContent = original;
     } finally {
       btn.disabled = false;

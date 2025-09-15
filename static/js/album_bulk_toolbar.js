@@ -2,6 +2,16 @@
 (function () {
   "use strict";
 
+  const notify = (message, level) => {
+    if (typeof window.showMessage === "function") {
+      return window.showMessage(message, level);
+    }
+    if (typeof window.alert === "function") {
+      window.alert(message);
+    }
+    return false;
+  };
+
   // ---------- Helpers ----------
   function getCookie(name) {
     let val = null;
@@ -104,7 +114,7 @@
 
       const ids = getSelectedTrackIds(albumEl);
       if (!ids.length) {
-        alert("Select at least one track.");
+        notify("Select at least one track.", "warning");
         return;
       }
 
@@ -117,7 +127,7 @@
         });
         const data = await res.json();
         if (data.ok) {
-          alert(`Added ${data.added} track(s), skipped ${data.skipped} duplicate(s).`);
+          notify(`Added ${data.added} track(s), skipped ${data.skipped} duplicate(s).`, "success");
           // Optional: update UI by turning per-row buttons into ✓
           ids.forEach((tid) => {
             const rowBtn = albumEl.querySelector(`.add-to-playlist[data-track="${tid}"]`);
@@ -130,11 +140,11 @@
             }
           });
         } else {
-          alert("Could not add tracks to playlist.");
+          notify("Could not add tracks to playlist.", "danger");
         }
       } catch (err) {
         console.error(err);
-        alert("Network error while adding tracks.");
+        notify("Network error while adding tracks.", "danger");
       }
       return;
     }
@@ -143,17 +153,17 @@
     if (btnSaveOne) {
       const { modal, form, hidden, countEl } = ensureSaveModalBits();
       if (!modal || !form || !hidden) {
-        alert("Save dialog is not configured correctly.");
+        notify("Save dialog is not configured correctly.", "danger");
         return;
       }
       if (!setFormAction(form, btnSaveOne) && !form.getAttribute("action")) {
-        alert("Missing save URL.");
+        notify("Missing save URL.", "danger");
         return;
       }
       const row = btnSaveOne.closest("[data-track-id]");
       const trackId = row?.dataset?.trackId;
       if (!trackId) {
-        alert("Could not determine track ID.");
+        notify("Could not determine track ID.", "danger");
         return;
       }
       hidden.value = trackId;
@@ -168,18 +178,18 @@
       if (!albumEl) return;
       const ids = getSelectedTrackIds(albumEl);
       if (!ids.length) {
-        alert("Select at least one track.");
+        notify("Select at least one track.", "warning");
         return;
       }
 
       const { modal, form, hidden, countEl } = ensureSaveModalBits();
       if (!modal || !form || !hidden) {
-        alert("Save dialog is not configured correctly.");
+        notify("Save dialog is not configured correctly.", "danger");
         return;
       }
 
       if (!setFormAction(form, btnSaveBulk) && !form.getAttribute("action")) {
-        alert("Missing save URL.");
+        notify("Missing save URL.", "danger");
         return;
       }
 
@@ -202,7 +212,7 @@
       const saveUrl = saveForm.getAttribute("action");
 
       if (!albumId || !ids || !saveUrl) {
-        alert("Missing album or tracks.");
+        notify("Missing album or tracks.", "danger");
         return;
       }
 
@@ -227,7 +237,7 @@
         bootstrap.Modal.getInstance(document.getElementById("saveToAlbumModal"))?.hide();
 
         // success feedback
-        alert(`Added ${data.added} track(s), skipped ${data.skipped} duplicate(s).`);
+        notify(`Added ${data.added} track(s), skipped ${data.skipped} duplicate(s).`, "success");
 
         // ✅ update UI without reload
 
@@ -260,7 +270,7 @@
         }
       } catch (err) {
         console.error(err);
-        alert(err.message || "Network error while saving tracks.");
+        notify(err.message || "Network error while saving tracks.", "danger");
       }
     });
   }
@@ -281,7 +291,7 @@
     const itemIds = checked.map((cb) => cb.closest("li.track-card")?.dataset.id).filter(Boolean);
 
     if (itemIds.length === 0) {
-      alert("Select at least one track to remove.");
+      notify("Select at least one track to remove.", "warning");
       return;
     }
     if (!confirm(`Remove ${itemIds.length} track(s) from this album?`)) return;
@@ -314,7 +324,7 @@
       }
     } catch (err) {
       console.error(err);
-      alert(err.message || "Bulk remove failed.");
+      notify(err.message || "Bulk remove failed.", "danger");
     } finally {
       btn.disabled = false;
       btn.innerHTML = origHTML;

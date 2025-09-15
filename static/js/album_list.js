@@ -3,6 +3,15 @@
   "use strict";
   const U = window.AlbumUtils || {};
 
+  const notify = (message, level) => {
+    if (typeof window.showMessage === "function") {
+      return window.showMessage(message, level);
+    }
+    if (typeof window.alert === "function") {
+      window.alert(message);
+    }
+    return false;
+  };
   // ========== Delete Album (modal + submit) ==========
   U.onModalShow &&
     U.onModalShow("deleteAlbumModal", ({ modal, trigger }) => {
@@ -27,11 +36,13 @@
           if (li) li.remove();
           bootstrap.Modal.getInstance(document.getElementById("deleteAlbumModal"))?.hide();
         } else {
-          alert(data.error || "Failed to delete album.");
+          // alert(data.error || "Failed to delete album.");
+          notify(data.error || "Failed to delete album.", "danger");
         }
       } catch (err) {
         console.error("Delete failed:", err);
-        alert("Something went wrong deleting the album.");
+        // alert("Something went wrong deleting the album.");
+        notify("Something went wrong deleting the album.", "danger");
       }
     });
   });
@@ -44,7 +55,11 @@
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const name = (form.querySelector("[name=name]")?.value || "").trim();
-      if (!name) return alert("Please enter an album name");
+      // if (!name) return alert("Please enter an album name");
+      if (!name) {
+        notify("Please enter an album name", "warning");
+        return;
+      }
 
       try {
         const data = await U.postForm(form.action, { name });
@@ -86,11 +101,13 @@
             list.prepend(li);
           }
         } else {
-          alert(data.error || "Could not create album");
+          // alert(data.error || "Could not create album");
+          notify(data.error || "Could not create album", "danger");
         }
       } catch (err) {
         console.error("Album create failed:", err);
-        alert("Free users are limited to 3 albums only, upgrade for unlimited album and anlimited tracks...");
+        // alert("Free users are limited to 3 albums only, upgrade for unlimited album and anlimited tracks...");
+        notify("Free users are limited to 3 albums only, upgrade for unlimited album and anlimited tracks...", "warning");
       }
     });
   });
@@ -125,13 +142,22 @@
         const url = renameForm.getAttribute("action");
         const newName = (renameInput?.value || "").trim();
 
-        if (!url) return alert("Missing rename URL.");
-        if (!newName) return alert("Name cannot be empty.");
+        // if (!url) return alert("Missing rename URL.");
+        // if (!newName) return alert("Name cannot be empty.");
+        if (!url) {
+          notify("Missing rename URL.", "danger");
+          return;
+        }
+        if (!newName) {
+          notify("Name cannot be empty.", "warning");
+          return;
+        }
 
         try {
           const data = await U.postForm(url, { name: newName }); // expects {ok, name, detail_url?}
           if (!data || data.ok === false) {
-            alert((data && data.error) || "Rename failed");
+            // alert((data && data.error) || "Rename failed");
+            notify((data && data.error) || "Rename failed", "danger");
             return;
           }
 
@@ -169,7 +195,8 @@
           }
         } catch (err) {
           console.error("Rename error:", err);
-          alert("Something went wrong renaming album.");
+          // alert("Something went wrong renaming album.");
+          notify("Something went wrong renaming album.", "danger");
         }
       });
     }

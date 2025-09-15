@@ -1,6 +1,16 @@
 (function () {
   "use strict";
 
+  const notify = (message, level) => {
+    if (typeof window.showMessage === "function") {
+      return window.showMessage(message, level);
+    }
+    if (typeof window.alert === "function") {
+      window.alert(message);
+    }
+    return false;
+  };
+
   // --- CSRF from cookie ---
   function getCookie(name) {
     const value = `; ${document.cookie}`;
@@ -82,10 +92,18 @@
         headers: { "X-CSRFToken": csrfToken },
       });
       const data = await resp.json().catch(() => ({}));
-      alert(data && data.ok ? (data.created ? "Album saved ✓" : "Album already saved.") : "Could not save album.");
+      // alert(data && data.ok ? (data.created ? "Album saved ✓" : "Album already saved.") : "Could not save album.");
+      const ok = !!(data && data.ok);
+      if (ok) {
+        const created = !!data.created;
+        const message = created ? "Album saved ✓" : "Album already saved.";
+        notify(message, created ? "success" : "info");
+      } else {
+        notify("Could not save album.", "danger");
+      }
     } catch (err) {
       console.error("Save album error", err);
-      alert("Network error.");
+      notify("Network error.", "danger");
     }
   });
 })();

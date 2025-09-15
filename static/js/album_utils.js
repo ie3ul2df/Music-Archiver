@@ -2,6 +2,16 @@
 (function (w) {
   "use strict";
 
+  const notify = (message, level) => {
+    if (typeof window.showMessage === "function") {
+      return window.showMessage(message, level);
+    }
+    if (typeof window.alert === "function") {
+      window.alert(message);
+    }
+    return false;
+  };
+
   // ---------- helpers ----------
   function getCookie(name) {
     let val = null;
@@ -115,7 +125,7 @@
         if (modal) bootstrap.Modal.getInstance(modal)?.hide();
       } catch (err) {
         console.error(err);
-        alert(err.message || "Rename failed.");
+        notify(err.message || "Rename failed.", "danger");
       }
     }
 
@@ -149,7 +159,7 @@
         }
       } catch (err) {
         console.error(err);
-        alert(err.message || "Delete failed.");
+        notify(err.message || "Delete failed.", "danger");
       }
     }
   });
@@ -232,7 +242,7 @@
       bootstrap.Modal.getInstance(document.getElementById("renameTrackModal"))?.hide();
     } catch (err) {
       console.error("Track rename failed:", err);
-      alert(err.message || "Rename failed. Please try again.");
+      notify(err.message || "Rename failed. Please try again.", "danger");
     }
   });
 })(window);

@@ -1,6 +1,16 @@
 (function () {
   "use strict";
 
+  const notify = (message, level) => {
+    if (typeof window.showMessage === "function") {
+      return window.showMessage(message, level);
+    }
+    if (typeof window.alert === "function") {
+      window.alert(message);
+    }
+    return false;
+  };
+
   function getCookie(name) {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
@@ -33,11 +43,11 @@
           countEl.textContent = data.followers;
         }
       } else {
-        alert(data.error || "Action failed.");
+        notify(data.error || "Action failed.", "danger");
       }
     } catch (err) {
       console.error(err);
-      alert("Network error.");
+      notify("Network error.", "danger");
     } finally {
       btn.disabled = false;
     }

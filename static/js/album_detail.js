@@ -3,6 +3,15 @@
   "use strict";
   const U = window.AlbumUtils || {};
 
+  const notify = (message, level) => {
+    if (typeof window.showMessage === "function") {
+      return window.showMessage(message, level);
+    }
+    if (typeof window.alert === "function") {
+      window.alert(message);
+    }
+    return false;
+  };
   // ========== Track DELETE (🗑) ==========
   U.onModalShow &&
     U.onModalShow("deleteTrackModal", ({ modal, trigger }) => {
@@ -32,11 +41,13 @@
           if (row) row.remove();
           bootstrap.Modal.getInstance(document.getElementById("deleteTrackModal"))?.hide();
         } else {
-          alert(data.error || "Failed to delete track.");
+          // alert(data.error || "Failed to delete track.");
+          notify(data.error || "Failed to delete track.", "danger");
         }
       } catch (err) {
         console.error("Delete track error:", err);
-        alert("Network error while deleting track.");
+        // alert("Network error while deleting track.");
+        notify("Network error while deleting track.", "danger");
       }
     });
   });
@@ -56,7 +67,8 @@
       if (row) row.remove();
     } catch (err) {
       console.error("Detach error:", err);
-      alert("Failed to remove track from album.");
+      // alert("Failed to remove track from album.");
+      notify("Failed to remove track from album.", "danger");
     }
   });
 
