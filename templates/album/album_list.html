@@ -56,25 +56,36 @@
       <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
         <h2 class="mb-0">Your Albums</h2>
 
-        <!-- Search form -->
-        <div class="input-group mb-3" id="album-search"
-            data-search-url="{% url 'album:unified_search' %}">
-          <span class="input-group-text">🔎</span>
-          <input
-            type="search"
-            class="form-control js-unified-search"
-            placeholder="Search Tracks & Albums..."
-            aria-label="Search albums"
-            data-target="#album-list">
-          <button class="btn btn-outline-secondary js-unified-search-clear" type="button">Clear</button>
+        <div class="container">
+          <div class="row">
+
+            <div class="col-9">
+              <!-- Search form -->
+              <div class="input-group mb-3" id="album-search"
+                  data-search-url="{% url 'album:unified_search' %}">
+                <span class="input-group-text">🔎</span>
+                <input
+                  type="search"
+                  class="form-control js-unified-search"
+                  placeholder="Search Tracks & Albums..."
+                  aria-label="Search albums"
+                  data-target="#album-list">
+                <button class="btn btn-outline-secondary js-unified-search-clear" type="button">Clear</button>
+              </div>
+            </div>
+
+            <div class="col-3">
+              <!-- Create new album (AJAX) -->
+              <form id="album-create-form" action="{% url 'album:ajax_add_album' %}" method="post" class="d-flex gap-2">
+                {% csrf_token %}
+                <input name="name" class="form-control" placeholder="New album name" required aria-label="New album name" />
+                <button class="btn btn-outline-primary" type="submit"><span>➕</span>&nbspCreate</button>
+              </form>
+            </div>
+
+          </div>
         </div>
 
-        <!-- Create new album (AJAX) -->
-        <form id="album-create-form" action="{% url 'album:ajax_add_album' %}" method="post" class="d-flex gap-2">
-          {% csrf_token %}
-          <input name="name" class="form-control" placeholder="New album name" required aria-label="New album name" />
-          <button class="btn btn-primary" type="submit">➕ Create</button>
-        </form>
       </div>
 
       <!-- Album list -->

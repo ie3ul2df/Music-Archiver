@@ -1,5 +1,5 @@
 {# templates/album/_album_card.html #}
-<li class="album list-group-item d-flex justify-content-between align-items-center flex-wrap"
+<li class="album list-group-item d-flex justify-content-between align-items-center"
     data-id="{{ album.pk }}"
     draggable="true">
 
@@ -17,10 +17,12 @@
               data-role="album-name">
               {{ album.name }}
             </a>
-            {% if album.is_public %}
-              <span class="badge bg-success ms-2">Public</span>
-            {% else %}
-              <span class="badge bg-secondary ms-2">Private</span>
+            {% if request.resolver_match.url_name != 'home' %}
+              {% if album.is_public %}
+                <span class="badge bg-success ms-2">Public</span>
+              {% else %}
+                <span class="badge bg-secondary ms-2">Private</span>
+              {% endif %}
             {% endif %}
           </div>
 
@@ -31,7 +33,7 @@
                 href="{% if owner_url %}{{ owner_url }}{% else %}{% url 'user_tracks' album.owner.username %}{% endif %}">
                 🔗 {{ album.owner.username }}
               </a>
-          </div>
+            </div>
           {% endif %}
         </div>
 
@@ -42,58 +44,60 @@
           </div>
         </div>
 
-        <div class="col d-flex justify-content-end">
-          {# --- Owner CRUD (unchanged) --- #}
-          {% if request.user.is_authenticated and request.user.id == album.owner_id %}
-            {% if request.resolver_match.url_name != "home" %}
-              <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group">
-                <div class="dropdown">
-                  <button class="btn btn-sm dropdown-toggle" type="button" id="dropdownMenu2" data-bs-toggle="dropdown" aria-expanded="false">
-                  Album Actions
-                  </button>
-                  <ul class="dropdown-menu action-dropdown-menu" aria-labelledby="dropdownMenu2">
-                    <li class="m-2">
-                      <a href="{% url 'album:album_detail' album.pk %}" class="btn btn-outline-primary">👁 View</a>
-                    </li>
-                    <li class="m-2">
-                      {# ✏ Edit — only if we have a valid URL #}
-                      {% if rename_url %}
-                        <button type="button"
-                                class="btn btn-outline-secondary rename-album-btn"
-                                data-bs-toggle="modal"
-                                data-bs-target="#renameAlbumModal"
-                                data-url="{{ rename_url }}"
-                                data-current-name="{{ album.name }}">
-                          ✏ Edit
-                        </button>
-                      {% endif %}
-                    </li>
-                    <li class="m-2">
-                      {% if toggle_visibility_url %}
-                        <a href="{{ toggle_visibility_url }}" class="btn btn-outline-warning">
-                          {% if album.is_public %}🔒 Private{% else %}🌍 Public{% endif %}
-                        </a>
-                      {% endif %}
-                    </li>
-                    <li class="m-2">
-                      {% if delete_url %}
-                        <button type="button"
-                                class="btn btn-outline-danger"
-                                data-bs-toggle="modal"
-                                data-bs-target="#deleteAlbumModal"
-                                data-url="{{ delete_url }}"
-                                data-album-name="{{ album.name }}">
-                          🗑 Delete
-                        </button>
-                      {% endif %}
-                    </li>
-                  </ul>
-                </div>
+        {% if request.resolver_match.url_name != 'home' %}
+          <div class="col d-flex justify-content-end">
+            {# --- Owner CRUD (unchanged) --- #}
+            {% if request.user.is_authenticated and request.user.id == album.owner_id %}
+              {% if request.resolver_match.url_name != "home" %}
+                <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group">
+                  <div class="dropdown">
+                    <button class="btn btn-sm dropdown-toggle" type="button" id="dropdownMenu2" data-bs-toggle="dropdown" aria-expanded="false">
+                    Album Actions
+                    </button>
+                    <ul class="dropdown-menu action-dropdown-menu" aria-labelledby="dropdownMenu2">
+                      <li class="m-2">
+                        <a href="{% url 'album:album_detail' album.pk %}" class="btn btn-outline-primary">👁 View</a>
+                      </li>
+                      <li class="m-2">
+                        {# ✏ Edit — only if we have a valid URL #}
+                        {% if rename_url %}
+                          <button type="button"
+                                  class="btn btn-outline-secondary rename-album-btn"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#renameAlbumModal"
+                                  data-url="{{ rename_url }}"
+                                  data-current-name="{{ album.name }}">
+                            ✏ Edit
+                          </button>
+                        {% endif %}
+                      </li>
+                      <li class="m-2">
+                        {% if toggle_visibility_url %}
+                          <a href="{{ toggle_visibility_url }}" class="btn btn-outline-warning">
+                            {% if album.is_public %}🔒 Private{% else %}🌍 Public{% endif %}
+                          </a>
+                        {% endif %}
+                      </li>
+                      <li class="m-2">
+                        {% if delete_url %}
+                          <button type="button"
+                                  class="btn btn-outline-danger"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#deleteAlbumModal"
+                                  data-url="{{ delete_url }}"
+                                  data-album-name="{{ album.name }}">
+                            🗑 Delete
+                          </button>
+                        {% endif %}
+                      </li>
+                    </ul>
+                  </div>
 
-              </div>
+                </div>
+              {% endif %}
             {% endif %}
-          {% endif %}
-        </div>
+          </div>
+        {% endif %}
 
       </div>
     </div>
