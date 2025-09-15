@@ -1,0 +1,135 @@
+/* Highlight active link */
+.navbar .nav-link.active {
+  font-weight: bold;
+}
+
+/* Navbar brand styling */
+.navbar-brand {
+  font-size: 1.3rem;
+}
+
+/* Highlight the Premium card */
+.pricing-card.bg-light {
+  border: 2px solid #000000 !important;
+}
+
+/* Card hover effect */
+.plan-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.plan-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.action-dropdown-menu {
+  min-width: 100% !important;
+}
+
+/* ---------------------------
+   Checkout page styles
+--------------------------- */
+#loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.8);
+  z-index: 9999;
+  display: none; /* hidden by default */
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------------------------
+   Rating styles 
+--------------------------- */
+
+.star-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 1.6rem;
+}
+
+.star-rating .stars {
+  display: flex; /* normal LTR order */
+  align-items: center;
+}
+
+.star-rating .star-btn {
+  appearance: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  padding: 0 4px;
+  color: #c9ccd3; /* base grey */
+  transition: color 0.2s ease, transform 0.15s ease, text-shadow 0.2s ease;
+}
+
+/* Persisted selection from server (or post-click) */
+.star-rating .star-btn.is-selected {
+  color: #f5c518; /* gold */
+  text-shadow: 0 0 8px rgba(245, 197, 24, 0.6);
+}
+
+/* JS adds .is-hover to stars 1..N while hovering a star */
+.star-rating .star-btn.is-hover {
+  color: #f5c518;
+  transform: translateY(-1px) scale(1.12);
+  text-shadow: 0 0 10px rgba(245, 197, 24, 0.75);
+}
+
+/* While the group is busy posting, disable pointer */
+.star-rating.is-busy .star-btn {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.rating-summary {
+  font-size: 1rem;
+}
+
+/* Drag handle for favourites */
+
+li.track-item.dragging {
+  opacity: 0.6;
+  background: #f8f9fa;
+}
+
+/* Sorting Styles */
+.sortable-item.dragging {
+  opacity: 0.5;
+}
+.sortable-ready {
+  user-select: none;
+}
+
+#album-list > li.reorder-item {
+  cursor: grab;
+}
+.album-tracklist > li.reorder-item {
+  cursor: move;
+}
+
+.track-card {
+  cursor: grab;
+}
+.track-card:active {
+  cursor: grabbing;
+}
+.track-card .btn,
+.track-card a {
+  cursor: pointer; /* don’t show grab cursor on controls */
+}
+
+.drag-handle {
+  cursor: grab;
+  user-select: none;
+}
+.dragging .drag-handle {
+  cursor: grabbing;
+}
