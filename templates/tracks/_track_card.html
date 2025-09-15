@@ -32,8 +32,10 @@
       <a class="text-decoration-none small text-muted" href="{% url 'album:album_detail' album.id %}">· {{ album.name }}</a>
     {% endif %}
 
-    <a class="text-decoration-none small text-muted" href="{% url 'user_tracks' track.owner.username %}">· {{ track.owner.username }}</a>
-
+    <a class="text-decoration-none small text-muted"
+      href="{% url 'profile:public_profile' track.owner.username %}">
+      🔗 by <span class="fw-bold"> {{ track.owner.username }} </span>
+    </a>
     <!-------------- Actions -------------->
     <span class="ms-auto d-flex align-items-center gap-1">
 
