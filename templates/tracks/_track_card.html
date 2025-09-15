@@ -34,33 +34,10 @@
 
     <a class="text-decoration-none small text-muted" href="{% url 'user_tracks' track.owner.username %}">· {{ track.owner.username }}</a>
 
-    <!-- Actions -->
-    <span class="ms-auto d-flex align-items-center gap-1">
+    <!-------------- Actions -------------->
+      <span class="ms-auto d-flex align-items-center gap-1">
 
-      {# ♥ Favourite #}
-      {% with fav=is_favorited %}
-        <button
-          class="btn btn-sm {% if fav %}btn-danger{% else %}btn-outline-danger{% endif %} js-fav"
-          data-url="{% url 'toggle_favorite' track.id %}"
-          title="Favourite"
-          aria-pressed="{{ fav|yesno:'true,false' }}">
-          {% if fav %}♥{% else %}♡{% endif %}
-        </button>
-      {% endwith %}
-
-      {% if request.user.is_authenticated %}
-        <button class="btn btn-sm btn-outline-secondary js-save"
-                data-save-url="{% url 'save_system:save_track' track.id %}"
-                data-bs-toggle="modal" data-bs-target="#saveToAlbumModal"
-                title="Save to one of my albums">
-          {% if track.owner_id == request.user.id or track.is_in_my_albums %}🗃️{% else %}💾{% endif %}
-        </button>
-      {% endif %}
-
-      <a class="btn btn-sm btn-outline-secondary" href="{% url 'download_track' track.id %}" title="Download">⬇</a>
-
-      <button class="btn btn-sm btn-primary js-inline-play" title="Play/Pause">▶</button>
-
+      {# ★ Rankings #}
       <span class="ms-1 rating-wrap">
         {% if at and at.rating_html %}{{ at.rating_html|safe }}
         {% else %}
@@ -68,45 +45,100 @@
         {% endif %}
       </span>
 
-      {% if is_owner and album and album_item_id %}
-        <button type="button"
-                class="btn btn-sm btn-outline-secondary rename-track-btn"
-                data-url="{% url 'album:album_rename_track' album.id album_item_id %}"
-                data-track-name="{% if at and at.custom_name %}{{ at.custom_name }}{% else %}{{ track.name }}{% endif %}"
-                data-bs-toggle="modal"
-                data-bs-target="#renameTrackModal">✏</button>
+      {# ▶ Play/Pause #}
+      <button class="btn btn-lg border-0 fs-3 js-inline-play" title="Play/Pause">▶</button>
+
+      <div class="dropdown">
+        <button class="btn btn-lg dropdown-toggle" type="button" id="dropdownMenu2" data-bs-toggle="dropdown" aria-expanded="false">
+        Actions
+        </button>
+        <ul class="dropdown-menu" aria-labelledby="dropdownMenu2">
+            
+            {# ♥ Favourite #}
+            {% with fav=is_favorited %}
+            <li class="m-2">
+              Favourite
+              <button
+                class="btn btn-lg rounded-circle {% if fav %}btn-danger{% else %}btn-outline-danger{% endif %} js-fav"
+                data-url="{% url 'toggle_favorite' track.id %}"
+                title="Favourite"
+                aria-pressed="{{ fav|yesno:'true,false' }}">
+                {% if fav %}♥{% else %}♡{% endif %}
+              </button>
+            </li>
+            {% endwith %}
+          
+            {% if request.user.is_authenticated %}
+            <li class="m-2">
+              Save
+              <button class="btn btn-outline-info btn-lg border-0 js-save"
+                      data-save-url="{% url 'save_system:save_track' track.id %}"
+                      data-bs-toggle="modal" data-bs-target="#saveToAlbumModal"
+                      title="Save to one of my albums">
+                {% if track.owner_id == request.user.id or track.is_in_my_albums %}🗃️{% else %}💾{% endif %}
+              </button>
+            </li>
+            {% endif %}
+
+            <li class="m-2">
+              Download
+              <a class="btn btn-lg btn-outline-secondary border-0" href="{% url 'download_track' track.id %}" title="Download">⬇</a>
+            </li>
+
+            {% if is_owner and album and album_item_id %}
+            <li class="m-2">
+              Rename
+              <button type="button"
+                      class="btn btn-lg btn-outline-secondary border-0 rename-track-btn"
+                      data-url="{% url 'album:album_rename_track' album.id album_item_id %}"
+                      data-track-name="{% if at and at.custom_name %}{{ at.custom_name }}{% else %}{{ track.name }}{% endif %}"
+                      data-bs-toggle="modal"
+                      data-bs-target="#renameTrackModal">✏</button>
+            </li>
+
+              {% if track.is_my_track %}
+              Delete
+              <li class="m-2">
+                <button type="button"
+                        class="btn btn-lg btn-outline-danger delete-track-btn border-0"
+                        data-track-id="{{ track.id }}"
+                        data-track-name="{{ track.name }}"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteTrackModal">🗑</button>
+              </li>
+              {% endif %}
+
+              <li class="m-2">
+              Detach
+              <button type="button"
+                      class="btn btn-lg btn-outline-warning border-0 js-detach"
+                      data-detach-url="{% url 'album:album_detach_track' album.id album_item_id %}"
+                      title="Remove from this album">⛔</button>
+              </li>
+            {% endif %}
+          </span>
+
+          {# ➕ / ✓ In — playlist toggle (always render; JS normalizes) #}
+          {% with inpl=in_playlist %}
+          <li class="m-2">
+            Playlist
+            <button
+              type="button"
+              class="btn btn-lg add-to-playlist {% if inpl %}btn-success{% else %}btn-outline-success{% endif %} border-0"
+              {# avoid duplicate ids; either drop id or make it unique: #}
+              id="add-to-playlist-{{ track.id }}{% if album_item_id %}-{{ album_item_id }}{% endif %}"
+              data-track="{{ track.id }}"
+              data-url="{% url 'playlist:toggle' track.id %}"
+              data-in="{% if inpl %}1{% else %}0{% endif %}"
+              aria-pressed="{{ inpl|yesno:'true,false' }}">
+              {% if inpl %}✓{% else %}➕{% endif %}
+            </button>
+          </li>
+          {% endwith %}
+        </ul>
+      </div>
 
 
-        {% if track.is_my_track %}
-          <button type="button"
-                  class="btn btn-sm btn-outline-danger delete-track-btn"
-                  data-track-id="{{ track.id }}"
-                  data-track-name="{{ track.name }}"
-                  data-bs-toggle="modal"
-                  data-bs-target="#deleteTrackModal">🗑</button>
-        {% endif %}
-
-        <button type="button"
-                class="btn btn-sm btn-outline-warning js-detach"
-                data-detach-url="{% url 'album:album_detach_track' album.id album_item_id %}"
-                title="Remove from this album">⛔</button>
-      {% endif %}
-    </span>
-
-    {# ➕ / ✓ In — playlist toggle (always render; JS normalizes) #}
-    {% with inpl=in_playlist %}
-      <button
-        type="button"
-        class="btn btn-sm add-to-playlist {% if inpl %}btn-success{% else %}btn-outline-success{% endif %}"
-        {# avoid duplicate ids; either drop id or make it unique: #}
-        id="add-to-playlist-{{ track.id }}{% if album_item_id %}-{{ album_item_id }}{% endif %}"
-        data-track="{{ track.id }}"
-        data-url="{% url 'playlist:toggle' track.id %}"
-        data-in="{% if inpl %}1{% else %}0{% endif %}"
-        aria-pressed="{{ inpl|yesno:'true,false' }}">
-        {% if inpl %}✓{% else %}➕{% endif %}
-      </button>
-    {% endwith %}
 
   </div>
 
