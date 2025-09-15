@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     # Track list / main player
     path("", views.track_list, name="track_list"),
+    path("public/", views.track_list_public, name="track_list_public"),
 
     # Favourites & Recently Played
     path("favorites/", views.favorites_list, name="favorites_list"),

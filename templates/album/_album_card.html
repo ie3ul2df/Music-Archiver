@@ -122,6 +122,21 @@
         {% endif %}
 
       </div>
+    {% else %}
+      <div class="d-flex align-items-center gap-2 mt-3 flex-wrap">
+        <div class="form-check me-2">
+          <input class="form-check-input check-all" type="checkbox" id="check-all-{{ album.id }}">
+          <label class="form-check-label small" for="check-all-{{ album.id }}">Select all</label>
+        </div>
+
+        <button type="button"
+                class="btn btn-sm btn-outline-success js-add-selected"
+                data-url="{% url 'playlist:bulk_add' %}"
+                title="Add selected tracks to playlist">
+          ➕ Add to playlist
+        </button>
+
+      </div>
     {% endif %}
 
     {# --- Track list --- #}

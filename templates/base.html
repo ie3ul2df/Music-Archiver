@@ -41,9 +41,15 @@
             <li class="nav-item">
               <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'home' %}">🏠 Home</a>
             </li>
+            {% if user.is_authenticated %}
             <li class="nav-item">
-              <a class="nav-link {% if request.resolver_match.url_name == 'track_list' %}active{% endif %}" href="{% url 'track_list' %}">🎵 Music Player</a>
+              <a class="nav-link {% if request.resolver_match.url_name == 'track_list' %}active{% endif %}" href="{% url 'track_list' %}">🎵 My Player</a>
             </li>
+            {% else %}
+            <li class="nav-item">
+              <a class="nav-link {% if request.resolver_match.url_name == 'track_list_public' %}active{% endif %}" href="{% url 'track_list_public' %}">🎵 Music Player</a>
+            </li>
+            {% endif %}
             {% if user.is_authenticated %}
             <li class="nav-item">
               <a class="nav-link {% if request.resolver_match.url_name == 'album_list' %}active{% endif %}" href="{% url 'album:album_list' %}">📂 My Albums</a>

@@ -2,13 +2,13 @@
 import json, re, requests
 from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect
-from django.http import JsonResponse, HttpResponseBadRequest, StreamingHttpResponse
+from django.http import JsonResponse, HttpResponseBadRequest, StreamingHttpResponse, HttpResponseForbidden
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from .providers.gdrive import GoogleDriveProvider
 from django.views.decorators.csrf import csrf_exempt
 
@@ -180,76 +180,167 @@ def sync_album(request, album_id: int):
 
 # ---------- Stream proxy (supports Range for scrubbing) ----------
 
-@login_required
+# @login_required
+# def stream_file(request, provider: str, file_id: str):
+#     """
+#     Proxy a Google Drive file to the client, using the *owner's* OAuth token
+#     (found via CloudFileMap) so other users can play shared/public tracks.
+#     """
+#     if provider != "gdrive":
+#         return HttpResponseBadRequest("Unsupported provider")
+
+#     # Look up which cloud account owns this file
+#     mapping = (
+#         CloudFileMap.objects
+#         .select_related("link__account")
+#         .filter(file_id=file_id)
+#         .first()
+#     )
+#     if not mapping:
+#         return HttpResponseBadRequest("File not found")
+
+#     acc = mapping.link.account
+
+#     # Normalize scopes (can be list/tuple or a JSON/string)
+#     raw_scopes = getattr(settings, "GOOGLE_OAUTH_SCOPES", [])
+#     if isinstance(raw_scopes, (list, tuple, set)):
+#         scopes = list(raw_scopes)
+#     elif isinstance(raw_scopes, str):
+#         raw = raw_scopes.strip()
+#         if raw.startswith("["):  # JSON list in env
+#             try:
+#                 scopes = json.loads(raw)
+#             except Exception:
+#                 scopes = [raw_scopes]
+#         elif " " in raw:
+#             scopes = raw.split()
+#         else:
+#             scopes = [raw_scopes]
+#     else:
+#         scopes = ["https://www.googleapis.com/auth/drive.readonly"]
+
+#     # Build/refresh credentials from the owner's stored token
+#     info = json.loads(acc.token_json)
+#     creds = Credentials.from_authorized_user_info(info, scopes=scopes)
+#     if (not creds.valid) and creds.refresh_token:
+#         creds.refresh(Request())
+#         acc.token_json = creds.to_json()
+#         acc.save(update_fields=["token_json"])
+
+#     # Prepare Google Drive request (support Range for scrubbing)
+#     headers = {"Authorization": f"Bearer {creds.token}"}
+#     range_header = request.META.get("HTTP_RANGE")
+#     if range_header:
+#         headers["Range"] = range_header
+
+#     gurl = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
+#     r = requests.get(gurl, headers=headers, stream=True)
+
+#     # If Google returns an error, surface a minimal message
+#     if r.status_code in (401, 403, 404):
+#         # (Optional: log r.text for debugging)
+#         return HttpResponseBadRequest("Unable to fetch file from Drive")
+
+#     # Stream bytes back to the client
+#     status = 206 if r.status_code == 206 else 200
+#     resp = StreamingHttpResponse(
+#         r.iter_content(chunk_size=8192),
+#         status=status,
+#         content_type=r.headers.get("Content-Type", "audio/mpeg"),
+#     )
+
+#     # Pass-through relevant headers
+#     if r.headers.get("Content-Length"):
+#         resp["Content-Length"] = r.headers["Content-Length"]
+#     if r.headers.get("Content-Range"):
+#         resp["Content-Range"] = r.headers["Content-Range"]
+#         resp.status_code = 206
+#     if r.headers.get("Content-Disposition"):
+#         resp["Content-Disposition"] = r.headers["Content-Disposition"]
+
+#     resp["Accept-Ranges"] = "bytes"
+#     resp["Cache-Control"] = "private, max-age=3600"
+#     return resp
+
+
+@require_GET
 def stream_file(request, provider: str, file_id: str):
     """
-    Proxy a Google Drive file to the client, using the *owner's* OAuth token
-    (found via CloudFileMap) so other users can play shared/public tracks.
+    Public proxy for Google Drive audio.
+    Permits:
+      - Owner of the connected Drive account, OR
+      - Anyone if the track is in at least one public album.
+    Streams bytes with Range support using the owner's token.
     """
     if provider != "gdrive":
         return HttpResponseBadRequest("Unsupported provider")
 
-    # Look up which cloud account owns this file
+    # Which file is this, and who owns the token?
     mapping = (
         CloudFileMap.objects
-        .select_related("link__account")
+        .select_related("link__account", "track")
         .filter(file_id=file_id)
         .first()
     )
     if not mapping:
         return HttpResponseBadRequest("File not found")
 
-    acc = mapping.link.account
+    owner_user_id = mapping.link.account.user_id
 
-    # Normalize scopes (can be list/tuple or a JSON/string)
+    # Permission: owner OR public album contains this track
+    is_owner = request.user.is_authenticated and request.user.id == owner_user_id
+    is_public = AlbumTrack.objects.filter(
+        track=mapping.track, album__is_public=True
+    ).exists()
+
+    if not (is_owner or is_public):
+        return HttpResponseForbidden("Track is not public.")
+
+    # Normalize scopes from settings (handles list/space-separated/JSON string)
     raw_scopes = getattr(settings, "GOOGLE_OAUTH_SCOPES", [])
     if isinstance(raw_scopes, (list, tuple, set)):
         scopes = list(raw_scopes)
     elif isinstance(raw_scopes, str):
-        raw = raw_scopes.strip()
-        if raw.startswith("["):  # JSON list in env
+        s = raw_scopes.strip()
+        if s.startswith("["):
             try:
-                scopes = json.loads(raw)
+                scopes = json.loads(s)
             except Exception:
                 scopes = [raw_scopes]
-        elif " " in raw:
-            scopes = raw.split()
+        elif " " in s:
+            scopes = s.split()
         else:
             scopes = [raw_scopes]
     else:
         scopes = ["https://www.googleapis.com/auth/drive.readonly"]
 
-    # Build/refresh credentials from the owner's stored token
-    info = json.loads(acc.token_json)
+    # Build/refresh owner credentials
+    info = json.loads(mapping.link.account.token_json)
     creds = Credentials.from_authorized_user_info(info, scopes=scopes)
     if (not creds.valid) and creds.refresh_token:
         creds.refresh(Request())
-        acc.token_json = creds.to_json()
-        acc.save(update_fields=["token_json"])
+        mapping.link.account.token_json = creds.to_json()
+        mapping.link.account.save(update_fields=["token_json"])
 
-    # Prepare Google Drive request (support Range for scrubbing)
+    # Proxy request to Drive (support Range for scrubbing)
     headers = {"Authorization": f"Bearer {creds.token}"}
-    range_header = request.META.get("HTTP_RANGE")
-    if range_header:
-        headers["Range"] = range_header
+    if request.META.get("HTTP_RANGE"):
+        headers["Range"] = request.META["HTTP_RANGE"]
 
-    gurl = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
-    r = requests.get(gurl, headers=headers, stream=True)
+    g_url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
+    r = requests.get(g_url, headers=headers, stream=True)
 
-    # If Google returns an error, surface a minimal message
     if r.status_code in (401, 403, 404):
-        # (Optional: log r.text for debugging)
+        # Optional: log r.text for diagnostics
         return HttpResponseBadRequest("Unable to fetch file from Drive")
 
-    # Stream bytes back to the client
     status = 206 if r.status_code == 206 else 200
     resp = StreamingHttpResponse(
         r.iter_content(chunk_size=8192),
         status=status,
         content_type=r.headers.get("Content-Type", "audio/mpeg"),
     )
-
-    # Pass-through relevant headers
+    # Pass-through useful headers
     if r.headers.get("Content-Length"):
         resp["Content-Length"] = r.headers["Content-Length"]
     if r.headers.get("Content-Range"):
@@ -259,6 +350,6 @@ def stream_file(request, provider: str, file_id: str):
         resp["Content-Disposition"] = r.headers["Content-Disposition"]
 
     resp["Accept-Ranges"] = "bytes"
-    resp["Cache-Control"] = "private, max-age=3600"
+    resp["Cache-Control"] = "public, max-age=3600"  # safe for public assets
     return resp
 

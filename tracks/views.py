@@ -14,6 +14,7 @@ from django.db.models import (
     Max, Exists, OuterRef, Prefetch, Avg, Count, Subquery, F
 )
 from django.db.models.functions import Coalesce
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 from .models import Track, Listen, Favorite
 from .forms import TrackForm
@@ -29,6 +30,7 @@ from tracks.utils import mark_track_ownership, annotate_is_in_my_albums
 from save_system.models import SavedTrack
 from playlist.models import Playlist, PlaylistItem
 from .models import Listen
+from playlist.views import _guest_get
 
 ##### -------------------- Track List (main tabs UI) -------------------- #####
 
@@ -204,6 +206,157 @@ def track_list(request):
             "playlist": playlist,
             "playlist_items": playlist_items,
             "in_playlist_ids": list(in_playlist_ids), 
+        },
+    )
+
+
+def track_list_public(request):
+    """
+    Public player page for everyone.
+    If logged in, also shows Playlists, Favourites, Recently Played.
+    """
+    # Safe imports here so this function can be pasted anywhere
+    from django.shortcuts import render
+    from django.db.models import Avg, Count, Exists, F, Max, OuterRef, Subquery, Prefetch
+    from django.db.models.functions import Coalesce
+    from django.core.exceptions import FieldDoesNotExist
+    from tracks.utils import annotate_is_in_my_albums  # keep if you use it below
+
+    # --------------------------- ANONYMOUS: EARLY RETURN --------------------------- #
+    if not request.user.is_authenticated:
+        guest_ids = _guest_get(request)
+        # fetch and keep order
+        by_id = {t.id: t for t in Track.objects.filter(id__in=guest_ids)}
+        guest_tracks = [by_id[i] for i in guest_ids if i in by_id]
+
+        return render(
+            request,
+            "tracks/track_list_public.html",
+            {
+                "albums": [],
+                "favorites": [],
+                "recent": [],
+                "playlist": None,
+                "playlist_items": [],
+                "guest_tracks": guest_tracks,       # NEW
+                "in_playlist_ids": guest_ids,       # for badges/toggles
+            },
+        )
+
+
+    # ----------------------------- PLAYLIST (FIRST) ----------------------------- #
+    playlist = None
+    playlist_items = []
+    in_playlist_ids: set[int] = set()
+
+    playlist, _ = Playlist.objects.get_or_create(owner=request.user, name="My Playlist")
+
+    # Your chosen label from ANY of your albums containing this track
+    user_label_sq = (
+        AlbumTrack.objects
+        .filter(album__owner=request.user, track_id=OuterRef("track_id"))
+        .exclude(custom_name__isnull=True)
+        .exclude(custom_name="")
+        .values("custom_name")[:1]
+    )
+
+    playlist_items = (
+        PlaylistItem.objects
+        .select_related("track")
+        .filter(playlist=playlist)
+        .annotate(
+            # preferred display name: your custom label, else original track name
+            display_name=Coalesce(Subquery(user_label_sq), F("track__name"))
+        )
+        .order_by("position", "id")
+    )
+
+    in_playlist_ids = set(playlist_items.values_list("track_id", flat=True))
+
+    # ---------------------------- RECENTLY PLAYED ------------------------------ #
+    latest_per_track = (
+        Listen.objects.filter(user=request.user)
+        .values("track")
+        .annotate(last_played=Max("played_at"))
+        .order_by("-last_played")[:25]
+    )
+
+    recent_track_ids = [row["track"] for row in latest_per_track]
+
+    user_label_sq = (
+        AlbumTrack.objects
+        .filter(album__owner=request.user, track_id=OuterRef("pk"))
+        .exclude(custom_name__isnull=True)
+        .exclude(custom_name="")
+        .values("custom_name")[:1]
+    )
+
+    recent_tracks_by_id = (
+        Track.objects.filter(id__in=recent_track_ids)
+        .annotate(display_name=Coalesce(Subquery(user_label_sq), F("name")))
+        .in_bulk()
+    )
+
+    recent = []
+    for row in latest_per_track:
+        tid = row["track"]
+        trk = recent_tracks_by_id.get(tid)
+        if not trk:
+            continue
+        trk.in_playlist = tid in in_playlist_ids
+        trk.display_name = getattr(trk, "display_name", trk.name)
+        recent.append(trk)
+
+    annotate_is_in_my_albums(recent, request.user)
+
+    # ---------------------------------- ALBUMS --------------------------------- #
+    fav_subquery = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
+
+    albums_qs = Album.objects.filter(owner=request.user).prefetch_related(
+        Prefetch(
+            "album_tracks",
+            queryset=(
+                AlbumTrack.objects.select_related("track")
+                .annotate(
+                    is_favorited=Exists(fav_subquery),
+                    track_avg=Avg("track__ratings__stars"),
+                    track_count=Count("track__ratings", distinct=True),
+                )
+                .order_by("position", "id")
+            ),
+            to_attr="album_tracks_annotated",
+        )
+    )
+
+    try:
+        Album._meta.get_field("order")
+        albums_qs = albums_qs.order_by("order", "id")
+    except FieldDoesNotExist:
+        albums_qs = albums_qs.order_by("-created_at", "id")
+
+    albums = list(albums_qs)
+
+    for album in albums:
+        annotate_is_in_my_albums(album.album_tracks_annotated, request.user, attr="track")
+        for at in album.album_tracks_annotated:
+            at.track.in_playlist = at.track.id in in_playlist_ids
+
+    # ---------------------- PLAYLIST ROWS THEMSELVES --------------------------- #
+    if playlist_items:
+        for it in playlist_items:
+            it.track.in_playlist = True
+            it.track.display_name = it.display_name
+
+    # ------------------------------- RENDER ------------------------------------ #
+    return render(
+        request,
+        "tracks/track_list_public.html",
+        {
+            "albums": albums,
+            "recent": recent,
+            "playlist": playlist,
+            "playlist_items": playlist_items,
+            "in_playlist_ids": list(in_playlist_ids),
         },
     )
 

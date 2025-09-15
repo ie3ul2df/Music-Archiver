@@ -1,0 +1,148 @@
+{# templates/tracks/track_list_public.html #}
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container py-4">
+
+  {# ── Guest banner ── #}
+  {% if not user.is_authenticated %}
+    <div class="alert alert-info d-flex align-items-center gap-2 mb-3" role="alert">
+      <div>You're browsing as a guest. <a class="alert-link" href="{% url 'account_login' %}?next={{ request.get_full_path|urlencode }}">Log in</a> to see your playlists, favourites, and history.</div>
+    </div>
+  {% endif %}
+
+  <!-- Media Player -->
+  <div id="player-card"
+       data-auth="{{ user.is_authenticated|yesno:'1,0' }}"
+       {% if user.is_authenticated %}
+         data-tracks-url="{% url 'playlist:json' %}"
+         data-log-play-url="{% url 'log_play' 0 %}"
+         data-toggle-fav-url="{% url 'toggle_favorite' 0 %}"
+       {% else %}
+         {# Optional: expose login URL so JS can prompt/redirect on restricted actions #}
+         data-login-url="{% url 'account_login' %}?next={{ request.get_full_path|urlencode }}"
+       {% endif %}>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-body d-flex flex-column gap-2">
+      <div class="d-flex align-items-center justify-content-between">
+        <strong id="nowplaying">Idle</strong>
+        <div class="btn-group" role="group" aria-label="Player controls">
+          <button id="prev" type="button" class="btn btn-outline-secondary">⏮</button>
+          <button id="playpause" type="button" class="btn btn-primary">▶ Play</button>
+          <button id="next" type="button" class="btn btn-outline-secondary">⏭</button>
+          <button id="shuffle" type="button" class="btn btn-outline-secondary" aria-pressed="false">🔀</button>
+          <button id="check-all-global" type="button" class="btn btn-outline-success">✔ All</button>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 w-100">
+        <div class="d-flex align-items-center gap-2 w-100">
+          <span id="currenttime">0:00</span>
+          <input id="progress" type="range" min="0" max="100" value="0" class="form-range" style="flex: 1" />
+          <span id="duration">0:00</span>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+          <label for="volume" class="mb-0 small">Vol</label>
+          <input id="volume" type="range" min="0" max="1" step="0.01" class="form-range" />
+        </div>
+      </div>
+
+      <audio id="player" preload="metadata"></audio>
+    </div>
+  </div>
+  
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="my-album-tab" data-bs-toggle="tab" data-bs-target="#my-album" type="button">🎼 Playlists</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="recent-tab" data-bs-toggle="tab" data-bs-target="#recent" type="button">🕓 Recently Played</button>
+      </li>
+    </ul>
+
+    <div class="tab-content mt-3">
+
+    {# ------- 🎼 My Playlist ------- #}
+    <div class="tab-pane fade show active" id="my-album" role="tabpanel">
+      <div class="album card mb-4" id="playlist-card" data-id="{{ playlist.id|default:'guest' }}">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>{{ playlist.name|default:'Guest Playlist' }}</span>
+          <div class="d-flex gap-2 align-items-center">
+            <div class="form-check mb-0">
+              <input class="form-check-input playlist-check-all" type="checkbox" id="playlist-check-all">
+              <label class="form-check-label" for="playlist-check-all">Check All</label>
+            </div>
+            <button class="btn btn-sm btn-outline-danger" id="clear-playlist"
+                    data-url="{% url 'playlist:clear' %}">
+              Clear All
+            </button>
+          </div>
+        </div>
+
+        <ul class="list-group list-group-flush tracks" id="playlist-tracks"
+            data-reorder-url="{% url 'playlist:reorder' %}">
+          {% if user.is_authenticated %}
+            {% for item in playlist_items %}
+              {% include "tracks/_track_card.html" with
+                  track=item.track playlist_item_id=item.id
+                  album=None album_item_id=None is_owner=False show_checkbox=True
+                  is_favorited=item.track.is_favorited in_playlist=True
+                  display_name=item.display_name allow_reorder=True %}
+            {% empty %}
+              <li class="list-group-item text-muted">No tracks in your playlist yet.</li>
+            {% endfor %}
+          {% else %}
+            {% if guest_tracks %}
+              {% for track in guest_tracks %}
+                {# For guests, data-id in _track_card will be track.id (good for reorder) #}
+                {% include "tracks/_track_card.html" with track=track album=None album_item_id=None is_owner=False show_checkbox=True is_favorited=False in_playlist=True display_name=track.name allow_reorder=True %}
+              {% endfor %}
+            {% else %}
+              <li class="list-group-item text-muted">No tracks in your playlist yet.</li>
+            {% endif %}
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+
+    {# ------- 🕓 Recently Played ------- #}
+      <div class="tab-pane fade" id="recent" role="tabpanel">
+        <div class="album card mb-4" id="recent-card" data-id="recent">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>🕓 Recently Played</span>
+            <div class="d-flex gap-2 align-items-center">
+              <div class="form-check mb-0">
+                <input class="form-check-input recent-check-all" type="checkbox" id="recent-check-all">
+                <label class="form-check-label" for="recent-check-all">Check All</label>
+              </div>
+              <button id="clear-recent"
+                      data-url="{% url 'clear_recent' %}"
+                      class="btn btn-sm btn-outline-danger">
+                Clear All
+              </button>
+            </div>
+          </div>
+
+          <ul class="list-group list-group-flush tracks" id="recent-tracks">
+            {% for track in recent %}
+              {% include "tracks/_track_card.html" with track=track album=None album_item_id=None is_owner=False show_checkbox=True is_favorited=track.is_favorited in_playlist=track.in_playlist display_name=track.display_name %}
+            {% empty %}
+              <li class="list-group-item text-muted">No recently played tracks.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/music_player.js' %}" defer></script>
+<script src="{% static 'js/track_list.js' %}" defer></script>
+<script src="{% static 'js/toggle_fav_btn.js' %}" defer></script>
+{% endblock %}
