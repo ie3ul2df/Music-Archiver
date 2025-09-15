@@ -44,17 +44,21 @@
             <li class="nav-item">
               <a class="nav-link {% if request.resolver_match.url_name == 'track_list' %}active{% endif %}" href="{% url 'track_list' %}">🎵 Music Player</a>
             </li>
+            {% if user.is_authenticated %}
             <li class="nav-item">
               <a class="nav-link {% if request.resolver_match.url_name == 'album_list' %}active{% endif %}" href="{% url 'album:album_list' %}">📂 My Albums</a>
             </li>
+            {% endif %}
             <li class="nav-item">
               <a class="nav-link {% if request.resolver_match.url_name == 'plan_list' %}active{% endif %}" href="{% url 'plan_list' %}">💸 Prices</a>
             </li>
+            {% if user.is_authenticated %}
             <li class="nav-item">
               <a class="nav-link {% if request.resolver_match.url_name == 'view_basket' %}active{% endif %}" href="{% url 'view_basket' %}">
                 🛒 Basket ({{ basket_count }}) - £{{ basket_total }}
               </a>
             </li>
+            {% endif %}
 
             {% if user.is_authenticated %}
             <li class="nav-item">
