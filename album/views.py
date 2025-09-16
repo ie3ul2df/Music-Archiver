@@ -353,7 +353,22 @@ def ajax_add_album(request):
     album.save()
 
     detail_url = reverse("album:album_detail", args=[album.pk])
-    return JsonResponse({"ok": True, "id": album.id, "name": album.name, "detail_url": detail_url})
+    rename_url = reverse("album:ajax_rename_album", args=[album.pk])
+    toggle_url = reverse("album:toggle_album_visibility", args=[album.pk])
+    delete_url = reverse("album:ajax_delete_album", args=[album.pk])
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "id": album.id,
+            "name": album.name,
+            "detail_url": detail_url,
+            "edit_url": rename_url,
+            "toggle_url": toggle_url,
+            "delete_url": delete_url,
+            "is_public": album.is_public,
+        }
+    )
 
 
 @login_required
@@ -377,7 +392,6 @@ def ajax_delete_album(request, pk):
     album = get_object_or_404(Album, pk=pk, owner=request.user)
     album.delete()
     return JsonResponse({"ok": True, "id": pk})
-
 
 
 @login_required
@@ -458,6 +472,7 @@ def album_detail(request, pk):
         "rename_url": reverse("album:ajax_rename_album", args=[album.pk]),
         "toggle_visibility_url": reverse("album:toggle_album_visibility", args=[album.pk]),
         "delete_url": reverse("album:ajax_delete_album", args=[album.pk]),
+        "delete_redirect_url": reverse("album:album_list"),
     }
 
     return render(request, template_name, context)
@@ -606,7 +621,6 @@ def album_rename_track(request, pk, item_id):
     return redirect("album:album_detail", pk=pk)
 
 
-
 @login_required
 @require_POST
 def album_detach_track(request, pk, item_id):
@@ -624,7 +638,6 @@ def album_detach_track(request, pk, item_id):
 
     messages.success(request, "Removed from album.")
     return redirect("album:album_detail", pk=pk)
-
 
 
 @login_required
@@ -663,7 +676,6 @@ def album_bulk_detach(request, pk):
     return JsonResponse({"ok": True, "removed": to_remove, "album_id": album.id})
 
 
-
 @login_required
 @require_POST
 def ajax_reorder_albums(request):
@@ -696,8 +708,6 @@ def ajax_reorder_albums(request):
             Album.objects.bulk_update(to_update, ["order"])
 
     return JsonResponse({"ok": True})
-
-
 
 
 @login_required

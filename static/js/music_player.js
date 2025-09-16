@@ -9,6 +9,7 @@
 
   const np = $("nowplaying");
   const playpause = $("playpause");
+  const stopBtn = $("stop");
   const nextBtn = $("next");
   const prevBtn = $("prev");
   const shuffleBtn = $("shuffle");
@@ -17,6 +18,7 @@
   const curTimeEl = $("currenttime"); // <span id="currenttime">
   const durEl = $("duration"); // <span id="duration">
   const playerCard = $("player-card"); // holds data-* URLs for external JS
+  const checkAllGlobalBtn = $("check-all-global");
 
   // --- Config from data-* attributes (NO inline <script>) ---
   const TRACKS_JSON_URL = playerCard?.dataset.tracksUrl || null;
@@ -37,6 +39,18 @@
     const m = Math.floor(s / 60);
     const r = Math.floor(s % 60);
     return m + ":" + (r < 10 ? "0" + r : r);
+  };
+
+  const resetTimeline = () => {
+    if (curTimeEl) curTimeEl.textContent = fmt(0);
+    if (durEl) durEl.textContent = fmt(0);
+    if (progress) progress.value = "0";
+  };
+
+  const hasSource = () => {
+    if (audio.getAttribute("src")) return true;
+    const current = audio.currentSrc;
+    return !!current && current !== window.location.href;
   };
 
   const setPlaypauseLabel = () => {
@@ -111,6 +125,37 @@
     fetch(url, { method: "POST", headers: { "X-CSRFToken": csrf } }).catch(() => {});
   }
 
+  function clearPlayback({ clearQueue = false, clearChecks = false } = {}) {
+    audio.pause();
+    audio.currentTime = 0;
+    audio.src = "";
+    audio.removeAttribute("src");
+    audio.load();
+
+    if (clearQueue) tracks = [];
+    idx = -1;
+
+    setNowPlaying();
+    highlightActiveButton();
+    resetTimeline();
+    setPlaypauseLabel();
+
+    if (clearChecks) {
+      document.querySelectorAll(".track-check:checked").forEach((cb) => {
+        cb.checked = false;
+      });
+      document.querySelectorAll(".playlist-check-all, .favorites-check-all, .recent-check-all, .check-all").forEach((el) => {
+        if (el instanceof HTMLInputElement) el.checked = false;
+      });
+      if (checkAllGlobalBtn) checkAllGlobalBtn.textContent = "✔ All";
+    }
+  }
+
+  function stopPlayback() {
+    const useCheckboxQueue = checkboxMode();
+    clearPlayback({ clearQueue: useCheckboxQueue, clearChecks: useCheckboxQueue });
+  }
+
   // --- Build queue from checked rows (DOM order) ---
   function getCheckedTracksInDOMOrder(scopeEl = null) {
     const scope = scopeEl || document.querySelector(".tab-pane.show.active") || document;
@@ -152,12 +197,7 @@
     tracks = newQ;
 
     if (!tracks.length) {
-      idx = -1;
-      audio.pause();
-      audio.removeAttribute("src");
-      setNowPlaying();
-      setPlaypauseLabel();
-      highlightActiveButton();
+      clearPlayback({ clearQueue: true });
       return;
     }
 
@@ -192,6 +232,7 @@
     audio.load();
     setNowPlaying("Now");
     highlightActiveButton();
+    resetTimeline();
 
     if (autoplay) {
       const p = audio.play();
@@ -221,8 +262,13 @@
   }
 
   function togglePlayPause() {
-    if (audio.src) {
-      audio.paused ? audio.play() : audio.pause();
+    if (hasSource()) {
+      if (audio.paused) {
+        const p = audio.play();
+        if (p && typeof p.catch === "function") p.catch(() => {});
+      } else {
+        audio.pause();
+      }
       setPlaypauseLabel();
       return;
     }
@@ -239,6 +285,7 @@
   if (playpause) playpause.addEventListener("click", togglePlayPause);
   if (nextBtn) nextBtn.addEventListener("click", next);
   if (prevBtn) prevBtn.addEventListener("click", prev);
+  if (stopBtn) stopBtn.addEventListener("click", stopPlayback);
 
   if (shuffleBtn) {
     updateShuffleUI();
@@ -253,6 +300,7 @@
   audio.addEventListener("ended", next);
   audio.addEventListener("play", setPlaypauseLabel);
   audio.addEventListener("pause", setPlaypauseLabel);
+  audio.addEventListener("emptied", resetTimeline);
 
   audio.addEventListener("loadedmetadata", () => {
     if (durEl) durEl.textContent = fmt(audio.duration);
@@ -392,9 +440,13 @@
     let i = tracks.findIndex((t) => t.src === src || (id && String(t.id) === String(id)));
 
     // Same row → toggle pause/play
-    if (i !== -1 && i === idx && audio.src) {
-      if (audio.paused) audio.play();
-      else audio.pause();
+    if (i !== -1 && i === idx && hasSource()) {
+      if (audio.paused) {
+        const p = audio.play();
+        if (p && typeof p.catch === "function") p.catch(() => {});
+      } else {
+        audio.pause();
+      }
       setPlaypauseLabel();
       return;
     }
