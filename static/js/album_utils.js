@@ -184,6 +184,7 @@
           window.updateAlbumListSnapshot?.();
         }
         bootstrap.Modal.getInstance(document.getElementById("deleteAlbumModal"))?.hide();
+        location.reload();
       } catch (err) {
         console.error(err);
         notify(err.message || "Delete failed.", "danger");
