@@ -87,7 +87,8 @@
                                   data-bs-toggle="modal"
                                   data-bs-target="#deleteAlbumModal"
                                   data-url="{{ delete_url }}"
-                                  data-album-name="{{ album.name }}">
+                                  data-album-name="{{ album.name }}"
+                                  {% if delete_redirect %}data-redirect-after-delete="{{ delete_redirect }}"{% endif %}>
                             🗑 Delete
                           </button>
                         {% endif %}

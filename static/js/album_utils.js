@@ -102,6 +102,27 @@
     }
   });
 
+  // ---------- Delete album modal wiring (used on list + detail pages) ----------
+  onModalShow("deleteAlbumModal", ({ modal, trigger }) => {
+    if (!trigger) return;
+    const url = trigger.getAttribute("data-url") || "";
+    const name = trigger.getAttribute("data-album-name") || "";
+    const redirect = trigger.getAttribute("data-redirect-after-delete") || "";
+
+    const form = modal.querySelector("#deleteAlbumForm");
+    if (form) {
+      form.action = url;
+      if (redirect) {
+        form.setAttribute("data-redirect-after-delete", redirect);
+      } else {
+        form.removeAttribute("data-redirect-after-delete");
+      }
+    }
+
+    const nameEl = modal.querySelector("#albumName");
+    if (nameEl) nameEl.textContent = name;
+  });
+
   document.addEventListener("submit", async (e) => {
     const form = e.target;
     if (!form) return;
@@ -147,16 +168,22 @@
           throw new Error(msg);
         }
 
-        const target = payload && payload.redirect;
+        const manualRedirect = form.getAttribute("data-redirect-after-delete");
+        const target = manualRedirect || (payload && payload.redirect);
         if (target) {
           window.location.href = target;
-        } else {
-          // find the delete button we used, then its card, remove it
-          const safe = window.CSS && CSS.escape ? CSS.escape(url) : url;
-          const btn = document.querySelector(`button[data-bs-target="#deleteAlbumModal"][data-url="${safe}"]`);
-          btn?.closest("li.album")?.remove();
-          bootstrap.Modal.getInstance(document.getElementById("deleteAlbumModal"))?.hide();
+          return;
         }
+
+        // find the delete button we used, then its card, remove it
+        const safe = window.CSS && CSS.escape ? CSS.escape(url) : url;
+        const btn = document.querySelector(`button[data-bs-target="#deleteAlbumModal"][data-url="${safe}"]`);
+        const li = btn?.closest("li.album");
+        li?.remove();
+        if (li) {
+          window.updateAlbumListSnapshot?.();
+        }
+        bootstrap.Modal.getInstance(document.getElementById("deleteAlbumModal"))?.hide();
       } catch (err) {
         console.error(err);
         notify(err.message || "Delete failed.", "danger");

@@ -12,40 +12,6 @@
     }
     return false;
   };
-  // ========== Delete Album (modal + submit) ==========
-  U.onModalShow &&
-    U.onModalShow("deleteAlbumModal", ({ modal, trigger }) => {
-      if (!trigger) return;
-      modal.querySelector("#albumName").textContent = trigger.getAttribute("data-album-name") || "";
-      modal.querySelector("#deleteAlbumForm").action = trigger.getAttribute("data-url");
-    });
-
-  document.addEventListener("DOMContentLoaded", () => {
-    const delForm = document.getElementById("deleteAlbumForm");
-    if (!delForm) return;
-    delForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      try {
-        const data = await fetch(delForm.action, {
-          method: "POST",
-          headers: { "X-CSRFToken": U.getCSRF() },
-        }).then((r) => r.json());
-
-        if (data.ok) {
-          const li = document.querySelector(`#album-list li[data-id="${data.id}"]`);
-          if (li) li.remove();
-          bootstrap.Modal.getInstance(document.getElementById("deleteAlbumModal"))?.hide();
-        } else {
-          // alert(data.error || "Failed to delete album.");
-          notify(data.error || "Failed to delete album.", "danger");
-        }
-      } catch (err) {
-        console.error("Delete failed:", err);
-        // alert("Something went wrong deleting the album.");
-        notify("Something went wrong deleting the album.", "danger");
-      }
-    });
-  });
 
   // ========== Create album (AJAX) ==========
   document.addEventListener("DOMContentLoaded", () => {
