@@ -41,6 +41,25 @@
     return m + ":" + (r < 10 ? "0" + r : r);
   };
 
+  const clampPct = (raw) => {
+    const val = parseFloat(raw);
+    if (!isFinite(val)) return 0;
+    return Math.min(Math.max(val, 0), 100);
+  };
+
+  const bindInlineSeek = (input) => {
+    if (!(input instanceof HTMLInputElement) || input.dataset.seekBound === "1") return;
+    const onSeek = () => {
+      if (audio.duration > 0) {
+        const pct = clampPct(input.value);
+        audio.currentTime = (pct / 100) * audio.duration;
+      }
+    };
+    input.addEventListener("input", onSeek);
+    input.addEventListener("change", onSeek);
+    input.dataset.seekBound = "1";
+  };
+
   const resetTimeline = () => {
     if (curTimeEl) curTimeEl.textContent = fmt(0);
     if (durEl) durEl.textContent = fmt(0);
@@ -66,43 +85,69 @@
   };
 
   const highlightActiveButton = () => {
-    const btns = document.querySelectorAll(".play-btn");
-    const statuses = document.querySelectorAll(".track-playing-status");
+    const btns = document.querySelectorAll(".play-btn, .js-inline-play");
+    const progressWraps = document.querySelectorAll(".track-inline-progress");
 
     // clear all highlights + statuses
     btns.forEach((b) => b.classList.remove("is-playing"));
-    statuses.forEach((s) => (s.innerHTML = ""));
+    progressWraps.forEach((wrap) => {
+      wrap.classList.add("d-none");
+      wrap.setAttribute("aria-hidden", "true");
+      const cur = wrap.querySelector(".track-current");
+      if (cur) cur.textContent = fmt(0);
+      const dur = wrap.querySelector(".track-duration");
+      if (dur) dur.textContent = fmt(0);
+      const prog = wrap.querySelector(".track-progress");
+      if (prog) prog.value = "0";
+    });
 
-    if (idx >= 0 && tracks[idx]) {
-      const t = tracks[idx];
+    if (idx < 0 || !tracks[idx]) return;
 
-      // find *all* matching buttons
-      const matchingBtns = Array.from(btns).filter((b) => b.dataset.src === t.src || (t.id && String(b.dataset.id) === String(t.id)));
+    const current = tracks[idx];
 
-      matchingBtns.forEach((activeBtn) => {
-        activeBtn.classList.add("is-playing");
+    const matches = Array.from(btns).filter((btn) => {
+      if (current.src && btn.dataset.src && btn.dataset.src === current.src) return true;
+      if (current.id != null && btn.dataset.id && String(btn.dataset.id) === String(current.id)) return true;
+      const row = btn.closest(".track-card, li");
+      if (!row) return false;
+      if (current.id != null) {
+        const rowId = row.dataset.trackId || row.dataset.id;
+        if (rowId && String(rowId) === String(current.id)) return true;
+      }
+      if (current.src) {
+        const inlineAudio = row.querySelector("audio.inline-audio");
+        const rowSrc = row.dataset.src || inlineAudio?.getAttribute("src");
+        if (rowSrc && rowSrc === current.src) return true;
+      }
+      return false;
+    });
 
-        const li = activeBtn.closest("li");
-        const statusEl = li?.querySelector(".track-playing-status");
-        if (statusEl) {
-          statusEl.innerHTML = `
-          <div class="d-flex align-items-center gap-1 small text-muted">
-            <span class="track-current">0:00</span>
-            <input type="range" class="track-progress" min="0" max="100" value="0" style="flex:1">
-            <span class="track-duration">0:00</span>
-          </div>`;
+    matches.forEach((activeBtn) => {
+      activeBtn.classList.add("is-playing");
+      const row = activeBtn.closest(".track-card, li");
+      if (!row) return;
+      const wrap = row.querySelector(".track-inline-progress");
+      if (!wrap) return;
 
-          // attach seek event for this row’s slider
-          const prog = statusEl.querySelector(".track-progress");
-          prog.addEventListener("input", () => {
-            if (audio.duration > 0) {
-              const pct = Math.min(Math.max(parseFloat(prog.value) || 0, 0), 100);
-              audio.currentTime = (pct / 100) * audio.duration;
-            }
-          });
+      wrap.classList.remove("d-none");
+      wrap.setAttribute("aria-hidden", "false");
+
+      const cur = wrap.querySelector(".track-current");
+      if (cur) cur.textContent = fmt(audio.currentTime);
+
+      const dur = wrap.querySelector(".track-duration");
+      if (dur && isFinite(audio.duration)) dur.textContent = fmt(audio.duration);
+
+      const prog = wrap.querySelector(".track-progress");
+      if (prog) {
+        bindInlineSeek(prog);
+        if (audio.duration > 0) {
+          prog.value = ((audio.currentTime / audio.duration) * 100).toFixed(2);
+        } else {
+          prog.value = "0";
         }
-      });
-    }
+      }
+    });
   };
 
   const setNowPlaying = (prefix = "Now") => {
@@ -313,12 +358,15 @@
     }
 
     // update ALL active row indicators
-    const activeLis = document.querySelectorAll("li .play-btn.is-playing");
-    activeLis.forEach((btn) => {
-      const li = btn.closest("li");
-      const cur = li?.querySelector(".track-current");
-      const dur = li?.querySelector(".track-duration");
-      const prog = li?.querySelector(".track-progress");
+    const activeBtns = document.querySelectorAll(".play-btn.is-playing, .js-inline-play.is-playing");
+    activeBtns.forEach((btn) => {
+      const row = btn.closest(".track-card, li");
+      if (!row) return;
+      const wrap = row.querySelector(".track-inline-progress");
+      if (!wrap || wrap.classList.contains("d-none")) return;
+      const cur = wrap.querySelector(".track-current");
+      const dur = wrap.querySelector(".track-duration");
+      const prog = wrap.querySelector(".track-progress");
       if (cur) cur.textContent = fmt(audio.currentTime);
       if (dur && isFinite(audio.duration)) dur.textContent = fmt(audio.duration);
       if (prog && audio.duration > 0) {
