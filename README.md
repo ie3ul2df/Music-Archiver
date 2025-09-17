@@ -51,6 +51,18 @@ Music-Archiver is a Django web application for storing and streaming user-curate
 ## Low and High Fidelity Wireframes
 
 - ![Low Fidelity Home Wireframe](static/wireframes/low-fidelity-wireframes/home.png)
+- ![High Fidelity Home Wireframe](static/wireframes/high-fidelity-wireframes/home.png)
+- ![Low Fidelity Navbar Wireframe](static/wireframes/low-fidelity-wireframes/navbar.png)
+- ![Low Fidelity music player Wireframe](static/wireframes/low-fidelity-wireframes/music-player-page.png)
+- ![High Fidelity music player Wireframe](static/wireframes/high-fidelity-wireframes/music-player-page.png)
+- ![Low Fidelity album and track card Wireframe](static/wireframes/low-fidelity-wireframes/album-card-and-track-card.png)
+- ![High Fidelity track card Wireframe](static/wireframes/high-fidelity-wireframes/track-cards.png)
+- ![Low Fidelity album-list-and-album-detail Wireframe](static/wireframes/low-fidelity-wireframes/album-list-and-album-detail.png)
+- ![high Fidelity album-list Wireframe](static/wireframes/high-fidelity-wireframes/album-list.png)
+- ![high Fidelity album-detail Wireframe](static/wireframes/high-fidelity-wireframes/album-detail.png)
+- ![high Fidelity basket Wireframe](static/wireframes/high-fidelity-wireframes/basket.png)
+- ![high Fidelity profile Wireframe](static/wireframes/high-fidelity-wireframes/profile-page.png)
+- ![high Fidelity price Wireframe](static/wireframes/high-fidelity-wireframes/price-page.png)
 
 ---
 
