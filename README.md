@@ -49,11 +49,24 @@ Music-Archiver is a Django web application for storing and streaming user-curate
 
 #### User Stories (MoSCoW)
 
-- **Must**: As a user, I can register/log in so that my albums and playlists persist.
-- **Must**: As a user, I can create albums and add tracks to organise my collection.
-- **Must**: As a user, I can pay for Premium to unlock higher limits.
-- **Should**: As a user, I can rate and favourite tracks/albums.
-- **Could**: As a user, I can save snapshots of others’ albums.
+- **Must**: As a user, I can register or log in so that my albums and playlists persist across sessions.
+- **Must**: As a user, I can create albums and add tracks to organise my collection the way I want.
+- **Must**: As a user, I can pay for a Premium plan to unlock higher limits on albums, playlists, and storage without leaving the app.
+- **Must**: As a user, I can upload audio files or link streaming URLs when I add tracks so my library contains all my sources.
+- **Must**: As a user, I can build playlists and control track order so that playback flows the way I expect.
+- **Must**: As a user, I can play music with controls like play, pause, next, shuffle, and volume to enjoy my collection seamlessly.
+- **Must**: As a user, I can manage my profile details and default contact information so my account feels personal and checkout is faster.
+- **Must**: As a user, I can search and filter my library so I can quickly find the albums or tracks I want to hear.
+
+- **Should**: As a user, I can rate and favourite tracks or albums so my preferences shape future listening.
+- **Should**: As a user, I can reorder tracks via drag-and-drop inside albums and playlists to fine-tune their listening sequence.
+- **Should**: As a user, I can review my recent play history so I can rediscover songs I enjoyed.
+- **Should**: As a user, I can choose whether an album is public or private so I control who can see it.
+- **Should**: As a user, I can track plan storage allowances so I understand how close I am to hitting my media limits.
+
+- **Could**: As a user, I can save snapshots of other users’ albums so I can revisit their collections later.
+- **Could**: As a user, I can capture individual tracks from other collections into my own albums so I keep curated mixes.
+- **Could**: As a user, I can see when a saved album or track has been updated so I know when to refresh my snapshot.
 
 #### Acceptance Criteria (examples)
 
