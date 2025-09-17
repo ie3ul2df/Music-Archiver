@@ -59,7 +59,7 @@
         <div class="container">
           <div class="row">
 
-            <div class="col-9">
+            <div class="col-sm-12 col-md-6 col-lg-9">
               <!-- Search form -->
               <div class="input-group mb-3" id="album-search"
                   data-search-url="{% url 'album:unified_search' %}">
@@ -74,7 +74,7 @@
               </div>
             </div>
 
-            <div class="col-3">
+            <div class="col-sm-12 col-md-6 col-lg-3">
               <!-- Create new album (AJAX) -->
               <form id="album-create-form" action="{% url 'album:ajax_add_album' %}" method="post" class="d-flex gap-2">
                 {% csrf_token %}
