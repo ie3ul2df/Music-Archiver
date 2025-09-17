@@ -12,7 +12,7 @@
 ## Table of Contents
 
 - [Project Overview](#project-overview)
-- [Wireframes](#Low and High Fidelity Wireframes)
+- [Wireframes](#Low-and-High-Fidelity-Wireframes)
 - [Architecture & Data Model](#architecture--data-model)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
