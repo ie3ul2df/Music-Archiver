@@ -143,3 +143,10 @@ li.track-item.dragging {
 .dragging .drag-handle {
   cursor: grabbing;
 }
+
+/* //--------------------------- Track Card Global Style ---------------------------// */
+div.track-inline-progress .track-progress {
+  width: -webkit-fill-available;
+  min-width: 80px;
+  max-width: 75%;
+}
