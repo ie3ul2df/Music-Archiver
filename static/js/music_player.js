@@ -67,7 +67,10 @@
   };
 
   const hasSource = () => {
-    if (audio.getAttribute("src")) return true;
+    const attr = audio.getAttribute("src");
+    if (attr) return true;
+    const prop = audio.src;
+    if (prop && prop !== window.location.href) return true;
     const current = audio.currentSrc;
     return !!current && current !== window.location.href;
   };
@@ -87,9 +90,17 @@
   const highlightActiveButton = () => {
     const btns = document.querySelectorAll(".play-btn, .js-inline-play");
     const progressWraps = document.querySelectorAll(".track-inline-progress");
+    const hasActiveSource = hasSource();
+    const isPlaying = hasActiveSource && !audio.paused && !audio.ended;
 
     // clear all highlights + statuses
-    btns.forEach((b) => b.classList.remove("is-playing"));
+    btns.forEach((b) => {
+      b.classList.remove("is-playing");
+      if (b.classList.contains("js-inline-play")) {
+        b.textContent = "▶";
+        b.setAttribute("aria-pressed", "false");
+      }
+    });
     progressWraps.forEach((wrap) => {
       wrap.classList.add("d-none");
       wrap.setAttribute("aria-hidden", "true");
@@ -123,25 +134,31 @@
     });
 
     matches.forEach((activeBtn) => {
-      activeBtn.classList.add("is-playing");
+      activeBtn.classList.toggle("is-playing", isPlaying);
+      if (activeBtn.classList.contains("js-inline-play")) {
+        activeBtn.textContent = isPlaying ? "⏸" : "▶";
+        activeBtn.setAttribute("aria-pressed", isPlaying ? "true" : "false");
+      }
       const row = activeBtn.closest(".track-card, li");
       if (!row) return;
       const wrap = row.querySelector(".track-inline-progress");
       if (!wrap) return;
 
-      wrap.classList.remove("d-none");
-      wrap.setAttribute("aria-hidden", "false");
+      if (hasActiveSource) {
+        wrap.classList.remove("d-none");
+        wrap.setAttribute("aria-hidden", "false");
+      }
 
       const cur = wrap.querySelector(".track-current");
-      if (cur) cur.textContent = fmt(audio.currentTime);
+      if (cur && hasActiveSource) cur.textContent = fmt(audio.currentTime);
 
       const dur = wrap.querySelector(".track-duration");
-      if (dur && isFinite(audio.duration)) dur.textContent = fmt(audio.duration);
+      if (dur && hasActiveSource && isFinite(audio.duration)) dur.textContent = fmt(audio.duration);
 
       const prog = wrap.querySelector(".track-progress");
       if (prog) {
         bindInlineSeek(prog);
-        if (audio.duration > 0) {
+        if (hasActiveSource && audio.duration > 0) {
           prog.value = ((audio.currentTime / audio.duration) * 100).toFixed(2);
         } else {
           prog.value = "0";
@@ -343,8 +360,14 @@
 
   // --- Audio events ---
   audio.addEventListener("ended", next);
-  audio.addEventListener("play", setPlaypauseLabel);
-  audio.addEventListener("pause", setPlaypauseLabel);
+  audio.addEventListener("play", () => {
+    setPlaypauseLabel();
+    highlightActiveButton();
+  });
+  audio.addEventListener("pause", () => {
+    setPlaypauseLabel();
+    highlightActiveButton();
+  });
   audio.addEventListener("emptied", resetTimeline);
 
   audio.addEventListener("loadedmetadata", () => {

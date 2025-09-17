@@ -107,7 +107,7 @@ def track_list(request):
             .values("custom_name")[:1]
         )
 
-        playlist_items = (
+        playlist_items_qs = (
             PlaylistItem.objects
             .select_related("track")
             .filter(playlist=playlist)
@@ -118,7 +118,18 @@ def track_list(request):
             .order_by("position", "id")
         )
 
-        in_playlist_ids = set(playlist_items.values_list("track_id", flat=True))
+        playlist_items = list(playlist_items_qs)
+        in_playlist_ids = {item.track_id for item in playlist_items}
+
+        if playlist_items:
+            rated_tracks = annotate_tracks(Track.objects.filter(id__in=in_playlist_ids))
+            rating_map = {t.id: t for t in rated_tracks}
+            for item in playlist_items:
+                rated = rating_map.get(item.track_id)
+                if not rated:
+                    continue
+                item.track.rating_avg = getattr(rated, "rating_avg", 0)
+                item.track.rating_count = getattr(rated, "rating_count", 0)
 
 
     # ------------------------------- FAVOURITES -------------------------------- #
@@ -315,7 +326,7 @@ def track_list_public(request):
         .values("custom_name")[:1]
     )
 
-    playlist_items = (
+    playlist_items_qs = (
         PlaylistItem.objects
         .select_related("track")
         .filter(playlist=playlist)
@@ -326,7 +337,18 @@ def track_list_public(request):
         .order_by("position", "id")
     )
 
-    in_playlist_ids = set(playlist_items.values_list("track_id", flat=True))
+    playlist_items = list(playlist_items_qs)
+    in_playlist_ids = {item.track_id for item in playlist_items}
+
+    if playlist_items:
+        rated_tracks = annotate_tracks(Track.objects.filter(id__in=in_playlist_ids))
+        rating_map = {t.id: t for t in rated_tracks}
+        for item in playlist_items:
+            rated = rating_map.get(item.track_id)
+            if not rated:
+                continue
+            item.track.rating_avg = getattr(rated, "rating_avg", 0)
+            item.track.rating_count = getattr(rated, "rating_count", 0)
 
     # ---------------------------- RECENTLY PLAYED ------------------------------ #
     latest_per_track = (

@@ -43,13 +43,30 @@
       <span class="ms-1 rating-wrap">
         {% if at and at.rating_html %}{{ at.rating_html|safe }}
         {% else %}
-          {% include "ratings/_stars.html" with type="track" id=track.id avg=avg|default:0 count=count|default:0 user_rating=None %}
+          {% with base_avg=track.rating_avg|default:0 base_count=track.rating_count|default:0 %}
+            {% if avg != '' or count != '' %}
+              {% include "ratings/_stars.html" with type="track" id=track.id avg=avg|default:base_avg count=count|default:base_count user_rating=None %}
+            {% elif at %}
+              {% include "ratings/_stars.html" with type="track" id=track.id avg=at.track_avg|default:base_avg count=at.track_count|default:base_count user_rating=None %}
+            {% else %}
+              {% include "ratings/_stars.html" with type="track" id=track.id avg=base_avg count=base_count user_rating=None %}
+            {% endif %}
+          {% endwith %}
         {% endif %}
       </span>
 
       {# ▶ Play/Pause #}
       <div class="d-flex align-items-center gap-2">
-        <button class="btn btn-lg border-0 fs-3 js-inline-play" title="Play/Pause">▶</button>
+        <button
+          class="btn btn-lg border-0 fs-3 js-inline-play"
+          title="Play/Pause"
+          aria-pressed="false"
+          data-id="{{ track.id }}"
+          {% if display_name %}data-name="{{ display_name }}"
+          {% elif at and at.custom_name %}data-name="{{ at.custom_name }}"
+          {% else %}data-name="{{ track.name }}"
+          {% endif %}
+        >▶</button>
         <div class="track-inline-progress d-none d-flex align-items-center gap-1 small text-muted" aria-hidden="true">
           <span class="track-current">0:00</span>
           <input

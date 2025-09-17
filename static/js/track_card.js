@@ -1,6 +1,8 @@
 (function () {
   "use strict";
 
+  const globalPlayer = document.getElementById("player");
+
   // CSRF
   function csrftoken() {
     const m = document.cookie.match(/(?:^|;)\s*csrftoken=([^;]+)/);
@@ -162,6 +164,9 @@
 
     // Inline play/pause
     if (playBtn) {
+      if (globalPlayer) {
+        return;
+      }
       e.preventDefault();
       const row = playBtn.closest(".track-card");
       const audio = row?.querySelector(".inline-audio");
@@ -172,7 +177,11 @@
 
       if (audio.paused) {
         pauseOtherAudios(audio);
-        audio.play().catch(() => {});
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.catch === "function") {
+          playPromise.catch(() => {});
+        }
+        showInlineProgress(audio);
         setInlineButtonState(audio, true);
       } else {
         audio.pause();
