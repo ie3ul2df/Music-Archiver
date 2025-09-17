@@ -12,7 +12,7 @@
 ## Table of Contents
 
 - [Project Overview](#project-overview)
-- [Screenshots](#screenshots)
+- [Wireframes](#screenshots)
 - [Architecture & Data Model](#architecture--data-model)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
@@ -70,7 +70,7 @@ Music-Archiver is a Django web application for storing and streaming user-curate
 
 The application follows a standard Django project layout with Django apps for albums, playlists, profiles, and shared utilities. Static files are served via Whitenoise in production, while media uploads are stored in Cloudinary.
 
-- **ERD:** ![Entity Relationship Diagram](documentation/erd.png)
+- **ERD:** [![Full ERD](static/erd/full-erd.svg)](static/erd/full-erd.svg)
 - **System Diagram (optional):** ![Architecture Diagram](documentation/architecture.png)
 
 ### Key Models
