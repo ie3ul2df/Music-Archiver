@@ -12,8 +12,8 @@
     </button>
     {% endwith %} {% endfor %}
   </div>
-  <div class="rating-summary small fs-7 text-muted">
-    <span class="avg">{{ avg|default:0|floatformat:1 }}</span>/5
-    <span class="count">({{ count|default:0 }})</span>
+  <div class="rating-summary small fs-7 text-warning">
+    <span class="avg text-warning">{{ avg|default:0|floatformat:1 }}</span>/5
+    <span class="count text-warning">({{ count|default:0 }})</span>
   </div>
 </div>
