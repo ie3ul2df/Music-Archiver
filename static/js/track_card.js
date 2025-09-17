@@ -226,3 +226,11 @@
     true
   );
 })();
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".rotate-dropdown-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      btn.classList.toggle("rotate-180");
+    });
+  });
+});
