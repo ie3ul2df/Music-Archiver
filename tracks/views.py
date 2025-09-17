@@ -29,8 +29,49 @@ from ratings.utils import annotate_albums, annotate_tracks
 from tracks.utils import mark_track_ownership, annotate_is_in_my_albums
 from save_system.models import SavedTrack
 from playlist.models import Playlist, PlaylistItem
-from .models import Listen
 from playlist.views import _guest_get
+
+
+
+##### -------------------- Guest Users Recent List -------------------- #####
+
+GUEST_RECENT_SESSION_KEY = "guest_recent_track_ids"
+GUEST_RECENT_LIMIT = 25
+
+
+def _guest_recent_get(request):
+    """Return guest recent track IDs (most recent first)."""
+    raw = request.session.get(GUEST_RECENT_SESSION_KEY, [])
+    cleaned = []
+    for value in raw:
+        try:
+            cleaned.append(int(value))
+        except (TypeError, ValueError):
+            continue
+    if cleaned != raw:
+        request.session[GUEST_RECENT_SESSION_KEY] = cleaned
+        request.session.modified = True
+    return cleaned
+
+
+def _guest_recent_push(request, track_id: int):
+    """Add a track to the guest recent list (front of list)."""
+    ids = _guest_recent_get(request)
+    if track_id in ids:
+        ids = [tid for tid in ids if tid != track_id]
+    ids.insert(0, track_id)
+    if len(ids) > GUEST_RECENT_LIMIT:
+        ids = ids[:GUEST_RECENT_LIMIT]
+    request.session[GUEST_RECENT_SESSION_KEY] = ids
+    request.session.modified = True
+    return ids
+
+
+def _guest_recent_clear(request):
+    """Clear guest recent list from the session."""
+    if request.session.get(GUEST_RECENT_SESSION_KEY) is not None:
+        request.session[GUEST_RECENT_SESSION_KEY] = []
+        request.session.modified = True
 
 ##### -------------------- Track List (main tabs UI) -------------------- #####
 
@@ -210,6 +251,7 @@ def track_list(request):
     )
 
 
+@ensure_csrf_cookie
 def track_list_public(request):
     """
     Public player page for everyone.
@@ -225,9 +267,22 @@ def track_list_public(request):
     # --------------------------- ANONYMOUS: EARLY RETURN --------------------------- #
     if not request.user.is_authenticated:
         guest_ids = _guest_get(request)
-        # fetch and keep order
-        by_id = {t.id: t for t in Track.objects.filter(id__in=guest_ids)}
-        guest_tracks = [by_id[i] for i in guest_ids if i in by_id]
+        guest_recent_ids = _guest_recent_get(request)
+
+        playlist_map = {t.id: t for t in Track.objects.filter(id__in=guest_ids)}
+        guest_tracks = [playlist_map[i] for i in guest_ids if i in playlist_map]
+
+        recent_map = {t.id: t for t in Track.objects.filter(id__in=guest_recent_ids)}
+        guest_recent = []
+        playlist_id_set = set(guest_ids)
+        for tid in guest_recent_ids:
+            trk = recent_map.get(tid)
+            if not trk:
+                continue
+            trk.is_favorited = False
+            trk.in_playlist = tid in playlist_id_set
+            trk.display_name = getattr(trk, "display_name", trk.name)
+            guest_recent.append(trk)
 
         return render(
             request,
@@ -235,11 +290,11 @@ def track_list_public(request):
             {
                 "albums": [],
                 "favorites": [],
-                "recent": [],
+                "recent": guest_recent,
                 "playlist": None,
                 "playlist_items": [],
-                "guest_tracks": guest_tracks,       # NEW
-                "in_playlist_ids": guest_ids,       # for badges/toggles
+                "guest_tracks": guest_tracks,
+                "in_playlist_ids": guest_ids,
             },
         )
 
@@ -414,12 +469,13 @@ def recently_played(request):
 
 
 
-@login_required
+@require_POST
 def clear_recent(request):
-    if request.method == "POST":
+    if request.user.is_authenticated:
         Listen.objects.filter(user=request.user).delete()
-        return JsonResponse({"ok": True, "msg": "Recent list cleared."})
-    return JsonResponse({"ok": False, "error": "POST required."}, status=405)
+    else:
+        _guest_recent_clear(request)
+    return JsonResponse({"ok": True, "msg": "Recent list cleared."})
 
 
 @login_required
@@ -483,12 +539,15 @@ def favorites_reorder(request):
 
 
 
-@login_required
+
 @require_POST
 def log_play(request, track_id):
     """Log a listen event (AJAX)."""
     track = get_object_or_404(Track, pk=track_id)
-    Listen.objects.create(user=request.user, track=track)
+    if request.user.is_authenticated:
+        Listen.objects.create(user=request.user, track=track)
+    else:
+        _guest_recent_push(request, track.id)
     return JsonResponse({"ok": True})
 
 

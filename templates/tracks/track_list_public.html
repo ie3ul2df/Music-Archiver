@@ -14,9 +14,9 @@
   <!-- Media Player -->
   <div id="player-card"
        data-auth="{{ user.is_authenticated|yesno:'1,0' }}"
+       data-log-play-url="{% url 'log_play' 0 %}"
        {% if user.is_authenticated %}
          data-tracks-url="{% url 'playlist:json' %}"
-         data-log-play-url="{% url 'log_play' 0 %}"
          data-toggle-fav-url="{% url 'toggle_favorite' 0 %}"
        {% else %}
          {# Optional: expose login URL so JS can prompt/redirect on restricted actions #}

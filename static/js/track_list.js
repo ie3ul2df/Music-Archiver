@@ -86,7 +86,8 @@ const trackListNotify = (message, level) => {
 // ----------------------- Clear recent tracks list ----------------------- //
 document.addEventListener("DOMContentLoaded", () => {
   const clearBtn = document.getElementById("clear-recent");
-  const list = document.getElementById("recent-list");
+  // const list = document.getElementById("recent-list");
+  const list = document.getElementById("recent-tracks");
 
   if (clearBtn && list) {
     clearBtn.addEventListener("click", async () => {
