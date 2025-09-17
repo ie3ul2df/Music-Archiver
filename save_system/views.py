@@ -85,6 +85,7 @@ def save_track(request, pk):
 
     # 1) Create/keep the snapshot record
     name_snapshot = getattr(track, "name", None) or getattr(track, "title", None) or str(track)
+    album_track = None
     try:
         saved_obj, saved_created = SavedTrack.objects.get_or_create(
             owner=request.user,
@@ -101,65 +102,46 @@ def save_track(request, pk):
         next_pos = (AlbumTrack.objects.filter(album=album)
                     .aggregate(mp=Max("position"))["mp"] or 0) + 1
 
-        _, attached_created = AlbumTrack.objects.get_or_create(
+        album_track, attached_created = AlbumTrack.objects.get_or_create(
             album=album,
             track=track,
             defaults={"position": next_pos},
         )
     except IntegrityError:
+        album_track = AlbumTrack.objects.filter(album=album, track=track).first()
         attached_created = False
 
-    return JsonResponse({
+    payload = {
         "ok": True,
         "created": saved_created,      # snapshot created?
         "attached": attached_created,  # album link created?
-    })
+        "album_id": album.id,
+    }
 
+    if album_track:
+        payload["album_item_id"] = album_track.id
 
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        if attached_created and album_track:
+            payload["html"] = render_to_string(
+                "tracks/_track_card.html",
+                {
+                    "track": album_track.track,
+                    "album": album,
+                    "album_item_id": album_track.id,
+                    "is_owner": True,
+                    "show_checkbox": True,
+                    "is_favorited": False,
+                    "in_playlist": False,
+                    "avg": getattr(track, "rating_avg", 0),
+                    "count": getattr(track, "rating_count", 0),
+                },
+                request=request,
+            )
 
-# @login_required
-# def bulk_save_tracks(request):
-#     if request.method != "POST":
-#         return redirect("album:album_list")
+        return JsonResponse(payload)
 
-#     track_ids = [int(x) for x in request.POST.get("track_ids", "").split(",") if x.isdigit()]
-#     album_id = request.POST.get("album_id")
-#     if not track_ids or not album_id:
-#         if request.headers.get("x-requested-with") == "XMLHttpRequest":
-#             return JsonResponse({"ok": False, "error": "Missing tracks or album."}, status=400)
-#         messages.error(request, "Missing tracks or album.")
-#         return redirect("album:album_list")
-
-#     album = get_object_or_404(Album, pk=album_id, owner=request.user)
-
-#     added, skipped = 0, 0
-#     for tid in track_ids:
-#         try:
-#             track = Track.objects.get(pk=tid)
-#         except Track.DoesNotExist:
-#             skipped += 1
-#             continue
-
-#         if AlbumTrack.objects.filter(album=album, track=track).exists():
-#             skipped += 1
-#             continue
-
-#         AlbumTrack.objects.create(album=album, track=track)
-#         added += 1
-
-#     # --- Return JSON if AJAX ---
-#     if request.headers.get("x-requested-with") == "XMLHttpRequest":
-#         return JsonResponse({"ok": True, "added": added, "skipped": skipped, "album": album.name})
-
-#     # --- Fallback: normal Django messages + redirect ---
-#     if added and skipped:
-#         messages.success(request, f"Saved {added} track(s); {skipped} already there.")
-#     elif added:
-#         messages.success(request, f"Saved {added} track(s).")
-#     else:
-#         messages.info(request, f"All selected tracks were already in “{album.name}”.")
-#     return redirect("album:album_list")
-
+    return JsonResponse(payload)
 
 
 

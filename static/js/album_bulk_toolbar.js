@@ -233,16 +233,24 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
+        if (!data?.ok) {
+          throw new Error(data?.error || "Server error.");
+        }
+
         // close modal
         bootstrap.Modal.getInstance(document.getElementById("saveToAlbumModal"))?.hide();
 
+        const addedCount = typeof data.added === "number" ? data.added : data.attached ? 1 : 0;
+        const skippedCount = typeof data.skipped === "number" ? data.skipped : data.attached ? 0 : ids.split(",").filter(Boolean).length;
+        const level = addedCount > 0 ? "success" : "info";
+
         // success feedback
-        notify(`Added ${data.added} track(s), skipped ${data.skipped} duplicate(s).`, "success");
+        notify(`Added ${addedCount} track(s), skipped ${skippedCount} duplicate(s).`, level);
 
         // ✅ update UI without reload
 
         // 1) Update the source album rows (mark save buttons as "already saved")
-        const trackIds = ids.split(",");
+        const trackIds = ids.split(",").filter(Boolean);
         trackIds.forEach((id) => {
           const row = document.querySelector(`li.track-card[data-track-id="${id}"]`);
           if (row) {
@@ -250,9 +258,8 @@
             if (saveBtn) {
               saveBtn.textContent = "🗃️";
               saveBtn.title = "Already saved to your albums";
-              saveBtn.classList.remove("btn-outline-secondary");
-              saveBtn.classList.add("btn-secondary");
-              saveBtn.disabled = true;
+              saveBtn.classList.remove("btn-outline-info");
+              saveBtn.classList.add("btn-info");
             }
           }
         });
@@ -266,6 +273,13 @@
             if (emptyMsg) emptyMsg.remove();
 
             list.insertAdjacentHTML("beforeend", data.html);
+
+            if (window.normalizePlaylistButtons) {
+              window.normalizePlaylistButtons(list);
+            }
+            if (window.hydrateTrackButtons) {
+              window.hydrateTrackButtons(list);
+            }
           }
         }
       } catch (err) {

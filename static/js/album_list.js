@@ -169,6 +169,58 @@
   });
 })();
 
+// ========== Track DETACH (album list view) ==========
+(function () {
+  "use strict";
+  const U = window.AlbumUtils || {};
+
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".js-detach[data-detach-url]");
+    if (!btn) return;
+
+    const detachUrl = btn.getAttribute("data-detach-url");
+    if (!detachUrl) return;
+
+    e.preventDefault();
+
+    const row = btn.closest("li.track-card");
+    const list = row?.closest(".album-tracklist");
+    const albumCard = btn.closest("li.album");
+
+    try {
+      const res = await fetch(detachUrl, {
+        method: "POST",
+        headers: { "X-CSRFToken": U.getCSRF ? U.getCSRF() : "" },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      if (row) row.remove();
+
+      // If the list becomes empty, show the default empty message again
+      if (list && !list.querySelector("li.track-card")) {
+        const existingMsg = list.parentElement?.querySelector(".small.text-muted.mt-2");
+        if (!existingMsg) {
+          const emptyMsg = document.createElement("div");
+          emptyMsg.className = "small text-muted mt-2";
+          emptyMsg.textContent = "No tracks in this album yet.";
+          list.after(emptyMsg);
+        }
+      }
+
+      // Make sure the bulk select checkbox reflects state
+      const checkAll = albumCard?.querySelector(".check-all");
+      if (checkAll) checkAll.checked = false;
+    } catch (err) {
+      console.error("Detach error:", err);
+      if (typeof window.showMessage === "function") {
+        window.showMessage("Failed to remove track from album.", "danger");
+      } else if (typeof window.alert === "function") {
+        window.alert("Failed to remove track from album.");
+      }
+    }
+  });
+})();
+
 // ========== Unified search (input-group style) ==========
 (function () {
   "use strict";
@@ -291,9 +343,7 @@
   });
 })();
 
-//--------------------------- Search Through Saved Albums & tracks ---------------------------//
-
-// -------- Saved Albums / Saved Tracks search (top-level rows only) --------
+// ========== Search Through Saved Albums & tracks ==========
 (function () {
   "use strict";
 
