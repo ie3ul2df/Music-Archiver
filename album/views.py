@@ -430,7 +430,7 @@ def album_detail(request, pk):
         form = TrackForm(owner=request.user) if is_owner else None
 
     # --- Tracks with annotations ---
-    items = (
+    items_qs  = (
         AlbumTrack.objects.filter(album=album)
         .select_related("track")
         .annotate(
@@ -442,6 +442,10 @@ def album_detail(request, pk):
         )
         .order_by("position", "id")
     )
+    
+    # Evaluate once so downstream helpers (and the template include) see the
+    # annotated attributes.
+    items = list(items_qs)
 
     mark_track_ownership(items, request.user)
     annotate_is_in_my_albums(items, request.user, attr="track")
@@ -457,6 +461,12 @@ def album_detail(request, pk):
         )
     for it in items:
         it.track.is_in_my_albums = it.track.id in saved_ids
+
+    # The shared album card partial looks for `album.album_tracks_annotated`
+    # (populated by Prefetch in other views). Mirror that behaviour here so
+    # the track cards receive the annotated AlbumTrack objects with the
+    # rating aggregates, ensuring the star buttons highlight correctly.
+    album.album_tracks_annotated = items
 
     # Template choice
     template_name = "album/album_detail.html" if is_owner else "album/public_album_detail.html"
