@@ -12,12 +12,14 @@
 ## Table of Contents
 
 - [Project Overview](#project-overview)
+  - [UX](#ux)
 - [Wireframes](#Low-and-High-Fidelity-Wireframes)
 - [Architecture & Data Model](#architecture--data-model)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
   - [Quickstart](#quickstart)
   - [Configuration](#configuration)
+- [Testing](#testing)
 - [Deployment on Heroku](#deployment-on-heroku)
 - [Testing](#testing)
 - [Accessibility & Security](#accessibility--security)
@@ -25,7 +27,6 @@
 - [Troubleshooting / FAQ](#troubleshooting--faq)
 - [Contributing](#contributing)
 - [License](#license)
-- [Credits & Acknowledgements](#credits--acknowledgements)
 - [Contact](#contact)
 
 ---
@@ -34,7 +35,39 @@
 
 Music-Archiver is a Django web application for storing and streaming user-curated music links. It balances personal libraries with social discovery through collaborative saving, favourites, and ratings.
 
-### Core Features
+### UX
+
+#### Project Goals
+
+- Enable users to save, organise, and play web-hosted music links.
+- Provide premium features via Stripe subscriptions.
+
+#### Target Audience
+
+- Music collectors who want lightweight playlists/albums from web sources.
+- Creators who share albums with followers.
+
+#### User Stories (MoSCoW)
+
+- **Must**: As a user, I can register/log in so that my albums and playlists persist.
+- **Must**: As a user, I can create albums and add tracks to organise my collection.
+- **Must**: As a user, I can pay for Premium to unlock higher limits.
+- **Should**: As a user, I can rate and favourite tracks/albums.
+- **Could**: As a user, I can save snapshots of others’ albums.
+
+#### Acceptance Criteria (examples)
+
+- _Given_ I am logged in, _when_ I add a track URL, _then_ it appears in my album and is playable.
+- _Given_ payment succeeds, _when_ I return to my profile, _then_ my plan shows as Premium and limits update.
+
+#### Sitemap
+
+- Home → Albums → Album Detail → Player
+- Profile → My Albums / Playlists / Favourites
+- Plans → Basket → Checkout (Stripe) → Success/Cancel
+- Login/Register/Logout
+
+#### Core Features
 
 - User accounts with registration, login, and profile management.
 - Album & track CRUD including uploads to Cloudinary or external URLs.
@@ -72,14 +105,23 @@ The application follows a standard Django project layout with Django apps for al
 
 - **ERD:** [![Full ERD](static/erd/full-erd.svg)](static/erd/full-erd.svg)
 
-### Key Models
+### Data Model (Narrative)
 
-- `User`, `Profile`
-- `Album`, `Track`, `AlbumTrack (position)`
-- `Playlist`, `PlaylistItem (position)`
-- `Favorite`, `SavedAlbum`, `SavedTrack`
-- `Rating`, `PlayLog`
-- `Plan`, `Subscription` (Stripe)
+- **User / Profile**: standard auth user; Profile adds avatar, display preferences.
+- **Album**: `owner → User`, `name`, `description`, `is_public`, timestamps.
+- **Track**: `owner → User`, `name`, `source_url` or `audio_file`, duration, meta.
+- **AlbumTrack**: join with `album → Album`, `track → Track`, `position (int)`; enforces ordering.
+- **Playlist** / **PlaylistItem**: similar to Album/AlbumTrack for personal queues.
+- **Rating**: generic (album/track), `user → User`, `value (1–5)`, unique per (user, object).
+- **Favorite**: user-object bookmark; unique per (user, object).
+- **SavedAlbum / SavedTrack**: snapshot of others’ content; stores `name_snapshot`, update flags.
+- **Plan** / **Subscription**: plan tier & limits; subscription links to Stripe IDs.
+
+**Constraints & Integrity**
+
+- `AlbumTrack`: `(album, position)` unique; default ordering by `position, id`.
+- `Rating`: unique `(user, content_type, object_id)`.
+- Useful indexes on `owner_id`, `(album_id, position)`.
 
 ---
 
@@ -99,17 +141,34 @@ The application follows a standard Django project layout with Django apps for al
   - `django-allauth` (email/social auth)
   - `django.contrib.sites` (required by allauth)
   - Django auth/sessions/messages
+  - Guests can browse public albums but cannot create/edit or save content.
+  - Registered users can CRUD their own albums/tracks, rate/favourite, save others’ albums.
+  - Owners only: rename/detach/delete their items.
+  - Admin users manage plans/subscriptions via Django admin.
 
 - **Forms & Templating**
 
   - `django-crispy-forms` + `crispy-bootstrap5`
   - Django Templates with partials/includes and filters
 
+- **Forms & Validation**
+
+- **Auth forms**: django-allauth (email/password validation).
+- **Album/Track forms**: server-side validation of required fields, URL format, file types; user-friendly error messages.
+- **Checkout**: server-side verification of Stripe intent; flash messages on success/failure.
+- Client-side: HTML5 validation + Bootstrap feedback; JS prevents duplicate submits where applicable.
+
 - **Frontend**
 
   - `Bootstrap 5` (grid, utilities, responsive)
   - Vanilla JavaScript modules in `static/js` (player controls, ratings, AJAX/fetch)
   - Custom CSS + semantic HTML
+
+- **JavaScript Features**
+
+  - **Audio Player** (`static/js/music_player.js`): play/pause, progress, duration, volume, next/prev, shuffle.
+  - **Album/Playlist UI** (`static/js/album_utils.js` etc.): drag-and-drop ordering, AJAX add/remove, favourites and ratings.
+  - Progressive enhancement: server renders controls; JS upgrades behaviour; graceful fallbacks if JS disabled.
 
 - **Database**
 
@@ -126,6 +185,10 @@ The application follows a standard Django project layout with Django apps for al
 - **Payments**
 
   - `Stripe` (server SDK) for subscriptions/checkout + secure webhooks
+  - **Flow**: Plan → Basket → Checkout → Stripe Hosted Page → Webhook → Subscription active → Plan limits updated.
+  - **Webhook endpoint**: `/checkout/webhook/`
+  - **Test cards**: `4242 4242 4242 4242`, expiry: `12/32`, CVC: `123`, any postcode.
+  - **Feedback**: success/cancel pages and on-site messages communicate outcome.
 
 - **Serving & Deployment**
 
@@ -257,13 +320,33 @@ Static files are collected to `BASE_DIR / "staticfiles"` and served via Whitenoi
 
 ## Testing
 
-Run the Django test suite:
+### Manual Test Matrix (sample)
 
-```bash
-python manage.py test
-```
+| Feature    | Scenario       | Steps            | Expected                    | Result |
+| ---------- | -------------- | ---------------- | --------------------------- | ------ |
+| Register   | Valid details  | Submit form      | User created & logged in    | ✅     |
+| Album CRUD | Create album   | Fill name → Save | Album appears in list       | ✅     |
+| Player     | Play web track | Click ▶          | Audio plays; time updates   | ✅     |
+| Checkout   | Test card      | Pay via Stripe   | Success page; plan upgraded | ✅     |
 
-For full manual and automated test procedures, see [TESTING.md](TESTING.md).
+### Validators & Linters
+
+- **HTML** (W3C): Pass (screenshots in `docs/testing/`).
+- **CSS** (Jigsaw): Pass.
+- **JS** (e.g., ESLint/JSHint): No critical issues.
+- **Python** (PEP8/flake8): Clean or documented exceptions.
+
+### Lighthouse
+
+- Mobile & Desktop scores for Performance/Accessibility/Best Practices/SEO (screenshots included).
+
+### Browsers & Devices
+
+- Chrome, Firefox, Edge, Safari 15+; iOS/Android (key pages tested with screenshots).
+
+### Bug Log
+
+- Issue → reproduction → root cause → fix → commit hash (see `docs/bugs.md`).
 
 ---
 
@@ -312,14 +395,12 @@ Distributed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
-## Credits & Acknowledgements
-
-- Core development team and community contributors.
-- Bootstrap icons and open-source libraries powering the UI.
-- Cloudinary and Stripe for generous developer tooling.
-
----
-
 ## Contact
 
-For questions or support, open an issue on GitHub or reach out via the repository maintainers.
+For questions or support, please open an issue on GitHub or reach out directly:
+
+- **Email:** [arash11javadi@gmail.com](mailto:arash11javadi@gmail.com)
+- **Website:** [arashjavadi.com](https://arashjavadi.com)
+- **GitHub:** [@arash12javadi](https://github.com/arash12javadi)
+- **Phone:** [+44 7506 205023](tel:+447506205023)
+- **Address:** Guildford Cres, Cardiff, CF10 2HA, United Kingdom
