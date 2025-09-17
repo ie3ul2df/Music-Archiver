@@ -390,6 +390,10 @@ def ajax_rename_album(request, pk):
 def ajax_delete_album(request, pk):
     """Delete an album (AJAX-only)."""
     album = get_object_or_404(Album, pk=pk, owner=request.user)
+    if album.is_default:
+        return JsonResponse(
+            {"ok": False, "error": "The default album cannot be deleted."}, status=400
+        )
     album.delete()
     return JsonResponse({"ok": True, "id": pk})
 

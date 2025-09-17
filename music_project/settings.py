@@ -69,7 +69,7 @@ INSTALLED_APPS = [
 
     # Local apps
     "tracks",
-    "album",
+    "album.apps.AlbumConfig",
     "plans",
     "basket",
     "home_page",

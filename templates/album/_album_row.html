@@ -43,7 +43,7 @@
         </a>
       {% endif %}
 
-      {% if delete_url %}
+      {% if delete_url and not album.is_default %}
         <button type="button"
                 class="btn btn-outline-danger"
                 data-bs-toggle="modal"

@@ -2,6 +2,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
+from django.db.models import Q
+from django.db.models.deletion import ProtectedError
 import uuid
 
 
@@ -16,6 +18,7 @@ class Album(models.Model):
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True)
     is_public = models.BooleanField(default=False)
+    is_default = models.BooleanField(default=False)
     slug = models.SlugField(max_length=180, unique=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     order = models.PositiveIntegerField(default=0)
@@ -23,6 +26,13 @@ class Album(models.Model):
     class Meta:
         ordering = ["order", "id"]
         indexes = [models.Index(fields=["owner", "order"])]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner"],
+                condition=Q(is_default=True),
+                name="uniq_default_album_per_owner",
+            )
+        ]
 
     def _make_unique_slug(self) -> str:
         """
@@ -46,6 +56,12 @@ class Album(models.Model):
         if not self.slug:
             self.slug = self._make_unique_slug()
         super().save(*args, **kwargs)
+        
+    def delete(self, *args, **kwargs):
+        if self.is_default:
+            raise ProtectedError("Default albums cannot be deleted.", [self])
+        return super().delete(*args, **kwargs)
+
 
     def __str__(self):
         return f"{self.name} ({self.owner.username})"

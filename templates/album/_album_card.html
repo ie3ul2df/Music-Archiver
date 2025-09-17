@@ -81,7 +81,7 @@
                         {% endif %}
                       </li>
                       <li class="m-2">
-                        {% if delete_url %}
+                        {% if delete_url and not album.is_default %}
                           <button type="button"
                                   class="btn btn-outline-danger"
                                   data-bs-toggle="modal"
