@@ -71,7 +71,43 @@ Music-Archiver is a Django web application for storing and streaming user-curate
 The application follows a standard Django project layout with Django apps for albums, playlists, profiles, and shared utilities. Static files are served via Whitenoise in production, while media uploads are stored in Cloudinary.
 
 - **ERD:** [![Full ERD](static/erd/full-erd.svg)](static/erd/full-erd.svg)
-- **System Diagram (optional):** ![Architecture Diagram](documentation/architecture.png)
+- **System Diagram:**
+  graph TD
+  %% Client
+  A[User Browser]:::client
+
+  %% App Layer
+  subgraph B[Heroku Dyno]
+  B1[Django App<br/>Gunicorn + WhiteNoise]:::app
+  B2[(Static Files / Assets)]:::storage
+  end
+
+  %% Database
+  subgraph C[Database]
+  C1[(PostgreSQL<br/>Neon)]:::db
+  end
+
+  %% External Services
+  subgraph D[External Services]
+  D1[Stripe API<br/>(payments)]:::ext
+  D2[OAuth Providers via django-allauth]:::ext
+  D3[Cloud Storage Integrations<br/>(Drive/Dropbox/OneDrive)]:::ext
+  end
+
+  %% Flows
+  A -->|HTTPS| B1
+  B1 -->|Serves HTML/API| A
+  B1 -->|/static via WhiteNoise| B2
+  B1 -->|ORM (models)| C1
+  B1 <--> D1
+  B1 <--> D2
+  B1 <--> D3
+
+  classDef client fill:#f6f9ff,stroke:#3b82f6,stroke-width:1px,color:#111;
+  classDef app fill:#eefbf4,stroke:#10b981,stroke-width:1px,color:#111;
+  classDef db fill:#fff7ed,stroke:#f59e0b,stroke-width:1px,color:#111;
+  classDef ext fill:#fdf2f8,stroke:#ec4899,stroke-width:1px,color:#111;
+  classDef storage fill:#f3f4f6,stroke:#6b7280,stroke-width:1px,color:#111;
 
 ### Key Models
 
