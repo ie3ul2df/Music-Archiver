@@ -151,15 +151,6 @@ div.track-inline-progress .track-progress {
   max-width: 75%;
 }
 
-button#dropdownMenu2 {
-  border: 2px solid;
-  border-radius: 100%;
-  width: 30px;
-  height: 30px;
-  filter: drop-shadow(1px 0px 2px black);
-  color: #555;
-}
-
 .rotate-dropdown-btn {
   transition: transform 0.3s ease;
 }
