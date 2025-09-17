@@ -48,15 +48,9 @@ Music-Archiver is a Django web application for storing and streaming user-curate
 
 ---
 
-## Screenshots
+## Low and High Fidelity Wireframes
 
-| Home                            | Albums                              | Album Detail                                    | Player                                     |
-| ------------------------------- | ----------------------------------- | ----------------------------------------------- | ------------------------------------------ |
-| ![Home](documentation/home.png) | ![Albums](documentation/albums.png) | ![Album detail](documentation/album-detail.png) | ![Player](documentation/tracks-player.png) |
-
-| Drag & Drop Playlists                                   | Favourites                                  | Saved Tabs                                   | Profile                               | Responsive                                      |
-| ------------------------------------------------------- | ------------------------------------------- | -------------------------------------------- | ------------------------------------- | ----------------------------------------------- |
-| ![Playlist drag & drop](documentation/playlist-dnd.gif) | ![Favourites](documentation/favourites.png) | ![Saved items](documentation/saved-tabs.png) | ![Profile](documentation/profile.png) | ![Responsive](documentation/responsiveness.png) |
+- ![Low Fidelity Home Wireframe](static/wireframes/low-fidelity-wireframes/home.png)
 
 ---
 
