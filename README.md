@@ -85,13 +85,92 @@ The application follows a standard Django project layout with Django apps for al
 
 ## Tech Stack
 
-- Python {3.12+}
-- Django {5.x}
-- PostgreSQL (production) / SQLite (development)
-- Gunicorn & Whitenoise for WSGI + static serving
-- Bootstrap {5} with vanilla JavaScript modules
-- Cloudinary for media storage and delivery
-- Stripe for subscription billing
+- **Language & Runtime**
+
+  - `Python 3.12+` (virtualenv)
+  - `pip` + `requirements.txt` for dependencies
+
+- **Web Framework**
+
+  - `Django 5.x` (apps: `album`, `tracks`, `playlist`, `plans`, `basket`, `checkout`, `profile_page`, `home_page`, `ratings`, `save_system`)
+
+- **Auth & Accounts**
+
+  - `django-allauth` (email/social auth)
+  - `django.contrib.sites` (required by allauth)
+  - Django auth/sessions/messages
+
+- **Forms & Templating**
+
+  - `django-crispy-forms` + `crispy-bootstrap5`
+  - Django Templates with partials/includes and filters
+
+- **Frontend**
+
+  - `Bootstrap 5` (grid, utilities, responsive)
+  - Vanilla JavaScript modules in `static/js` (player controls, ratings, AJAX/fetch)
+  - Custom CSS + semantic HTML
+
+- **Database**
+
+  - `PostgreSQL` (production, Neon)
+  - `SQLite` (local development)
+  - Django ORM + migrations
+
+- **Media & Static**
+
+  - `Cloudinary` + `django-cloudinary-storage` as default file storage
+  - `Pillow` for image handling
+  - Django `staticfiles` + `WhiteNoise` for static serving
+
+- **Payments**
+
+  - `Stripe` (server SDK) for subscriptions/checkout + secure webhooks
+
+- **Serving & Deployment**
+
+  - `Gunicorn` (WSGI)
+  - `WhiteNoise` (serve `/static`)
+  - `Heroku` (dynos, config vars, `collectstatic`)
+  - `Procfile`, `runtime.txt`
+
+- **Configuration & Env Vars**
+
+  - `python-dotenv` / `django-environ` / `python-decouple`
+  - Typical keys: `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `DATABASE_URL`, `STRIPE_PUBLIC_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WH_SECRET`, `CLOUDINARY_URL`
+
+- **Tooling & Workflow**
+  - **Visual Studio Code** (Python/Django extensions)
+  - **Git & GitHub** (source control, README)
+  - **Heroku CLI** (deploy, logs, run commands)
+  - **psql / pg_dump** (schema export for ERD)
+  - **pgAdmin / DBeaver** (DB GUI, optional)
+  - **Chrome DevTools** (network/console/layout)
+  - **Windows PowerShell/CMD** (local dev shell)
+
+---
+
+## How It Fits Together
+
+- **Django 5.x** provides models, views, URLs, and templates split into feature apps.
+- **ORM → PostgreSQL/SQLite**: SQLite for dev; Neon/Postgres in prod via `DATABASE_URL`.
+- **Cloudinary** stores media (audio/images) off-box; URLs delivered via CDN.
+- **Static assets** are collected by `collectstatic` and served by **WhiteNoise** on Heroku.
+- **Bootstrap + vanilla JS** power the responsive UI and interactivity (audio player, ratings, playlist toggles, favourites).
+- **Stripe** handles billing: server-side intents + **webhooks** for reliable fulfillment.
+- **Gunicorn** runs the Django app on Heroku; **WhiteNoise** serves static efficiently.
+- **Env vars** isolate secrets/config between dev and prod.
+
+---
+
+## Deployment Flow (Heroku)
+
+1. Commit & push to GitHub (or `git push heroku main`).
+2. Heroku builds the slug and installs `requirements.txt`.
+3. Run collectstatic (manually or automatically):
+   ```bash
+   heroku run python manage.py collectstatic --noinput
+   ```
 
 ---
 
