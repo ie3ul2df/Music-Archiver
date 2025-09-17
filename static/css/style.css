@@ -157,3 +157,8 @@ div.track-inline-progress .track-progress {
 .rotate-dropdown-btn.rotate-180 {
   transform: rotate(180deg);
 }
+
+.rating-summary,
+.stars {
+  filter: drop-shadow(1px 1px 1px black);
+}
