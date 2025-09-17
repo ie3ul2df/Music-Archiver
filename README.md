@@ -24,6 +24,8 @@
 - [Testing](#testing)
 - [Accessibility & Security](#accessibility--security)
 - [Roadmap & Known Issues](#roadmap--known-issues)
+- [Challenges](#challenges)
+- [Future works](#future-work)
 - [Troubleshooting / FAQ](#troubleshooting--faq)
 - [Contributing](#contributing)
 - [License](#license)
@@ -378,6 +380,24 @@ Static files are collected to `BASE_DIR / "staticfiles"` and served via Whitenoi
 - [ ] Improve notifications for updated saved albums/tracks.
 - [ ] Document Cloudinary quota handling edge cases.
 - Known issue: Drag-and-drop uses HTML5 API; Safari versions < 15 may have inconsistent behaviour.
+
+---
+
+## Challenges
+
+- **Static & Media Handling**: Configuring `Whitenoise` and `Cloudinary` together was tricky. Ensuring static files were collected correctly on Heroku while media uploads went to Cloudinary required several iterations of settings and environment variable fixes.
+- **Stripe Webhooks**: Handling asynchronous events from Stripe (checkout success, subscription updates) was challenging. Making sure the webhook handler verified signatures, updated the database reliably, and displayed helpful user feedback took careful testing.
+- **Responsive Player UI**: Building a consistent audio player with Bootstrap and custom JavaScript was harder than expected. Ensuring the controls (play, pause, shuffle, progress, volume) stayed aligned across devices and browsers required custom CSS and flexbox adjustments.
+
+---
+
+## Future Work
+
+- **Collaborative Playlists**: Allow multiple users to add tracks to a shared playlist in real time.
+- **Notifications**: Implement in-app and/or email notifications when a saved album or track is updated.
+- **Offline Caching**: Add local storage or PWA features so that recently played tracks are available without internet.
+- **Social Features**: Add comments on albums/tracks, following other users, and activity feeds.
+- **Enhanced Analytics**: Give users insights into their listening history, top albums, and ratings breakdown.
 
 ---
 
