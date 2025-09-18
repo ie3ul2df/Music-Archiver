@@ -37,10 +37,10 @@
       🔗 by <span class="fw-bold"> {{ track.owner.username }} </span>
     </a>
     <!-------------- Actions -------------->
-    <span class="d-flex align-items-center gap-1 flex-sm-nowrap flex-wrap w-100">
+    <div class="d-flex align-items-center gap-1 flex-sm-nowrap flex-wrap w-100">
 
       {# ★ Rankings #}
-      <span class="ms-1 rating-wrap">
+      <div class="ms-1 rating-wrap">
         {% if at and at.rating_html %}{{ at.rating_html|safe }}
         {% else %}
           {% with base_avg=track.rating_avg|default:0 base_count=track.rating_count|default:0 %}
@@ -53,7 +53,7 @@
             {% endif %}
           {% endwith %}
         {% endif %}
-      </span>
+      </div>
       <div class="play-and-more d-flex flex-sm-row align-items-center gap-2 w-100">
         {# ▶ Play/Pause #}
         <div class="d-flex align-items-center justify-content-end gap-2 flex-wrap flex-grow-1">
@@ -166,7 +166,7 @@
           </ul>
         </div>
       </div>
-    </span><!-- Actions span end -->
+    </div><!-- Actions div end -->
 
   </div>
 
