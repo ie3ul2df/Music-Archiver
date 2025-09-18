@@ -1,3 +1,5 @@
+/* jshint esversion: 8 */
+/* global getCSRF */
 // --------------------------- static/js/track_list.js ---------------------------//
 const trackListNotify = (message, level) => {
   if (typeof window.showMessage === "function") {
