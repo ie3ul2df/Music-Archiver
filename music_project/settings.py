@@ -149,6 +149,9 @@ TEMPLATES = [
                 "playlist.context_processors.playlist_membership",
                 "tracks.context_processors.ui_track_state",
             ],
+            "libraries": {
+                "rating_extras": "ratings.templatetags.rating_extras",
+            },
         },
     },
 ]
