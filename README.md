@@ -466,13 +466,6 @@ Example screenshots:
 
 ---
 
-### Bug Log
-
-All issues were tracked with clear reproduction steps, root cause analysis, fixes, and commit references.  
-See: [`docs/bugs.md`](docs/bugs.md) for the full log.
-
----
-
 ## Accessibility & Security
 
 - Keyboard-accessible media player controls with `aria-label` support on icon buttons.
