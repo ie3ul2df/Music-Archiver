@@ -18,6 +18,7 @@
 - [Wireframes](#low-and-high-fidelity-wireframes)
 - [Architecture & Data Model](#architecture--data-model)
 - [Tech Stack](#tech-stack)
+- [Google Drive Integration](#google-drive-integration)
 - [Getting Started](#getting-started)
   - [Quickstart](#quickstart)
   - [Configuration](#configuration)
@@ -314,6 +315,74 @@ Static assets are served via **WhiteNoise** in production, while user-uploaded m
    ```bash
    heroku run python manage.py collectstatic --noinput
    ```
+
+---
+
+## Google Drive Integration
+
+Music-Archiver can integrate with **Google Drive** through the Google API to give users cloud-backed music storage.  
+This feature extends the app beyond local uploads and streaming links, allowing users to **sync entire folders** from their Google Drive into albums and playlists.
+
+### How It Works
+
+1. **OAuth Connection**
+
+   - Users connect their Google Drive via the standard OAuth 2.0 flow.
+   - Credentials (access + refresh tokens) are securely stored in the database (`CloudAccount`).
+   - Only the authenticated user can access their connected Drive account.
+
+2. **Album ↔ Drive Folder Link**
+
+   - Any album in the app can be linked to a specific Google Drive folder (`CloudFolderLink`).
+   - Folder IDs are extracted automatically from Drive URLs.
+   - Once linked, all audio files inside that folder can be synced into the album.
+
+3. **Syncing Files**
+
+   - A sync action scans the Drive folder for audio files.
+   - New files are imported as tracks and mapped (`CloudFileMap`) to avoid duplicates.
+   - Updated file metadata (name, size, MIME type, checksum) is refreshed.
+   - Synced files appear in the album, ready to play, rate, favourite, or add to playlists.
+
+4. **Streaming**
+
+   - Tracks are streamed directly from Google Drive using the owner’s OAuth token.
+   - The proxy supports **HTTP Range requests**, allowing scrubbing and partial playback.
+   - Permissions are enforced:
+     - Owners can always stream their linked files.
+     - Public albums allow shared streaming of their Drive-backed tracks.
+
+5. **CRUD + Engagement**  
+   Once synced, Google Drive tracks behave like native app tracks:
+   - Add to **playlists** or other albums.
+   - Mark as **favourites**.
+   - Give **ratings (★)**.
+   - Edit metadata (name, album position).
+   - Remove from collections without deleting the original Drive file.
+
+### Example Use Case
+
+- A DJ links a “Mixes 2025” Google Drive folder to an album in Music-Archiver.
+- After syncing, all mixes in that folder appear as playable tracks in the app.
+- The DJ can:
+  - Reorder them into a playlist,
+  - Mark favourites,
+  - Share the album publicly,
+  - Continue adding files to the Drive folder — and sync again to update.
+
+![User Profile google Connection Tab](static/google-drive-connecttion/user-profile-settings.png)
+![Added the tracks from Google drive to the User Album](static/google-drive-connecttion/added-tracks-to-album-list.png)
+
+### Benefits
+
+- **Unlimited storage** (depends on user’s Google Drive quota).
+- **Seamless updates**: new Drive uploads appear in the app with one click.
+- **Collaboration**: share a Drive folder with friends, and synced albums automatically reflect shared files.
+- **Unified experience**: Drive tracks blend with regular uploads and web links in albums and playlists.
+
+---
+
+> 🔒 **Security Note**: Tokens are stored securely, refreshed automatically, and scoped only to read audio files from Google Drive. Other files remain untouched.
 
 ---
 
