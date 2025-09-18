@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 
 from album.models import Album
 from checkout.models import Order
@@ -138,12 +139,39 @@ def public_profile(request, username: str):
         )
     ).order_by("-created_at")
 
-    public_tracks = annotate_tracks(
+    public_tracks_qs = annotate_tracks(
         Track.objects.filter(
             track_albums__album__owner=view_user,
             track_albums__album__is_public=True,
         ).distinct()
     ).order_by("-created_at")
+    
+    public_tracks = []
+    for track in public_tracks_qs:
+        raw_avg = getattr(track, "rating_avg", None)
+        raw_count = getattr(track, "rating_count", None)
+
+        avg = float(raw_avg) if raw_avg else 0.0
+        count = int(raw_count) if raw_count else 0
+
+        # Normalise the annotated values so templates receive primitives instead
+        # of Django's Decimal objects. Without this, some template code may treat
+        # the value as a string which prevents the star widget from adding the
+        # "is-selected" class to the filled buttons.
+        track.rating_avg = avg
+        track.rating_count = count
+        track.rating_html = render_to_string(
+            "ratings/_stars.html",
+            {
+                "type": "track",
+                "id": track.id,
+                "avg": avg,
+                "count": count,
+                "user_rating": None,
+            },
+            request=request,
+        )
+        public_tracks.append(track)
 
     return render(
         request,

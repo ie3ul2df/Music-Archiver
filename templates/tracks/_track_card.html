@@ -48,7 +48,8 @@
 
       {# ★ Rankings #}
       <div class="ms-1 rating-wrap">
-        {% if at and at.rating_html %}{{ at.rating_html|safe }}
+        {% if track.rating_html %}{{ track.rating_html|safe }}
+        {% elif at and at.rating_html %}{{ at.rating_html|safe }}
         {% else %}
           {% with base_avg=track.rating_avg|default:0 base_count=track.rating_count|default:0 %}
             {% if avg != '' or count != '' %}
@@ -93,7 +94,7 @@
                   class="btn btn-sm dropdown-toggle action-dropdown-menu rotate-dropdown-btn" 
                   type="button" 
                   data-bs-toggle="dropdown" 
-                  aria-expanded="false"></button>
+                  aria-expanded="false">▲</button>
           <ul class="dropdown-menu action-dropdown-menu" 
               aria-labelledby="dropdownMenu-{{ context_prefix }}-track-{{ track.id }}{% if album_item_id %}-{{ album_item_id }}{% elif playlist_item_id %}-{{ playlist_item_id }}{% else %}-{{ forloop.counter }}{% endif %}">
             {% if request.user.is_authenticated %}  

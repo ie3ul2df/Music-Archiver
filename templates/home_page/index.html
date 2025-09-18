@@ -17,14 +17,14 @@
       <div class="col-md-6">
         <input id="q" type="search" name="q" class="form-control form-control-lg" placeholder="Search albums, tracks, or users…" autocomplete="off" >
       </div>
-      <div class="col-md-3">
-        <select id="t" name="t" class="form-select form-select-lg">
-          <option value="all" selected>All</option>
-          <option value="albums">Albums</option>
-          <option value="tracks">Tracks</option>
-          <option value="users">Users</option>
-        </select>
-      </div>
+        <div class="col-md-3">
+          <select id="t" name="t" class="form-select form-select-lg" aria-label="Filter by">
+            <option value="all" selected>All</option>
+            <option value="albums">Albums</option>
+            <option value="tracks">Tracks</option>
+            <option value="users">Users</option>
+          </select>
+        </div>
       <div class="col-md-2 d-grid">
         <button class="btn btn-primary btn-lg">Search</button>
       </div>
@@ -42,21 +42,21 @@
   <div class="row text-center mt-5">
     <div class="col-md-4">
       <div class="card border-0 shadow-sm p-4 h-100">
-        <h3>🎵 Track Manager</h3>
+        <h2>🎵 Track Manager</h2>
         <p>Add tracks by link or upload (with storage plans), edit them, and play instantly.</p>
         <a href="{% url 'track_list' %}" class="btn btn-outline-primary">My Tracks</a>
       </div>
     </div>
     <div class="col-md-4">
       <div class="card border-0 shadow-sm p-4 h-100">
-        <h3>📂 Albums</h3>
+        <h2>📂 Albums</h2>
         <p>Create albums, organise your tracks, and enjoy your collection seamlessly.</p>
         <a href="{% url 'album:album_list' %}" class="btn btn-outline-primary">My Albums</a>
       </div>
     </div>
     <div class="col-md-4">
       <div class="card border-0 shadow-sm p-4 h-100">
-        <h3>💸 Premium Plans</h3>
+        <h2>💸 Premium Plans</h2>
         <p>Unlock unlimited albums, tracks, and cloud storage with affordable plans.</p>
         <a href="{% url 'plan_list' %}" class="btn btn-outline-success">Upgrade Now</a>
       </div>
@@ -78,7 +78,7 @@
 <div class="row mt-5">
 
   <div class="col-lg-6">
-    <h3 class="mb-3">🔥 Top 10 Albums</h3>
+    <h2 class="mb-3">🔥 Top 10 Albums</h2>
     <ul class="list-group">
       {% for album in albums_top %}
         {% include "album/_album_card.html" with album=album avg=album.rating_avg count=album.rating_count allow_reorder=False %}
@@ -89,7 +89,7 @@
   </div>
 
   <div class="col-lg-6 mt-4 mt-lg-0">
-    <h3 class="mb-3">🎵 Top 10 Tracks</h3>
+    <h2 class="mb-3">🎵 Top 10 Tracks</h2>
     <ul class="list-group">
       {% for track in tracks_top %}
         {% include "tracks/_track_card.html" with track=track album=None is_favorited=track.is_favorited|default:False avg=track.rating_avg count=track.rating_count in_playlist=track.in_playlist %}
