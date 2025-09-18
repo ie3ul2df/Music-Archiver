@@ -15,7 +15,7 @@
 
 - [Project Overview](#project-overview)
   - [UX](#ux)
-- [Wireframes](#Low-and-High-Fidelity-Wireframes)
+- [Wireframes](#low-and-high-fidelity-wireframes)
 - [Architecture & Data Model](#architecture--data-model)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
@@ -26,7 +26,7 @@
 - [Accessibility & Security](#accessibility--security)
 - [Roadmap & Known Issues](#roadmap--known-issues)
 - [Challenges](#challenges)
-- [Future works](#future-work)
+- [Future Work](#future-work)
 - [Troubleshooting / FAQ](#troubleshooting--faq)
 - [Contributing](#contributing)
 - [License](#license)
@@ -36,64 +36,86 @@
 
 ## Project Overview
 
-Music-Archiver is a Django web application for storing and streaming user-curated music links. It balances personal libraries with social discovery through collaborative saving, favourites, and ratings.
+**Music-Archiver** is a full-stack Django web application that allows users to save, organise, and stream music links from across the web.  
+It provides a lightweight alternative to traditional streaming platforms, giving users control over how they curate, play, and share their collections.
 
-### UX
+The platform balances **personal music libraries** with **social discovery features**. Users can create albums and playlists, upload their own tracks or link to streaming URLs, and enhance engagement with favourites, ratings, and snapshots of other users’ collections.
 
-#### Project Goals
+Key highlights include:
 
-- Enable users to save, organise, and play web-hosted music links.
-- Provide premium features via Stripe subscriptions.
+- 🎵 **Albums & Playlists** — Create and manage personal music collections with drag-and-drop track ordering.
+- ⭐ **Engagement Features** — Rate, favourite, and review recent play history to rediscover tracks.
+- 👥 **Social Saving** — Save or snapshot albums and tracks from other users, with update notifications.
+- 💾 **Flexible Storage** — Upload audio files to Cloudinary or add direct streaming URLs.
+- 💳 **Plans & Subscriptions** — Start free with limited albums, then upgrade to Premium via Stripe checkout for higher storage and feature limits.
+- 🎚️ **Responsive Media Player** — Play, pause, shuffle, skip, and adjust volume with a clean UI optimised for mobile and desktop.
+- 🔍 **Search & Filter** — Quickly locate albums or tracks in large collections.
 
-#### Target Audience
+Whether for **music collectors** who want to centralise links, or **creators** who share curated playlists, Music-Archiver delivers a streamlined listening experience with just the features users need—no bloat, no lock-in.
 
-- Music collectors who want lightweight playlists/albums from web sources.
-- Creators who share albums with followers.
+---
 
-#### User Stories (MoSCoW)
+## UX
 
-- **Must**: As a user, I can register or log in so that my albums and playlists persist across sessions.
-- **Must**: As a user, I can create albums and add tracks to organise my collection the way I want.
-- **Must**: As a user, I can pay for a Premium plan to unlock higher limits on albums, playlists, and storage without leaving the app.
-- **Must**: As a user, I can upload audio files or link streaming URLs when I add tracks so my library contains all my sources.
-- **Must**: As a user, I can build playlists and control track order so that playback flows the way I expect.
-- **Must**: As a user, I can play music with controls like play, pause, next, shuffle, and volume to enjoy my collection seamlessly.
-- **Must**: As a user, I can manage my profile details and default contact information so my account feels personal and checkout is faster.
-- **Must**: As a user, I can search and filter my library so I can quickly find the albums or tracks I want to hear.
+### Project Goals
 
-- **Should**: As a user, I can rate and favourite tracks or albums so my preferences shape future listening.
-- **Should**: As a user, I can reorder tracks via drag-and-drop inside albums and playlists to fine-tune their listening sequence.
-- **Should**: As a user, I can review my recent play history so I can rediscover songs I enjoyed.
-- **Should**: As a user, I can choose whether an album is public or private so I control who can see it.
-- **Should**: As a user, I can track plan storage allowances so I understand how close I am to hitting my media limits.
+- Allow users to save, organise, and play web-hosted music links.
+- Provide enhanced functionality and higher storage limits through Premium plans (via Stripe subscriptions).
 
-- **Could**: As a user, I can save snapshots of other users’ albums so I can revisit their collections later.
-- **Could**: As a user, I can capture individual tracks from other collections into my own albums so I keep curated mixes.
-- **Could**: As a user, I can see when a saved album or track has been updated so I know when to refresh my snapshot.
+### Target Audience
 
-#### Acceptance Criteria (examples)
+- **Music collectors** who want lightweight playlists and albums built from web sources.
+- **Creators and curators** who share their collections with followers.
 
-- _Given_ I am logged in, _when_ I add a track URL, _then_ it appears in my album and is playable.
-- _Given_ payment succeeds, _when_ I return to my profile, _then_ my plan shows as Premium and limits update.
+### User Stories (MoSCoW)
 
-#### Sitemap
+- **Must**
+
+  - As a user, I can register or log in so that my albums and playlists persist across sessions.
+  - As a user, I can create albums and add tracks to organise my collection.
+  - As a user, I can upgrade to a Premium plan to unlock higher limits on albums, playlists, and storage.
+  - As a user, I can upload audio files or link streaming URLs so my library supports all my sources.
+  - As a user, I can build playlists and control track order so playback flows as expected.
+  - As a user, I can play music with controls (play, pause, next, shuffle, volume) for a seamless experience.
+  - As a user, I can manage my profile details and contact information to personalise my account and speed up checkout.
+  - As a user, I can search and filter my library to quickly find albums or tracks.
+
+- **Should**
+
+  - As a user, I can rate and favourite tracks or albums so my preferences influence my listening.
+  - As a user, I can reorder tracks inside albums and playlists via drag-and-drop.
+  - As a user, I can review my recent play history to rediscover songs.
+  - As a user, I can choose whether an album is public or private for better control over visibility.
+  - As a user, I can track my storage usage to know when I am approaching plan limits.
+
+- **Could**
+  - As a user, I can save snapshots of other users’ albums to revisit later.
+  - As a user, I can copy individual tracks from other collections into my own albums.
+  - As a user, I can see when a saved album or track has been updated so I know when to refresh my snapshot.
+
+### Acceptance Criteria (Examples)
+
+- **Given** I am logged in, **when** I add a track URL, **then** it appears in my album and is playable.
+- **Given** my payment succeeds, **when** I return to my profile, **then** my plan shows as Premium and my limits are updated.
+
+### Sitemap
 
 - Home → Albums → Album Detail → Player
 - Profile → My Albums / Playlists / Favourites
-- Plans → Basket → Checkout (Stripe) → Success/Cancel
-- Login/Register/Logout
+- Plans → Basket → Checkout (Stripe) → Success / Cancel
+- Login / Register / Logout
 
-#### Core Features
+### Core Features
 
 - User accounts with registration, login, and profile management.
-- Album & track CRUD including uploads to Cloudinary or external URLs.
-- Drag-and-drop track ordering for albums and playlists.
-- Responsive media player with play/pause, next/previous, shuffle, progress, and volume controls.
-- Favourites (♥), ratings (★), and recent play history for engagement insights.
-- Save other users’ albums/tracks as snapshots with “update available” indicators.
-- Search, filtering, and responsive Bootstrap-powered UI.
-- Plan management: Free plan (e.g., 3 albums) vs Premium subscriptions via Stripe.
-- Cloudinary storage quotas enforced per plan.
+- Album & track CRUD operations (with Cloudinary uploads or external URLs).
+- Drag-and-drop track ordering in albums and playlists.
+- Responsive media player (play/pause, next/previous, shuffle, progress, volume).
+- Favourites (♥), ratings (★), and recent play history.
+- Social saving: snapshot other users’ albums or tracks with “update available” indicators.
+- Search and filtering within a responsive Bootstrap-powered UI.
+- Plan management: Free plan (e.g. 3 albums) vs. Premium subscriptions via Stripe.
+- Cloudinary storage quotas enforced by plan.
 
 ---
 
@@ -117,115 +139,157 @@ Music-Archiver is a Django web application for storing and streaming user-curate
 
 ## Architecture & Data Model
 
-The application follows a standard Django project layout with Django apps for albums, playlists, profiles, and shared utilities. Static files are served via Whitenoise in production, while media uploads are stored in Cloudinary.
+The application follows a modular **Django project layout**, with dedicated apps for albums, playlists, profiles, ratings, plans, and shared utilities.  
+Static assets are served via **WhiteNoise** in production, while user-uploaded media (e.g., audio files, avatars) is managed through **Cloudinary**.
 
 - **ERD:** [![Full ERD](static/erd/full-erd.svg)](static/erd/full-erd.svg)
 
-### Data Model (Narrative)
+### Data Model Overview
 
-- **User / Profile**: standard auth user; Profile adds avatar, display preferences.
-- **Album**: `owner → User`, `name`, `description`, `is_public`, timestamps.
-- **Track**: `owner → User`, `name`, `source_url` or `audio_file`, duration, meta.
-- **AlbumTrack**: join with `album → Album`, `track → Track`, `position (int)`; enforces ordering.
-- **Playlist** / **PlaylistItem**: similar to Album/AlbumTrack for personal queues.
-- **Rating**: generic (album/track), `user → User`, `value (1–5)`, unique per (user, object).
-- **Favorite**: user-object bookmark; unique per (user, object).
-- **SavedAlbum / SavedTrack**: snapshot of others’ content; stores `name_snapshot`, update flags.
-- **Plan** / **Subscription**: plan tier & limits; subscription links to Stripe IDs.
+- **User / Profile**
 
-**Constraints & Integrity**
+  - Based on Django’s `auth.User`.
+  - Profile extends user data with avatar, preferences, and contact info.
 
-- `AlbumTrack`: `(album, position)` unique; default ordering by `position, id`.
-- `Rating`: unique `(user, content_type, object_id)`.
-- Useful indexes on `owner_id`, `(album_id, position)`.
+- **Album**
+
+  - Fields: `owner → User`, `name`, `description`, `is_public`, timestamps.
+  - Represents a curated collection of tracks.
+
+- **Track**
+
+  - Fields: `owner → User`, `name`, `source_url` or `audio_file`, duration, metadata.
+  - Can be linked (URL) or uploaded (Cloudinary).
+
+- **AlbumTrack**
+
+  - Join model linking `album → Album` and `track → Track`.
+  - Maintains `position (int)` for ordering within albums.
+
+- **Playlist / PlaylistItem**
+
+  - Works like Album/AlbumTrack but optimised for user-driven queues.
+
+- **Rating**
+
+  - Generic relation (album or track).
+  - Fields: `user → User`, `value (1–5)`.
+  - Enforced unique per `(user, object)`.
+
+- **Favorite**
+
+  - Bookmark system for albums/tracks.
+  - Unique per `(user, object)`.
+
+- **SavedAlbum / SavedTrack**
+
+  - Snapshot models for saving other users’ content.
+  - Stores `name_snapshot`, update flags, and references to originals.
+
+- **Plan / Subscription**
+  - Defines free/premium tiers with limits on albums, playlists, and storage.
+  - Subscriptions link to **Stripe IDs** for billing and webhook updates.
+
+### Constraints & Integrity
+
+- **AlbumTrack**: `(album, position)` must be unique; default ordering by `(position, id)`.
+- **Rating**: unique constraint on `(user, content_type, object_id)`.
+- **Indexes**: applied to frequently queried fields, e.g. `owner_id`, `(album_id, position)`, for efficiency.
 
 ---
 
 ## Tech Stack
 
-- **Language & Runtime**
+### Language & Runtime
 
-  - `Python 3.12+` (virtualenv)
-  - `pip` + `requirements.txt` for dependencies
+- **Python 3.12+** with `virtualenv`
+- Dependency management via `pip` and `requirements.txt`
 
-- **Web Framework**
+### Web Framework
 
-  - `Django 5.x` (apps: `album`, `tracks`, `playlist`, `plans`, `basket`, `checkout`, `profile_page`, `home_page`, `ratings`, `save_system`)
+- **Django 5.x** with modular apps:
+  - `album`, `tracks`, `playlist`, `plans`, `basket`, `checkout`, `profile_page`, `home_page`, `ratings`, `save_system`
 
-- **Auth & Accounts**
+### Authentication & Accounts
 
-  - `django-allauth` (email/social auth)
-  - `django.contrib.sites` (required by allauth)
-  - Django auth/sessions/messages
-  - Guests can browse public albums but cannot create/edit or save content.
-  - Registered users can CRUD their own albums/tracks, rate/favourite, save others’ albums.
-  - Owners only: rename/detach/delete their items.
-  - Admin users manage plans/subscriptions via Django admin.
+- **django-allauth** for email/social login
+- `django.contrib.sites` (required by allauth)
+- Django sessions, messages, and permissions
+- **Access rules**:
+  - Guests: browse public albums only
+  - Registered users: full CRUD on their own albums/tracks, rate/favourite, and save others’ content
+  - Owners: rename/detach/delete their own items
+  - Admins: manage plans and subscriptions
 
-- **Forms & Templating**
+### Forms & Templating
 
-  - `django-crispy-forms` + `crispy-bootstrap5`
-  - Django Templates with partials/includes and filters
+- **django-crispy-forms** + `crispy-bootstrap5` for clean, responsive forms
+- Django template engine with includes, filters, and custom tags
 
-- **Forms & Validation**
+### Validation
 
-- **Auth forms**: django-allauth (email/password validation).
-- **Album/Track forms**: server-side validation of required fields, URL format, file types; user-friendly error messages.
-- **Checkout**: server-side verification of Stripe intent; flash messages on success/failure.
-- Client-side: HTML5 validation + Bootstrap feedback; JS prevents duplicate submits where applicable.
+- **Auth forms**: handled by allauth (email/password rules)
+- **Album/Track forms**: server-side checks for required fields, URL format, file types; clear error messages
+- **Checkout**: server-side verification of Stripe intents; flash messages on success/failure
+- **Client-side**: HTML5 validation + Bootstrap feedback; JS prevents duplicate submissions
 
-- **Frontend**
+### Frontend
 
-  - `Bootstrap 5` (grid, utilities, responsive)
-  - Vanilla JavaScript modules in `static/js` (player controls, ratings, AJAX/fetch)
-  - Custom CSS + semantic HTML
+- **Bootstrap 5** for layout and responsive design
+- **Vanilla JavaScript modules** in `static/js` for interactivity
+- Custom CSS and semantic HTML for accessibility
 
-- **JavaScript Features**
+#### JavaScript Features
 
-  - **Audio Player** (`static/js/music_player.js`): play/pause, progress, duration, volume, next/prev, shuffle.
-  - **Album/Playlist UI** (`static/js/album_utils.js` etc.): drag-and-drop ordering, AJAX add/remove, favourites and ratings.
-  - Progressive enhancement: server renders controls; JS upgrades behaviour; graceful fallbacks if JS disabled.
+- **Audio Player** (`static/js/music_player.js`): play/pause, progress bar, duration, volume, next/prev, shuffle
+- **Album & Playlist UI** (`static/js/album_utils.js` etc.): drag-and-drop ordering, AJAX add/remove, favourites, ratings
+- Progressive enhancement: server-rendered controls with JS upgrades, graceful fallbacks if JS is disabled
 
-- **Database**
+### Database
 
-  - `PostgreSQL` (production, Neon)
-  - `SQLite` (local development)
-  - Django ORM + migrations
+- **SQLite** for local development
+- **PostgreSQL (Neon)** for production
+- Managed via Django ORM and migrations
 
-- **Media & Static**
+### Media & Static Files
 
-  - `Cloudinary` + `django-cloudinary-storage` as default file storage
-  - `Pillow` for image handling
-  - Django `staticfiles` + `WhiteNoise` for static serving
+- **Cloudinary** + `django-cloudinary-storage` for media uploads (audio/images)
+- **Pillow** for image processing
+- **WhiteNoise** for serving static assets in production
 
-- **Payments**
+### Payments
 
-  - `Stripe` (server SDK) for subscriptions/checkout + secure webhooks
-  - **Flow**: Plan → Basket → Checkout → Stripe Hosted Page → Webhook → Subscription active → Plan limits updated.
-  - **Webhook endpoint**: `/checkout/webhook/`
-  - **Test cards**: `4242 4242 4242 4242`, expiry: `12/32`, CVC: `123`, any postcode.
-  - **Feedback**: success/cancel pages and on-site messages communicate outcome.
+- **Stripe (server SDK)** for subscriptions and checkout
+- **Payment flow**: Plan → Basket → Checkout → Stripe Hosted Page → Webhook → Subscription Active → Plan Limits Updated
+- **Webhook endpoint**: `/checkout/webhook/`
+- **Testing**: Stripe test cards (e.g. `4242 4242 4242 4242`)
+- **User feedback**: success/cancel pages and flash messages
 
-- **Serving & Deployment**
+### Serving & Deployment
 
-  - `Gunicorn` (WSGI)
-  - `WhiteNoise` (serve `/static`)
-  - `Heroku` (dynos, config vars, `collectstatic`)
-  - `Procfile`, `runtime.txt`
+- **Gunicorn** (WSGI server)
+- **WhiteNoise** (static file serving)
+- **Heroku** (dynos, config vars, `collectstatic`)
+- Deployment files: `Procfile`, `runtime.txt`
 
-- **Configuration & Env Vars**
+### Configuration & Environment Variables
 
-  - `python-dotenv` / `django-environ` / `python-decouple`
-  - Typical keys: `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `DATABASE_URL`, `STRIPE_PUBLIC_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WH_SECRET`, `CLOUDINARY_URL`
+- **python-dotenv / django-environ / python-decouple** for environment management
+- Common keys:
+  - `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`
+  - `DATABASE_URL`
+  - `STRIPE_PUBLIC_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WH_SECRET`
+  - `CLOUDINARY_URL`
 
-- **Tooling & Workflow**
-  - **Visual Studio Code** (Python/Django extensions)
-  - **Git & GitHub** (source control, README)
-  - **Heroku CLI** (deploy, logs, run commands)
-  - **psql / pg_dump** (schema export for ERD)
-  - **pgAdmin / DBeaver** (DB GUI, optional)
-  - **Chrome DevTools** (network/console/layout)
-  - **Windows PowerShell/CMD** (local dev shell)
+### Tooling & Workflow
+
+- **VS Code** (Python/Django extensions)
+- **Git & GitHub** for version control
+- **Heroku CLI** for deployment, logs, and runtime commands
+- **psql / pg_dump** for DB schema exports (ERDs)
+- **pgAdmin / DBeaver** (optional DB GUI)
+- **Chrome DevTools** for debugging UI/network issues
+- **Windows PowerShell / CMD** as local dev shell
 
 ---
 
@@ -336,33 +400,76 @@ Static files are collected to `BASE_DIR / "staticfiles"` and served via Whitenoi
 
 ## Testing
 
-### Manual Test Matrix (sample)
+### Manual Test Matrix (Sample)
 
-| Feature    | Scenario       | Steps            | Expected                    | Result |
+| Feature    | Scenario       | Steps            | Expected Outcome            | Result |
 | ---------- | -------------- | ---------------- | --------------------------- | ------ |
 | Register   | Valid details  | Submit form      | User created & logged in    | ✅     |
 | Album CRUD | Create album   | Fill name → Save | Album appears in list       | ✅     |
 | Player     | Play web track | Click ▶          | Audio plays; time updates   | ✅     |
 | Checkout   | Test card      | Pay via Stripe   | Success page; plan upgraded | ✅     |
 
+---
+
 ### Validators & Linters
 
-- **HTML** (W3C): Pass (screenshots in `docs/testing/`).
-- **CSS** (Jigsaw): Pass.
-- **JS** (e.g., ESLint/JSHint): No critical issues.
-- **Python** (PEP8/flake8): Clean or documented exceptions.
+- **HTML** (W3C) → Pass ✅  
+  ![HTML Validation](static/testings/html/home-link-check.png)
 
-### Lighthouse
+- **CSS** (Jigsaw) → Pass ✅  
+  ![CSS Validation](static/testings/css/style.css.png)
 
-- Mobile & Desktop scores for Performance/Accessibility/Best Practices/SEO (screenshots included).
+- **JavaScript** (ESLint/JSHint) → No critical issues ✅  
+  ![JS Album List](static/testings/js/album_list.js.png)  
+  ![JS Track Card](static/testings/js/track_card.js.png)  
+  ![JS Track List](static/testings/js/track_list.js.png)
+
+- **Python** (PEP8/flake8) → Clean with documented exceptions ✅  
+  ![Flake8 Report](static/testings/python/flake8-report.png)
+
+---
+
+### Lighthouse Reports
+
+Mobile and desktop audits for **Performance**, **Accessibility**, **Best Practices**, and **SEO** were run using Chrome DevTools Lighthouse.  
+All key metrics scored well:
+
+- **Accessibility**  
+  ![Accessibility Report](static/testings/lighthouse-report/accessability.png)
+
+- **Best Practices**  
+  ![Best Practices Report](static/testings/lighthouse-report/best-practices.png)
+
+- **Performance**  
+  ![Performance Report](static/testings/lighthouse-report/performance.png)
+
+- **SEO**  
+  ![SEO Report](static/testings/lighthouse-report/seo.png)
+
+---
 
 ### Browsers & Devices
 
-- Chrome, Firefox, Edge, Safari 15+; iOS/Android (key pages tested with screenshots).
+The application was tested on:
+
+- **Browsers**: Chrome, Firefox, Edge, Safari 15+
+- **Devices**: iOS (Safari), Android (Chrome), Windows, macOS
+
+Example screenshots:
+
+- Home Page  
+  ![Home Page](static/testings/html/home.png)
+
+- Music Player Page  
+  ![Music Player Page](static/testings/html/music-player-page.png)  
+  ![Music Player Link Check](static/testings/html/music-player-page-link-check.png)
+
+---
 
 ### Bug Log
 
-- Issue → reproduction → root cause → fix → commit hash (see `docs/bugs.md`).
+All issues were tracked with clear reproduction steps, root cause analysis, fixes, and commit references.  
+See: [`docs/bugs.md`](docs/bugs.md) for the full log.
 
 ---
 
