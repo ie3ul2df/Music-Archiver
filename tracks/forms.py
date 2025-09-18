@@ -1,15 +1,15 @@
 # ----------------------- tracks/forms.py ----------------------- #
 from django import forms
-from .models import Track
+
 from album.models import Album, AlbumTrack
+
+from .models import Track
 
 
 class TrackForm(forms.ModelForm):
     # Extra field: choose an album to drop this track into
     album = forms.ModelChoiceField(
-        queryset=Album.objects.none(),
-        required=False,
-        label="Add to album"
+        queryset=Album.objects.none(), required=False, label="Add to album"
     )
 
     class Meta:
@@ -20,7 +20,9 @@ class TrackForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.owner = owner
         if owner:
-            self.fields["album"].queryset = Album.objects.filter(owner=owner).order_by("-created_at")
+            self.fields["album"].queryset = Album.objects.filter(owner=owner).order_by(
+                "-created_at"
+            )
 
     def clean_source_url(self):
         url = (self.cleaned_data.get("source_url") or "").strip()
@@ -34,8 +36,17 @@ class TrackForm(forms.ModelForm):
         if commit:
             track.save()
             chosen_album = self.cleaned_data.get("album")
-            if chosen_album and not AlbumTrack.objects.filter(album=chosen_album, track=track).exists():
-                last = AlbumTrack.objects.filter(album=chosen_album).order_by("-position").first()
+            if (
+                chosen_album
+                and not AlbumTrack.objects.filter(
+                    album=chosen_album, track=track
+                ).exists()
+            ):
+                last = (
+                    AlbumTrack.objects.filter(album=chosen_album)
+                    .order_by("-position")
+                    .first()
+                )
                 pos = (last.position if last else 0) + 1
                 AlbumTrack.objects.create(album=chosen_album, track=track, position=pos)
         return track

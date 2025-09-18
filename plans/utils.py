@@ -1,8 +1,9 @@
 # plans/utils.py
 from dataclasses import dataclass
-from django.db.models import Sum
-from tracks.models import Track
+
 from checkout.models import OrderItem
+from tracks.models import Track
+
 
 @dataclass
 class Entitlements:
@@ -11,8 +12,10 @@ class Entitlements:
     premium: bool = False
     storage_gb: int = 0
 
+
 FREE_MAX_TRACKS_PER_ALBUM = 10
 FREE_MAX_ALBUMS = 3  # Default Album only
+
 
 def get_entitlements(user) -> Entitlements:
     ent = Entitlements()
@@ -20,9 +23,7 @@ def get_entitlements(user) -> Entitlements:
         return ent
 
     # Read from purchased OrderItems
-    items = (OrderItem.objects
-             .filter(order__user=user)
-             .select_related("plan"))
+    items = OrderItem.objects.filter(order__user=user).select_related("plan")
     for it in items:
         p = it.plan
         if getattr(p, "is_unlimited_tracks", False):
@@ -43,6 +44,7 @@ def can_add_album(user):
     if ent.premium or ent.unlimited_albums:
         return True, None
     from album.models import Album
+
     count = Album.objects.filter(owner=user).count()
     if count >= FREE_MAX_ALBUMS:
         return False, "Free tier allows only 3 albums. Upgrade to add more."
@@ -60,7 +62,10 @@ def can_add_track(user, album):
     # cap per album
     count = Track.objects.filter(owner=user, album=album).count()
     if count >= FREE_MAX_TRACKS_PER_ALBUM:
-        return False, "Album limit reached (10 tracks). Upgrade Unlimited Tracks or Premium."
+        return (
+            False,
+            "Album limit reached (10 tracks). Upgrade Unlimited Tracks or Premium.",
+        )
     return True, None
 
 
@@ -84,8 +89,11 @@ def can_upload_file(user, file_size_bytes: int):
                 used += t.audio_file.size
         except Exception:
             pass
-    quota = ent.storage_gb * (1024 ** 3)
+    quota = ent.storage_gb * (1024**3)
     if used + int(file_size_bytes or 0) > quota:
-        gb_used = used / (1024 ** 3)
-        return False, f"Storage quota exceeded ({gb_used:.2f}GB used of {ent.storage_gb}GB)."
+        gb_used = used / (1024**3)
+        return (
+            False,
+            f"Storage quota exceeded ({gb_used:.2f}GB used of {ent.storage_gb}GB).",
+        )
     return True, None

@@ -1,19 +1,19 @@
 # checkout/views.py
-from decimal import Decimal
 import json
-import stripe
+from decimal import Decimal
 
+import stripe
 from django.conf import settings
 from django.contrib import messages
 from django.http import HttpResponse
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from plans.models import Plan
+
 from .forms import OrderForm
 from .models import Order, OrderItem
-from plans.models import Plan
-from profile_page.models import UserProfile   # NEW
 
 
 def _build_basket_summary(session_basket):
@@ -29,11 +29,13 @@ def _build_basket_summary(session_basket):
         qty = int(qty)
         subtotal = plan.price * qty  # plan.price is Decimal
         total += subtotal
-        items.append({
-            "plan": plan,
-            "qty": qty,
-            "subtotal": subtotal,
-        })
+        items.append(
+            {
+                "plan": plan,
+                "qty": qty,
+                "subtotal": subtotal,
+            }
+        )
     return items, total
 
 
@@ -84,38 +86,48 @@ def checkout(request):
             # NEW: Save info to profile if requested
             if request.user.is_authenticated and request.POST.get("save_info"):
                 profile = request.user.userprofile
-                profile.default_phone_number    = order.phone_number
-                profile.default_country         = order.country
-                profile.default_postcode        = order.postcode
-                profile.default_town_or_city    = order.town_or_city
+                profile.default_phone_number = order.phone_number
+                profile.default_country = order.country
+                profile.default_postcode = order.postcode
+                profile.default_town_or_city = order.town_or_city
                 profile.default_street_address1 = order.street_address1
                 profile.default_street_address2 = order.street_address2
-                profile.default_county          = order.county
+                profile.default_county = order.county
                 profile.save()
 
             return redirect("checkout_success", order_number=order.order_number)
         else:
-            messages.error(request, "There was an issue with your order details. Please review and try again.")
+            messages.error(
+                request,
+                (
+                    "There was an issue with your order details. "
+                    "Please review and try again."
+                ),
+            )
     else:
         # NEW: Pre-fill from profile
         initial = {}
         if request.user.is_authenticated:
             u = request.user
             p = getattr(u, "userprofile", None)
-            initial.update({
-                "full_name": (u.get_full_name() or u.username),
-                "email": u.email,
-            })
+            initial.update(
+                {
+                    "full_name": (u.get_full_name() or u.username),
+                    "email": u.email,
+                }
+            )
             if p:
-                initial.update({
-                    "phone_number":     p.default_phone_number,
-                    "country":          p.default_country,
-                    "postcode":         p.default_postcode,
-                    "town_or_city":     p.default_town_or_city,
-                    "street_address1":  p.default_street_address1,
-                    "street_address2":  p.default_street_address2,
-                    "county":           p.default_county,
-                })
+                initial.update(
+                    {
+                        "phone_number": p.default_phone_number,
+                        "country": p.default_country,
+                        "postcode": p.default_postcode,
+                        "town_or_city": p.default_town_or_city,
+                        "street_address1": p.default_street_address1,
+                        "street_address2": p.default_street_address2,
+                        "county": p.default_county,
+                    }
+                )
         form = OrderForm(initial=initial)
 
     context = {
@@ -132,10 +144,7 @@ def checkout(request):
 def checkout_success(request, order_number):
     order = get_object_or_404(Order, order_number=order_number)
 
-    messages.success(
-        request,
-        f"Order processed! Your order number is {order_number}. "
-    )
+    messages.success(request, f"Order processed! Your order number is {order_number}. ")
 
     # Clear basket
     if "basket" in request.session:
@@ -160,7 +169,9 @@ def cache_checkout_data(request):
             metadata={
                 "basket": json.dumps(request.session.get("basket", {})),
                 "save_info": request.POST.get("save_info", "false"),
-                "username": str(request.user) if request.user.is_authenticated else "anonymous",
+                "username": (
+                    str(request.user) if request.user.is_authenticated else "anonymous"
+                ),
             },
         )
         return HttpResponse(status=200)

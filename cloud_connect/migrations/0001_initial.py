@@ -10,48 +10,110 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('album', '0001_initial'),
-        ('tracks', '0001_initial'),
+        ("album", "0001_initial"),
+        ("tracks", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='CloudAccount',
+            name="CloudAccount",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('provider', models.CharField(choices=[('gdrive', 'Google Drive')], max_length=20)),
-                ('label', models.CharField(default='Google Drive', max_length=120)),
-                ('token_json', models.TextField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='cloud_accounts', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "provider",
+                    models.CharField(
+                        choices=[("gdrive", "Google Drive")], max_length=20
+                    ),
+                ),
+                ("label", models.CharField(default="Google Drive", max_length=120)),
+                ("token_json", models.TextField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="cloud_accounts",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='CloudFolderLink',
+            name="CloudFolderLink",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('folder_id', models.CharField(max_length=200)),
-                ('display_path', models.CharField(blank=True, max_length=500)),
-                ('last_sync', models.DateTimeField(blank=True, null=True)),
-                ('account', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='folder_links', to='cloud_connect.cloudaccount')),
-                ('album', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='cloud_link', to='album.album')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("folder_id", models.CharField(max_length=200)),
+                ("display_path", models.CharField(blank=True, max_length=500)),
+                ("last_sync", models.DateTimeField(blank=True, null=True)),
+                (
+                    "account",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="folder_links",
+                        to="cloud_connect.cloudaccount",
+                    ),
+                ),
+                (
+                    "album",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="cloud_link",
+                        to="album.album",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='CloudFileMap',
+            name="CloudFileMap",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('file_id', models.CharField(db_index=True, max_length=200)),
-                ('name', models.CharField(max_length=300)),
-                ('mime', models.CharField(blank=True, max_length=100)),
-                ('size', models.BigIntegerField(blank=True, null=True)),
-                ('etag', models.CharField(blank=True, max_length=200)),
-                ('track', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='tracks.track')),
-                ('link', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='files', to='cloud_connect.cloudfolderlink')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("file_id", models.CharField(db_index=True, max_length=200)),
+                ("name", models.CharField(max_length=300)),
+                ("mime", models.CharField(blank=True, max_length=100)),
+                ("size", models.BigIntegerField(blank=True, null=True)),
+                ("etag", models.CharField(blank=True, max_length=200)),
+                (
+                    "track",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, to="tracks.track"
+                    ),
+                ),
+                (
+                    "link",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="files",
+                        to="cloud_connect.cloudfolderlink",
+                    ),
+                ),
             ],
             options={
-                'unique_together': {('link', 'file_id')},
+                "unique_together": {("link", "file_id")},
             },
         ),
     ]

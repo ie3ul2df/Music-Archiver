@@ -1,10 +1,12 @@
 # album/services.py
-from django.db.models import Prefetch, Avg, Count, Exists, OuterRef
-from ratings.utils import annotate_albums  
-from album.models import Album, AlbumTrack
-from tracks.models import Favorite            
+from django.db.models import Avg, Count, Exists, OuterRef, Prefetch
+
+from album.models import AlbumTrack
 from playlist.models import Playlist, PlaylistItem
-from tracks.utils import annotate_is_in_my_albums  
+from ratings.utils import annotate_albums
+from tracks.models import Favorite
+from tracks.utils import annotate_is_in_my_albums
+
 
 def hydrate_albums_for_cards(qs, user):
     """
@@ -41,7 +43,9 @@ def hydrate_albums_for_cards(qs, user):
         pl = Playlist.objects.filter(owner=user, name="My Playlist").first()
         if pl:
             in_playlist_ids = set(
-                PlaylistItem.objects.filter(playlist=pl).values_list("track_id", flat=True)
+                PlaylistItem.objects.filter(playlist=pl).values_list(
+                    "track_id", flat=True
+                )
             )
 
     # Attach per-track flags used by _track_card.html
@@ -53,6 +57,6 @@ def hydrate_albums_for_cards(qs, user):
 
         # Playlist membership ✓/➕
         for at in ats:
-            at.track.in_playlist = (at.track.id in in_playlist_ids)
+            at.track.in_playlist = at.track.id in in_playlist_ids
 
     return albums

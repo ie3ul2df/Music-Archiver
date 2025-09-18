@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
-from django.db.models.signals import post_save, pre_delete
 from django.db.models.deletion import ProtectedError
+from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 
 from .models import Album

@@ -2,5 +2,5 @@ from django.apps import AppConfig
 
 
 class CloudConnectConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'cloud_connect'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "cloud_connect"

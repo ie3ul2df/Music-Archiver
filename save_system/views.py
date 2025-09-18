@@ -1,16 +1,18 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
-from django.shortcuts import get_object_or_404, redirect
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponseBadRequest
 from django.db import IntegrityError
 from django.db.models import Max
-from django.utils.decorators import method_decorator
-from django.contrib import messages
+from django.http import (HttpResponseBadRequest, HttpResponseForbidden,
+                         JsonResponse)
+from django.shortcuts import get_object_or_404, redirect
 from django.template.loader import render_to_string
+from django.views.decorators.http import require_POST
 
 from album.models import Album, AlbumTrack
 from tracks.models import Track
+
 from .models import SavedAlbum, SavedTrack
+
 
 def _is_public_album(album):
     """
@@ -31,6 +33,7 @@ def _is_public_album(album):
     # Fallback: allow (you already expose only public albums in UI)
     return True
 
+
 @login_required
 @require_POST
 def save_album(request, pk):
@@ -38,7 +41,9 @@ def save_album(request, pk):
 
     # prevent saving your own album (you already own it)
     if getattr(album, "owner_id", None) == request.user.id:
-        return JsonResponse({"ok": False, "error": "You already own this album."}, status=400)
+        return JsonResponse(
+            {"ok": False, "error": "You already own this album."}, status=400
+        )
 
     if not _is_public_album(album):
         return HttpResponseForbidden("Album is not public.")
@@ -63,6 +68,7 @@ def save_album(request, pk):
     except IntegrityError:
         return JsonResponse({"ok": True, "created": False})
 
+
 @login_required
 @require_POST
 def save_track(request, pk):
@@ -73,6 +79,7 @@ def save_track(request, pk):
     if not album_id and request.body:
         try:
             import json
+
             album_id = json.loads(request.body.decode("utf-8")).get("album_id")
         except Exception:
             pass
@@ -84,7 +91,9 @@ def save_track(request, pk):
     album = get_object_or_404(Album, pk=album_id, owner=request.user)
 
     # 1) Create/keep the snapshot record
-    name_snapshot = getattr(track, "name", None) or getattr(track, "title", None) or str(track)
+    name_snapshot = (
+        getattr(track, "name", None) or getattr(track, "title", None) or str(track)
+    )
     album_track = None
     try:
         saved_obj, saved_created = SavedTrack.objects.get_or_create(
@@ -99,8 +108,10 @@ def save_track(request, pk):
     # 2) ALSO attach to the album so it appears on album_detail
     try:
         # next position at the end
-        next_pos = (AlbumTrack.objects.filter(album=album)
-                    .aggregate(mp=Max("position"))["mp"] or 0) + 1
+        next_pos = (
+            AlbumTrack.objects.filter(album=album).aggregate(mp=Max("position"))["mp"]
+            or 0
+        ) + 1
 
         album_track, attached_created = AlbumTrack.objects.get_or_create(
             album=album,
@@ -113,7 +124,7 @@ def save_track(request, pk):
 
     payload = {
         "ok": True,
-        "created": saved_created,      # snapshot created?
+        "created": saved_created,  # snapshot created?
         "attached": attached_created,  # album link created?
         "album_id": album.id,
     }
@@ -144,13 +155,14 @@ def save_track(request, pk):
     return JsonResponse(payload)
 
 
-
 @login_required
 def bulk_save_tracks(request):
     if request.method != "POST":
         return redirect("album:album_list")
 
-    track_ids = [int(x) for x in request.POST.get("track_ids", "").split(",") if x.isdigit()]
+    track_ids = [
+        int(x) for x in request.POST.get("track_ids", "").split(",") if x.isdigit()
+    ]
     album_id = request.POST.get("album_id")
     album = get_object_or_404(Album, pk=album_id, owner=request.user)
 
@@ -172,26 +184,32 @@ def bulk_save_tracks(request):
     # If AJAX, send JSON + rendered HTML
     if request.headers.get("x-requested-with") == "XMLHttpRequest":
         html = "".join(
-            render_to_string("tracks/_track_card.html", {
-                "track": at.track,
-                "album": album,
-                "album_item_id": at.id,
-                "is_owner": True,
-                "show_checkbox": True,
-                "is_favorited": False,
-                "in_playlist": False,
-                "avg": 0,
-                "count": 0,
-            }, request=request)
+            render_to_string(
+                "tracks/_track_card.html",
+                {
+                    "track": at.track,
+                    "album": album,
+                    "album_item_id": at.id,
+                    "is_owner": True,
+                    "show_checkbox": True,
+                    "is_favorited": False,
+                    "in_playlist": False,
+                    "avg": 0,
+                    "count": 0,
+                },
+                request=request,
+            )
             for at in added
         )
-        return JsonResponse({
-            "ok": True,
-            "added": len(added),
-            "skipped": len(skipped),
-            "html": html,
-            "album_id": album.id,
-        })
+        return JsonResponse(
+            {
+                "ok": True,
+                "added": len(added),
+                "skipped": len(skipped),
+                "html": html,
+                "album_id": album.id,
+            }
+        )
 
     # fallback redirect
     messages.success(request, f"Saved {len(added)} track(s); {len(skipped)} skipped.")

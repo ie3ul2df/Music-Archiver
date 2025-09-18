@@ -2,6 +2,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django_countries import countries
+
 from .models import UserProfile
 
 # Eager, concrete choices list (no lazy iterators)
@@ -34,7 +35,9 @@ class UserProfileForm(forms.ModelForm):
 class ProfileDefaultDeliveryForm(forms.ModelForm):
     # OVERRIDE the model field with a concrete ChoiceField (avoids lazy choices)
     default_country = forms.ChoiceField(
-        choices=COUNTRY_CHOICES, required=False, widget=forms.Select(attrs={"class": "form-select"})
+        choices=COUNTRY_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
     )
 
     class Meta:

@@ -1,18 +1,17 @@
 # //--------------------------- home_page/views.py ---------------------------//
-from django.shortcuts import render, redirect
-from django.db.models import Avg, Count, Exists, OuterRef, FloatField, F, ExpressionWrapper, Q, BooleanField, Prefetch, Value
 from django.contrib.auth import get_user_model
+from django.db.models import (Avg, BooleanField, Count, Exists,
+                              ExpressionWrapper, F, FloatField, OuterRef,
+                              Prefetch, Q, Value)
 from django.http import JsonResponse
+from django.shortcuts import render
 from django.template.loader import render_to_string
-from django.utils.http import urlencode
 
 from album.models import Album, AlbumTrack
-from tracks.models import Track, Favorite
-from ratings.utils import annotate_albums, annotate_tracks
-from save_system.models import SavedTrack
-from tracks.utils import annotate_is_in_my_albums
-from django.contrib.auth.decorators import login_required
 from playlist.models import Playlist, PlaylistItem
+from ratings.utils import annotate_albums, annotate_tracks
+from tracks.models import Favorite, Track
+from tracks.utils import annotate_is_in_my_albums
 
 SEARCH_LIMIT = 50
 
@@ -28,9 +27,7 @@ def index(request):
 
     # ---------------- Latest 10 public albums (for grid) ---------------- #
     public_albums = (
-        annotate_albums(
-            Album.objects.filter(is_public=True).select_related("owner")
-        )
+        annotate_albums(Album.objects.filter(is_public=True).select_related("owner"))
         .annotate(track_count=Count("album_tracks", distinct=True))
         .order_by("-created_at")[:10]
     )
@@ -39,9 +36,7 @@ def index(request):
 
     # ---------------- Top 10 Albums (weighted: avg * count) ---------------- #
     albums_top_qs = (
-        annotate_albums(
-            Album.objects.filter(is_public=True).select_related("owner")
-        )
+        annotate_albums(Album.objects.filter(is_public=True).select_related("owner"))
         .filter(rating_count__gt=0)  # only those with votes
         .annotate(
             rating_score=ExpressionWrapper(
@@ -56,7 +51,9 @@ def index(request):
     # - at.is_favorited (Exists subquery against tracks.Favorite)
     # - at.track_avg / at.track_count (per-track rating aggregates)
     if request.user.is_authenticated:
-        fav_subq = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
+        fav_subq = Favorite.objects.filter(
+            owner=request.user, track=OuterRef("track_id")
+        )
         items_qs = (
             AlbumTrack.objects.select_related("track", "track__owner")
             .annotate(
@@ -90,7 +87,9 @@ def index(request):
         pl = Playlist.objects.filter(owner=request.user, name="My Playlist").first()
         if pl:
             in_playlist_ids = set(
-                PlaylistItem.objects.filter(playlist=pl).values_list("track_id", flat=True)
+                PlaylistItem.objects.filter(playlist=pl).values_list(
+                    "track_id", flat=True
+                )
             )
 
     # Attach:
@@ -100,7 +99,7 @@ def index(request):
         ats = list(alb.album_tracks.all())
         annotate_is_in_my_albums(ats, request.user, attr="track")
         for at in ats:
-            at.track.in_playlist = (at.track.id in in_playlist_ids)
+            at.track.in_playlist = at.track.id in in_playlist_ids
 
     # ---------------- Top 10 Tracks (must belong to a public album) ---------------- #
     in_public_album = AlbumTrack.objects.filter(
@@ -122,7 +121,8 @@ def index(request):
     # Evaluate so we can attach per-user flags
     tracks_top = list(tracks_top_qs)
 
-    # ------- Favourites flag for current user (sets .is_favorited on each track) -------
+    # ------- Favourites flag for current user
+    # (sets .is_favorited on each track) -------
     if request.user.is_authenticated and tracks_top:
         fav_ids = set(
             Favorite.objects.filter(
@@ -143,7 +143,7 @@ def index(request):
         "home_page/index.html",
         {
             "public_albums": public_albums,
-            "albums_top": albums_top,   # hydrated albums with track-level flags
+            "albums_top": albums_top,  # hydrated albums with track-level flags
             "tracks_top": tracks_top,
         },
     )
@@ -222,15 +222,23 @@ def search(request):
 
     if _is_ajax(request):
         html = {
-            "albums": render_to_string("home_page/partials/_search_albums.html", context, request=request),
-            "tracks": render_to_string("home_page/partials/_search_tracks.html", context, request=request),
-            "users": render_to_string("home_page/partials/_search_users.html", context, request=request),
-            "summary": render_to_string("home_page/partials/_search_summary.html", context, request=request),
-            "empty": render_to_string("home_page/partials/_search_empty.html", context, request=request),
+            "albums": render_to_string(
+                "home_page/partials/_search_albums.html", context, request=request
+            ),
+            "tracks": render_to_string(
+                "home_page/partials/_search_tracks.html", context, request=request
+            ),
+            "users": render_to_string(
+                "home_page/partials/_search_users.html", context, request=request
+            ),
+            "summary": render_to_string(
+                "home_page/partials/_search_summary.html", context, request=request
+            ),
+            "empty": render_to_string(
+                "home_page/partials/_search_empty.html", context, request=request
+            ),
         }
         return JsonResponse({"q": q, "scope": scope, "total": total, "html": html})
 
     # Non-AJAX fallback → render full results page
     return render(request, "home_page/search.html", context)
-
-

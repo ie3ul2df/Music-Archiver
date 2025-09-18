@@ -1,7 +1,8 @@
 # ----------------------- tracks/models.py ----------------------- #
 
-from django.db import models
 from django.conf import settings
+from django.db import models
+
 
 def track_upload_to(instance, filename):
     """Uploads go into owner-specific folders."""
@@ -11,9 +12,7 @@ def track_upload_to(instance, filename):
 
 class Track(models.Model):
     owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="tracks"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="tracks"
     )
 
     name = models.CharField(max_length=200, default="(untitled)")
@@ -26,7 +25,7 @@ class Track(models.Model):
 
     def __str__(self):
         return self.name
-    
+
 
 class Favorite(models.Model):
     owner = models.ForeignKey(
@@ -55,9 +54,10 @@ class Favorite(models.Model):
         ]
 
 
-
 class Listen(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="listens")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="listens"
+    )
     track = models.ForeignKey("Track", on_delete=models.CASCADE, related_name="listens")
     played_at = models.DateTimeField(auto_now_add=True)
 

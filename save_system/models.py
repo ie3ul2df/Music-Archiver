@@ -1,16 +1,18 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
 from django.utils import timezone
 
 # Import your existing models
 from album.models import Album
 from tracks.models import Track
 
+
 def _safe_str(x):
     try:
         return str(x)
     except Exception:
         return ""
+
 
 def _get_name(obj):
     # tolerate title/name differences
@@ -19,11 +21,13 @@ def _get_name(obj):
             return getattr(obj, attr)
     return _safe_str(obj)
 
+
 def _get_description(obj):
     for attr in ("description", "desc", "summary"):
         if hasattr(obj, attr) and getattr(obj, attr):
             return getattr(obj, attr) or ""
     return ""
+
 
 class SavedAlbum(models.Model):
     owner = models.ForeignKey(
@@ -62,10 +66,10 @@ class SavedAlbum(models.Model):
             return True
         current_name = _get_name(self.original_album)
         current_desc = _get_description(self.original_album)
-        return (
-            (current_name or "") != (self.name_snapshot or "") or
-            (current_desc or "") != (self.description_snapshot or "")
-        )
+        return (current_name or "") != (self.name_snapshot or "") or (
+            current_desc or ""
+        ) != (self.description_snapshot or "")
+
 
 class SavedTrack(models.Model):
     owner = models.ForeignKey(

@@ -15,45 +15,123 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Track',
+            name="Track",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(default='(untitled)', max_length=200)),
-                ('audio_file', models.FileField(blank=True, null=True, upload_to='tracks/')),
-                ('source_url', models.URLField(blank=True, null=True)),
-                ('position', models.PositiveIntegerField(default=0)),
-                ('play_count', models.PositiveIntegerField(default=0)),
-                ('last_played_at', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tracks', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(default="(untitled)", max_length=200)),
+                (
+                    "audio_file",
+                    models.FileField(blank=True, null=True, upload_to="tracks/"),
+                ),
+                ("source_url", models.URLField(blank=True, null=True)),
+                ("position", models.PositiveIntegerField(default=0)),
+                ("play_count", models.PositiveIntegerField(default=0)),
+                ("last_played_at", models.DateTimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="tracks",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Listen',
+            name="Listen",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('played_at', models.DateTimeField(auto_now_add=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='listens', to=settings.AUTH_USER_MODEL)),
-                ('track', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='listens', to='tracks.track')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("played_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="listens",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "track",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="listens",
+                        to="tracks.track",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-played_at'],
-                'indexes': [models.Index(fields=['user', '-played_at'], name='tracks_list_user_id_1e47ae_idx')],
+                "ordering": ["-played_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["user", "-played_at"],
+                        name="tracks_list_user_id_1e47ae_idx",
+                    )
+                ],
             },
         ),
         migrations.CreateModel(
-            name='Favorite',
+            name="Favorite",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('position', models.PositiveIntegerField(default=0)),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favorite_tracks', related_query_name='favorite_track', to=settings.AUTH_USER_MODEL)),
-                ('track', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favorited_by', related_query_name='favorite_user', to='tracks.track')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("position", models.PositiveIntegerField(default=0)),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="favorite_tracks",
+                        related_query_name="favorite_track",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "track",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="favorited_by",
+                        related_query_name="favorite_user",
+                        to="tracks.track",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['position', '-created_at'],
-                'indexes': [models.Index(fields=['owner', 'created_at'], name='tracks_favo_owner_i_659563_idx'), models.Index(fields=['owner', 'position'], name='tracks_favo_owner_i_daf432_idx')],
-                'unique_together': {('owner', 'track')},
+                "ordering": ["position", "-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["owner", "created_at"],
+                        name="tracks_favo_owner_i_659563_idx",
+                    ),
+                    models.Index(
+                        fields=["owner", "position"],
+                        name="tracks_favo_owner_i_daf432_idx",
+                    ),
+                ],
+                "unique_together": {("owner", "track")},
             },
         ),
     ]

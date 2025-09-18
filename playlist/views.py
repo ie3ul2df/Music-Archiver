@@ -1,16 +1,16 @@
 import json
-from typing import List, Iterable
+from typing import Iterable, List
 
-from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
-from django.views.decorators.http import require_GET, require_POST
-from django.views.decorators.csrf import ensure_csrf_cookie
 from django.db import transaction
 from django.db.models import Max
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_GET, require_POST
 
-from .models import Playlist, PlaylistItem
 from tracks.models import Track
 
+from .models import Playlist, PlaylistItem
 
 # -------------------------- Helpers --------------------------
 
@@ -92,6 +92,7 @@ def _session_reorder(request, order_ids: List[int]) -> None:
 
 # -------------------------- Views --------------------------
 
+
 @require_GET
 @ensure_csrf_cookie  # ensures guests receive a CSRF cookie for subsequent POSTs
 def playlist_json(request):
@@ -121,7 +122,9 @@ def playlist_json(request):
                 src = t.source_url or ""
             if not src:
                 continue
-            data.append({"id": t.id, "name": getattr(t, "name", "Untitled"), "src": src})
+            data.append(
+                {"id": t.id, "name": getattr(t, "name", "Untitled"), "src": src}
+            )
         return JsonResponse({"tracks": data})
 
     # Guest: build from session IDs
@@ -130,7 +133,11 @@ def playlist_json(request):
         return JsonResponse({"tracks": []})
 
     # Preserve order in response
-    tracks_by_id = Track.objects.filter(id__in=ids).only("id", "name", "audio_file", "source_url").in_bulk(ids)
+    tracks_by_id = (
+        Track.objects.filter(id__in=ids)
+        .only("id", "name", "audio_file", "source_url")
+        .in_bulk(ids)
+    )
     for tid in ids:
         t = tracks_by_id.get(tid)
         if not t:
@@ -161,18 +168,32 @@ def playlist_toggle(request, track_id: int):
 
     if request.user.is_authenticated:
         pl = _get_default_playlist(request.user)
-        existing = PlaylistItem.objects.filter(playlist=pl, track=track).order_by("id").first()
+        existing = (
+            PlaylistItem.objects.filter(playlist=pl, track=track).order_by("id").first()
+        )
         if existing:
             existing.delete()
             count = PlaylistItem.objects.filter(playlist=pl).count()
-            return JsonResponse({"ok": True, "in_playlist": False, "removed": True, "count": count})
+            return JsonResponse(
+                {"ok": True, "in_playlist": False, "removed": True, "count": count}
+            )
 
         # append to end
-        max_pos = PlaylistItem.objects.filter(playlist=pl).aggregate(m=Max("position"))["m"]
+        max_pos = PlaylistItem.objects.filter(playlist=pl).aggregate(m=Max("position"))[
+            "m"
+        ]
         pos = (max_pos if max_pos is not None else -1) + 1
         item = PlaylistItem.objects.create(playlist=pl, track=track, position=pos)
         count = PlaylistItem.objects.filter(playlist=pl).count()
-        return JsonResponse({"ok": True, "in_playlist": True, "added": True, "item_id": item.id, "count": count})
+        return JsonResponse(
+            {
+                "ok": True,
+                "in_playlist": True,
+                "added": True,
+                "item_id": item.id,
+                "count": count,
+            }
+        )
 
     # Guest
     now_in = _session_toggle_track(request, track_id)
@@ -229,19 +250,27 @@ def bulk_add_to_playlist(request):
 
     if request.user.is_authenticated:
         playlist = _get_default_playlist(request.user)
-        existing = set(PlaylistItem.objects.filter(playlist=playlist, track_id__in=track_ids).values_list("track_id", flat=True))
+        existing = set(
+            PlaylistItem.objects.filter(
+                playlist=playlist, track_id__in=track_ids
+            ).values_list("track_id", flat=True)
+        )
 
         added = 0
         with transaction.atomic():
             # Determine starting position
-            max_pos = PlaylistItem.objects.filter(playlist=playlist).aggregate(m=Max("position"))["m"]
+            max_pos = PlaylistItem.objects.filter(playlist=playlist).aggregate(
+                m=Max("position")
+            )["m"]
             pos = (max_pos if max_pos is not None else -1) + 1
 
             to_create = []
             for tid in track_ids:
                 if tid in existing:
                     continue
-                to_create.append(PlaylistItem(playlist=playlist, track_id=tid, position=pos))
+                to_create.append(
+                    PlaylistItem(playlist=playlist, track_id=tid, position=pos)
+                )
                 pos += 1
                 added += 1
 
@@ -299,17 +328,21 @@ def reorder(request):
 
 # ---------- Compatibility shims for old imports ----------
 
+
 def _guest_get(request):
     """Return guest playlist as a list of track IDs (session-based)."""
     return _session_get_list(request)
+
 
 def _guest_set(request, ids):
     """Replace guest playlist with given list of track IDs."""
     _session_set_list(request, ids)
 
+
 def _guest_toggle(request, track_id: int):
     """Toggle a track for guest; returns True if now in playlist."""
     return _session_toggle_track(request, int(track_id))
+
 
 def _guest_bulk_add(request, ids):
     """Add multiple tracks for guest; returns (added, skipped)."""
@@ -322,6 +355,7 @@ def _guest_bulk_add(request, ids):
             continue
     return _session_bulk_add(request, norm)
 
+
 def _guest_reorder(request, order_ids):
     """Reorder guest playlist by track IDs."""
     # normalize to ints
@@ -332,6 +366,7 @@ def _guest_reorder(request, order_ids):
         except Exception:
             continue
     _session_reorder(request, norm)
+
 
 def _guest_clear(request):
     """Clear guest playlist."""

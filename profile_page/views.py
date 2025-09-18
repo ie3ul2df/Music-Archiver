@@ -1,17 +1,20 @@
 # profile_page/views.py
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.shortcuts import render, redirect, get_object_or_404
-from django.db.models import Q, Count
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from .models import UserProfile
-from .forms import UserForm, UserProfileForm, ProfileDefaultDeliveryForm
+from django.db.models import Count, Q
+from django.shortcuts import get_object_or_404, redirect, render
+
+from album.models import Album
 from checkout.models import Order
-from ratings.utils import annotate_albums, annotate_tracks
-from album.models import Album 
-from tracks.models import Track
-from follow_system.models import Follow
 from cloud_connect.models import CloudAccount, CloudFolderLink
+from follow_system.models import Follow
+from ratings.utils import annotate_albums, annotate_tracks
+from tracks.models import Track
+
+from .forms import ProfileDefaultDeliveryForm, UserForm, UserProfileForm
+from .models import UserProfile
+
 
 @login_required
 def profile_view(request):
@@ -26,11 +29,15 @@ def profile_view(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
 
     if request.method == "POST":
-        user_form     = UserForm(request.POST, instance=request.user)
-        profile_form  = UserProfileForm(request.POST, request.FILES, instance=profile)
+        user_form = UserForm(request.POST, instance=request.user)
+        profile_form = UserProfileForm(request.POST, request.FILES, instance=profile)
         defaults_form = ProfileDefaultDeliveryForm(request.POST, instance=profile)
 
-        if user_form.is_valid() and profile_form.is_valid() and defaults_form.is_valid():
+        if (
+            user_form.is_valid()
+            and profile_form.is_valid()
+            and defaults_form.is_valid()
+        ):
             user_form.save()
             profile_form.save()
             defaults_form.save()
@@ -39,18 +46,19 @@ def profile_view(request):
         else:
             messages.error(request, "Please correct the errors below.")
     else:
-        user_form     = UserForm(instance=request.user)
-        profile_form  = UserProfileForm(instance=profile)
+        user_form = UserForm(instance=request.user)
+        profile_form = UserProfileForm(instance=profile)
         defaults_form = ProfileDefaultDeliveryForm(instance=profile)
 
     # Prefer orders attached to profile, fall back to user (compatibility)
-    orders = Order.objects.filter(
-        Q(user_profile=profile) | Q(user=request.user)
-    ).order_by("-date").prefetch_related("items", "items__plan")
+    orders = (
+        Order.objects.filter(Q(user_profile=profile) | Q(user=request.user))
+        .order_by("-date")
+        .prefetch_related("items", "items__plan")
+    )
 
     following = (
-        User.objects
-        .filter(follower_relations__follower=request.user)
+        User.objects.filter(follower_relations__follower=request.user)
         .select_related("userprofile")
         .distinct()
         .order_by("username")
@@ -58,8 +66,7 @@ def profile_view(request):
 
     # Followers: users that follow *me* (request.user is the following)
     followers = (
-        User.objects
-        .filter(following_relations__following=request.user)
+        User.objects.filter(following_relations__following=request.user)
         .select_related("userprofile")
         .distinct()
         .order_by("username")
@@ -67,14 +74,16 @@ def profile_view(request):
 
     cloud_accounts = CloudAccount.objects.filter(user=request.user)
     my_albums = Album.objects.filter(owner=request.user).order_by("name")
-    cloud_links = CloudFolderLink.objects.filter(album__owner=request.user).select_related("album","account")
-    
+    cloud_links = CloudFolderLink.objects.filter(
+        album__owner=request.user
+    ).select_related("album", "account")
+
     context = {
         "user_form": user_form,
         "profile_form": profile_form,
         "defaults_form": defaults_form,
-        "profile": profile,     #  UserProfile instance
-        "orders": orders,       #  order queryset
+        "profile": profile,
+        "orders": orders,
         "following": following,
         "followers": followers,
         "cloud_accounts": cloud_accounts,
@@ -119,33 +128,33 @@ def public_profile(request, username: str):
     following_count = Follow.objects.filter(follower=view_user).count()
     is_following = False
     if request.user.is_authenticated and request.user != view_user:
-        is_following = Follow.objects.filter(follower=request.user, following=view_user).exists()
+        is_following = Follow.objects.filter(
+            follower=request.user, following=view_user
+        ).exists()
 
-
-    public_albums = (
-        annotate_albums(
-            Album.objects.filter(owner=view_user, is_public=True)
-                         .annotate(track_count=Count("album_tracks", distinct=True))
+    public_albums = annotate_albums(
+        Album.objects.filter(owner=view_user, is_public=True).annotate(
+            track_count=Count("album_tracks", distinct=True)
         )
-        .order_by("-created_at")
-    )
+    ).order_by("-created_at")
 
-    public_tracks = (
-        annotate_tracks(
-            Track.objects.filter(
-                track_albums__album__owner=view_user,
-                track_albums__album__is_public=True,
-            ).distinct()
-        )
-        .order_by("-created_at")
-    )
+    public_tracks = annotate_tracks(
+        Track.objects.filter(
+            track_albums__album__owner=view_user,
+            track_albums__album__is_public=True,
+        ).distinct()
+    ).order_by("-created_at")
 
-    return render(request, "profile_page/public_profile.html", {
-        "view_user": view_user,
-        "profile": profile,
-        "public_albums": public_albums,
-        "public_tracks": public_tracks,
-        "followers_count": followers_count,
-        "following_count": following_count,
-        "is_following": is_following,
-    })
+    return render(
+        request,
+        "profile_page/public_profile.html",
+        {
+            "view_user": view_user,
+            "profile": profile,
+            "public_albums": public_albums,
+            "public_tracks": public_tracks,
+            "followers_count": followers_count,
+            "following_count": following_count,
+            "is_following": is_following,
+        },
+    )

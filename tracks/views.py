@@ -1,39 +1,27 @@
 # ----------------------- tracks/views.py ----------------------- #
 import os
-import json
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
-from django.http import JsonResponse, HttpResponseBadRequest
-from django.contrib import messages
-from django.http import FileResponse, HttpResponseNotFound, HttpResponseRedirect
-from django.utils import timezone
-from django.db import IntegrityError, transaction
-from django.contrib.auth import get_user_model
-from django.db.models import (
-    Max, Exists, OuterRef, Prefetch, Avg, Count, Subquery, F
-)
-from django.db.models.functions import Coalesce
-from django.views.decorators.csrf import ensure_csrf_cookie
 
-from .models import Track, Listen, Favorite
-from .forms import TrackForm
+from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
+from django.db import IntegrityError
+from django.db.models import (Avg, Count, Exists, F, Max, OuterRef, Prefetch,
+                              Subquery)
+from django.db.models.functions import Coalesce
+from django.http import (FileResponse, HttpResponseNotFound,
+                         HttpResponseRedirect, JsonResponse)
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_POST
+
 from album.models import Album, AlbumTrack
-from plans.utils import (
-    can_add_track,
-    can_add_album,
-    can_upload_file,
-    user_has_storage_plan,
-)
-from ratings.utils import annotate_albums, annotate_tracks
-from tracks.utils import mark_track_ownership, annotate_is_in_my_albums
-from save_system.models import SavedTrack
 from playlist.models import Playlist, PlaylistItem
 from playlist.views import _guest_get
+from ratings.utils import annotate_albums, annotate_tracks
 
+from .models import Favorite, Listen, Track
 
-
-##### -------------------- Guest Users Recent List -------------------- #####
+# -------- Guest Users Recent List -------- #
 
 GUEST_RECENT_SESSION_KEY = "guest_recent_track_ids"
 GUEST_RECENT_LIMIT = 25
@@ -73,7 +61,9 @@ def _guest_recent_clear(request):
         request.session[GUEST_RECENT_SESSION_KEY] = []
         request.session.modified = True
 
-##### -------------------- Track List (main tabs UI) -------------------- #####
+
+# -------- Track List (main tabs UI) ---------- #
+
 
 def _has_field(model_cls, field_name: str) -> bool:
     return any(f.name == field_name for f in model_cls._meta.fields)
@@ -96,20 +86,22 @@ def track_list(request):
     in_playlist_ids: set[int] = set()
 
     if request.user.is_authenticated:
-        playlist, _ = Playlist.objects.get_or_create(owner=request.user, name="My Playlist")
+        playlist, _ = Playlist.objects.get_or_create(
+            owner=request.user, name="My Playlist"
+        )
 
         # Your chosen label from ANY of your albums containing this track
         user_label_sq = (
-            AlbumTrack.objects
-            .filter(album__owner=request.user, track_id=OuterRef("track_id"))
+            AlbumTrack.objects.filter(
+                album__owner=request.user, track_id=OuterRef("track_id")
+            )
             .exclude(custom_name__isnull=True)
             .exclude(custom_name="")
             .values("custom_name")[:1]
         )
 
         playlist_items_qs = (
-            PlaylistItem.objects
-            .select_related("track")
+            PlaylistItem.objects.select_related("track")
             .filter(playlist=playlist)
             .annotate(
                 # preferred display name: your custom label, else original track name
@@ -131,7 +123,6 @@ def track_list(request):
                 item.track.rating_avg = getattr(rated, "rating_avg", 0)
                 item.track.rating_count = getattr(rated, "rating_count", 0)
 
-
     # ------------------------------- FAVOURITES -------------------------------- #
     fav_rows = (
         Favorite.objects.filter(owner=request.user)
@@ -142,8 +133,7 @@ def track_list(request):
 
     # Subquery to pull your custom label from any of your albums
     user_label_sq = (
-        AlbumTrack.objects
-        .filter(album__owner=request.user, track_id=OuterRef("pk"))
+        AlbumTrack.objects.filter(album__owner=request.user, track_id=OuterRef("pk"))
         .exclude(custom_name__isnull=True)
         .exclude(custom_name="")
         .values("custom_name")[:1]
@@ -168,7 +158,6 @@ def track_list(request):
 
     annotate_is_in_my_albums(favorites, request.user)
 
-
     # ---------------------------- RECENTLY PLAYED ------------------------------ #
     latest_per_track = (
         Listen.objects.filter(user=request.user)
@@ -181,8 +170,7 @@ def track_list(request):
 
     # Subquery: pick your custom name from any of your albums
     user_label_sq = (
-        AlbumTrack.objects
-        .filter(album__owner=request.user, track_id=OuterRef("pk"))
+        AlbumTrack.objects.filter(album__owner=request.user, track_id=OuterRef("pk"))
         .exclude(custom_name__isnull=True)
         .exclude(custom_name="")
         .values("custom_name")[:1]
@@ -208,11 +196,14 @@ def track_list(request):
 
     annotate_is_in_my_albums(recent, request.user)
 
-
     # ---------------------------------- ALBUMS --------------------------------- #
-    fav_subquery = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
+    fav_subquery = Favorite.objects.filter(
+        owner=request.user, track=OuterRef("track_id")
+    )
 
-    albums_qs = annotate_albums(Album.objects.filter(owner=request.user)).prefetch_related(
+    albums_qs = annotate_albums(
+        Album.objects.filter(owner=request.user)
+    ).prefetch_related(
         Prefetch(
             "album_tracks",
             queryset=(
@@ -236,7 +227,9 @@ def track_list(request):
     albums = list(albums_qs)
 
     for album in albums:
-        annotate_is_in_my_albums(album.album_tracks_annotated, request.user, attr="track")
+        annotate_is_in_my_albums(
+            album.album_tracks_annotated, request.user, attr="track"
+        )
         for at in album.album_tracks_annotated:
             at.track.in_playlist = at.track.id in in_playlist_ids
 
@@ -257,7 +250,7 @@ def track_list(request):
             "recent": recent,
             "playlist": playlist,
             "playlist_items": playlist_items,
-            "in_playlist_ids": list(in_playlist_ids), 
+            "in_playlist_ids": list(in_playlist_ids),
         },
     )
 
@@ -269,11 +262,14 @@ def track_list_public(request):
     If logged in, also shows Playlists, Favourites, Recently Played.
     """
     # Safe imports here so this function can be pasted anywhere
-    from django.shortcuts import render
-    from django.db.models import Avg, Count, Exists, F, Max, OuterRef, Subquery, Prefetch
-    from django.db.models.functions import Coalesce
     from django.core.exceptions import FieldDoesNotExist
-    from tracks.utils import annotate_is_in_my_albums  # keep if you use it below
+    from django.db.models import (Avg, Count, Exists, F, Max, OuterRef,
+                                  Prefetch, Subquery)
+    from django.db.models.functions import Coalesce
+    from django.shortcuts import render
+
+    from tracks.utils import \
+        annotate_is_in_my_albums  # keep if you use it below
 
     # --------------------------- ANONYMOUS: EARLY RETURN --------------------------- #
     if not request.user.is_authenticated:
@@ -309,7 +305,6 @@ def track_list_public(request):
             },
         )
 
-
     # ----------------------------- PLAYLIST (FIRST) ----------------------------- #
     playlist = None
     playlist_items = []
@@ -319,16 +314,16 @@ def track_list_public(request):
 
     # Your chosen label from ANY of your albums containing this track
     user_label_sq = (
-        AlbumTrack.objects
-        .filter(album__owner=request.user, track_id=OuterRef("track_id"))
+        AlbumTrack.objects.filter(
+            album__owner=request.user, track_id=OuterRef("track_id")
+        )
         .exclude(custom_name__isnull=True)
         .exclude(custom_name="")
         .values("custom_name")[:1]
     )
 
     playlist_items_qs = (
-        PlaylistItem.objects
-        .select_related("track")
+        PlaylistItem.objects.select_related("track")
         .filter(playlist=playlist)
         .annotate(
             # preferred display name: your custom label, else original track name
@@ -361,8 +356,7 @@ def track_list_public(request):
     recent_track_ids = [row["track"] for row in latest_per_track]
 
     user_label_sq = (
-        AlbumTrack.objects
-        .filter(album__owner=request.user, track_id=OuterRef("pk"))
+        AlbumTrack.objects.filter(album__owner=request.user, track_id=OuterRef("pk"))
         .exclude(custom_name__isnull=True)
         .exclude(custom_name="")
         .values("custom_name")[:1]
@@ -387,7 +381,9 @@ def track_list_public(request):
     annotate_is_in_my_albums(recent, request.user)
 
     # ---------------------------------- ALBUMS --------------------------------- #
-    fav_subquery = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
+    fav_subquery = Favorite.objects.filter(
+        owner=request.user, track=OuterRef("track_id")
+    )
 
     albums_qs = Album.objects.filter(owner=request.user).prefetch_related(
         Prefetch(
@@ -414,7 +410,9 @@ def track_list_public(request):
     albums = list(albums_qs)
 
     for album in albums:
-        annotate_is_in_my_albums(album.album_tracks_annotated, request.user, attr="track")
+        annotate_is_in_my_albums(
+            album.album_tracks_annotated, request.user, attr="track"
+        )
         for at in album.album_tracks_annotated:
             at.track.in_playlist = at.track.id in in_playlist_ids
 
@@ -440,6 +438,7 @@ def track_list_public(request):
 
 # ---------- Utility Endpoints ----------
 
+
 def tracks_json(request):
     """Return JSON list of all tracks with playable URLs."""
     data = []
@@ -458,6 +457,7 @@ def tracks_json(request):
 
 # ---------- Track Plays / Favorites ----------
 
+
 @login_required
 def play_track(request, pk):
     """Increment play count and redirect to file/URL."""
@@ -465,7 +465,9 @@ def play_track(request, pk):
     track.play_count = (track.play_count or 0) + 1
     track.last_played_at = timezone.now()
     track.save(update_fields=["play_count", "last_played_at"])
-    dest = track.audio_file.url if getattr(track, "audio_file", None) else track.source_url
+    dest = (
+        track.audio_file.url if getattr(track, "audio_file", None) else track.source_url
+    )
     return redirect(dest or "track_list")
 
 
@@ -488,7 +490,6 @@ def recently_played(request):
         if item["track"] in tracks
     ]
     return render(request, "tracks/recently_played.html", {"results": results})
-
 
 
 @require_POST
@@ -521,7 +522,7 @@ def favorites_list(request):
     favs = (
         Favorite.objects.filter(owner=request.user)
         .select_related("track")
-        .order_by("position", "-created_at")   # ⬅️ saved order
+        .order_by("position", "-created_at")  # ⬅️ saved order
     )
     return render(request, "tracks/favorites.html", {"favorites": favs})
 
@@ -530,6 +531,7 @@ def favorites_list(request):
 @require_POST
 def favorites_reorder(request):
     import json
+
     from django.db import transaction
 
     try:
@@ -541,7 +543,9 @@ def favorites_reorder(request):
     if not order:
         return JsonResponse({"ok": True})
 
-    favs = Favorite.objects.select_related("track").filter(owner=request.user, track_id__in=order)
+    favs = Favorite.objects.select_related("track").filter(
+        owner=request.user, track_id__in=order
+    )
     by_tid = {f.track_id: f for f in favs}
 
     pos = 1
@@ -560,8 +564,6 @@ def favorites_reorder(request):
     return JsonResponse({"ok": True})
 
 
-
-
 @require_POST
 def log_play(request, track_id):
     """Log a listen event (AJAX)."""
@@ -577,18 +579,21 @@ def log_play(request, track_id):
 def download_track(request, pk):
     track = get_object_or_404(Track, pk=pk)
     if track.audio_file:
-      try:
-        return FileResponse(open(track.audio_file.path, "rb"),
-                            as_attachment=True,
-                            filename=os.path.basename(track.audio_file.name))
-      except Exception:
-        return HttpResponseNotFound("File not found.")
+        try:
+            return FileResponse(
+                open(track.audio_file.path, "rb"),
+                as_attachment=True,
+                filename=os.path.basename(track.audio_file.name),
+            )
+        except Exception:
+            return HttpResponseNotFound("File not found.")
     if track.source_url:
-      return HttpResponseRedirect(track.source_url)
+        return HttpResponseRedirect(track.source_url)
     return HttpResponseNotFound("Nothing to download.")
 
 
 User = get_user_model()
+
 
 def user_tracks(request, username):
     author = get_object_or_404(User, username=username)

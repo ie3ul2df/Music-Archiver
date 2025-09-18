@@ -1,28 +1,33 @@
 # ----------------------- album/views.py ----------------------- #
 
 import json
-from django.urls import reverse, NoReverseMatch
-from django.http import HttpResponseForbidden
-from django.db import transaction
-from django.db.models import Case, When, IntegerField, F, Q, Count, Avg, Count, Exists, OuterRef, Value, BooleanField, Prefetch, Max
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponseBadRequest
-from django.shortcuts import render, redirect, get_object_or_404
-from django.views.decorators.http import require_POST
+from django.db import transaction
+from django.db.models import (Avg, BooleanField, Case, Count, Exists, F,
+                              IntegerField, Max, OuterRef, Prefetch, Q, Value,
+                              When)
+from django.http import (HttpResponseBadRequest, HttpResponseForbidden,
+                         JsonResponse)
+from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.urls import NoReverseMatch, reverse
+from django.views.decorators.http import require_POST
+
+from plans.utils import can_add_album
+from playlist.models import Playlist, PlaylistItem
+from ratings.utils import annotate_albums
+from save_system.models import SavedTrack
+from tracks.forms import TrackForm
+from tracks.models import Favorite, Track
+from tracks.utils import (annotate_in_playlist, annotate_is_in_my_albums,
+                          mark_track_ownership)
 
 from .models import Album, AlbumTrack
-from .forms import AlbumForm
-from tracks.models import Track, Favorite
-from tracks.forms import TrackForm
-from tracks.utils import mark_track_ownership, annotate_is_in_my_albums, annotate_in_playlist
-from ratings.utils import annotate_albums, annotate_tracks
-from plans.utils import can_add_album
-from save_system.models import SavedTrack
-from playlist.models import Playlist, PlaylistItem
 
 # ---------- Helpers ----------
+
 
 def _can_add_album(user):
     """
@@ -30,7 +35,8 @@ def _can_add_album(user):
     Otherwise: free users limited to 1 album.
     """
     try:
-        from plans.utils import can_add_album as _cap  
+        from plans.utils import can_add_album as _cap
+
         return _cap(user)
     except Exception:
         count = Album.objects.filter(owner=user).count()
@@ -42,15 +48,20 @@ def _can_add_album(user):
 def _has_field(model_cls, field_name: str) -> bool:
     return any(f.name == field_name for f in model_cls._meta.fields)
 
+
 def _can_view_album(album, user):
-    return (album.is_public or (user.is_authenticated and album.owner_id == user.id))
+    return album.is_public or (user.is_authenticated and album.owner_id == user.id)
+
 
 # -------------- Album fragment view --------------
+
 
 @login_required
 def album_tracks_fragment(request, pk):
     album = get_object_or_404(Album, pk=pk)
-    if not (album.owner_id == request.user.id) and not getattr(album, "is_public", False):
+    if not (album.owner_id == request.user.id) and not getattr(
+        album, "is_public", False
+    ):
         return HttpResponseForbidden("Not allowed.")
 
     items = (
@@ -64,7 +75,9 @@ def album_tracks_fragment(request, pk):
     )
 
     if request.user.is_authenticated:
-        fav_subq = Favorite.objects.filter(owner=request.user, track=OuterRef("track_id"))
+        fav_subq = Favorite.objects.filter(
+            owner=request.user, track=OuterRef("track_id")
+        )
         items = items.annotate(is_favorited=Exists(fav_subq))
     else:
         items = items.annotate(is_favorited=Value(False, output_field=BooleanField()))
@@ -79,6 +92,7 @@ def album_tracks_fragment(request, pk):
         "album/_album_tracks_fragment.html",
         {"album": album, "items": items, "is_owner": album.owner_id == request.user.id},
     )
+
 
 # ---------------------- Album functions ---------------------- #
 # ---------------------- Album functions ---------------------- #
@@ -103,19 +117,23 @@ def album_list(request):
         name = (request.POST.get("name") or "").strip()
         if not name:
             if request.headers.get("x-requested-with") == "XMLHttpRequest":
-                return JsonResponse({"ok": False, "error": "Album name is required."}, status=400)
+                return JsonResponse(
+                    {"ok": False, "error": "Album name is required."}, status=400
+                )
             messages.error(request, "Album name is required.")
             return redirect("album:album_list")
 
         album = Album.objects.create(owner=request.user, name=name)
 
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
-            return JsonResponse({
-                "ok": True,
-                "id": album.id,
-                "name": album.name,
-                "detail_url": reverse("album:album_detail", args=[album.pk]),
-            })
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "id": album.id,
+                    "name": album.name,
+                    "detail_url": reverse("album:album_detail", args=[album.pk]),
+                }
+            )
         else:
             messages.success(request, "Album created.")
             return redirect("album:album_list")
@@ -143,21 +161,25 @@ def album_list(request):
     # Album-level annotations (avg/count on Album itself)
     albums = list(annotate_albums(qs))
 
-    # Ensure each Track inside those albums has consistent flags used by _track_card.html
+    # Ensure each Track inside those albums
+    # has consistent flags used by _track_card.html
     for alb in albums:
         ats = list(getattr(alb, "album_tracks").all())
         # already has: at.is_favorited, at.track_avg, at.track_count (from items_qs)
         # add:
-        annotate_is_in_my_albums(ats, request.user, attr="track")  # sets at.track.is_in_my_albums
-        annotate_in_playlist(ats, request.user, attr="track")      # sets at.track.in_playlist
+        annotate_is_in_my_albums(
+            ats, request.user, attr="track"
+        )  # sets at.track.is_in_my_albums
+        annotate_in_playlist(
+            ats, request.user, attr="track"
+        )  # sets at.track.in_playlist
 
     # --- Saved items for tabs (kept intact, but optimized and flagged) ---
     try:
         from save_system.models import SavedAlbum, SavedTrack
 
         saved_albums = (
-            SavedAlbum.objects
-            .filter(owner=request.user)
+            SavedAlbum.objects.filter(owner=request.user)
             .select_related("original_album", "original_album__owner")
             .order_by("-saved_at")
         )
@@ -168,17 +190,19 @@ def album_list(request):
         )
 
         saved_tracks = (
-            SavedTrack.objects
-            .filter(owner=request.user)
+            SavedTrack.objects.filter(owner=request.user)
             .select_related("original_track", "original_track__owner", "album")
-            .annotate(is_favorited=Exists(fav_track_subq))  # attach fav on SavedTrack row
+            .annotate(
+                is_favorited=Exists(fav_track_subq)
+            )  # attach fav on SavedTrack row
             .order_by("-saved_at")
         )
 
-        # annotate flags on the track objects (original_track) so templates can use them directly
+        # annotate flags on the track objects (original_track)
+        # so templates can use them directly
         tracks_only = [s.original_track for s in saved_tracks if s.original_track]
         annotate_is_in_my_albums(tracks_only, request.user)  # sets .is_in_my_albums
-        annotate_in_playlist(tracks_only, request.user)      # sets .in_playlist
+        annotate_in_playlist(tracks_only, request.user)  # sets .in_playlist
 
     except Exception:
         saved_albums = []
@@ -214,7 +238,9 @@ def unified_search(request):
     try:
         playlist, _ = Playlist.objects.get_or_create(owner=user, name="My Playlist")
         in_playlist_ids = set(
-            PlaylistItem.objects.filter(playlist=playlist).values_list("track_id", flat=True)
+            PlaylistItem.objects.filter(playlist=playlist).values_list(
+                "track_id", flat=True
+            )
         )
     except Exception:
         in_playlist_ids = set()
@@ -235,14 +261,16 @@ def unified_search(request):
 
     albums = (
         Album.objects.filter(owner=user, name__icontains=q)
-        .prefetch_related(Prefetch("album_tracks", queryset=at_qs, to_attr="album_tracks_annotated"))
+        .prefetch_related(
+            Prefetch("album_tracks", queryset=at_qs, to_attr="album_tracks_annotated")
+        )
         .order_by("name")[:20]
     )
 
     # add in_playlist flag to prefetched tracks
     for a in albums:
         for at in getattr(a, "album_tracks_annotated", []):
-            at.track.in_playlist = (at.track_id in in_playlist_ids)
+            at.track.in_playlist = at.track_id in in_playlist_ids
 
     # render full album cards with URLs passed in (NEVER None — provide fallbacks)
     album_cards = []
@@ -276,7 +304,6 @@ def unified_search(request):
             or f"{base}/delete/"
         )
 
-
         album_cards.append(
             render_to_string(
                 "album/_album_card.html",
@@ -285,7 +312,7 @@ def unified_search(request):
                     "rename_url": rename_url,
                     "toggle_visibility_url": toggle_visibility_url,
                     "delete_url": delete_url,
-                    "owner_url": None,          
+                    "owner_url": None,
                 },
                 request=request,
             )
@@ -331,10 +358,13 @@ def unified_search(request):
 @login_required
 @require_POST
 def ajax_add_album(request):
-    """Add a new album (AJAX-only). Enforces plan limits and sets order/position if present."""
+    """Add a new album (AJAX-only). Enforces plan
+    limits and sets order/position if present."""
     ok, reason = can_add_album(request.user)
     if not ok:
-        return JsonResponse({"ok": False, "error": reason or "Album limit reached."}, status=403)
+        return JsonResponse(
+            {"ok": False, "error": reason or "Album limit reached."}, status=403
+        )
 
     name = (request.POST.get("name") or "").strip()
     if not name:
@@ -344,11 +374,19 @@ def ajax_add_album(request):
 
     # Put new album at the end if you have ordering fields
     if _has_field(Album, "order"):
-        last = Album.objects.filter(owner=request.user).order_by("-order", "-id").first()
+        last = (
+            Album.objects.filter(owner=request.user).order_by("-order", "-id").first()
+        )
         album.order = (last.order + 1) if last and last.order is not None else 0
     elif _has_field(Album, "position"):
-        last = Album.objects.filter(owner=request.user).order_by("-position", "-id").first()
-        album.position = (last.position + 1) if last and last.position is not None else 0
+        last = (
+            Album.objects.filter(owner=request.user)
+            .order_by("-position", "-id")
+            .first()
+        )
+        album.position = (
+            (last.position + 1) if last and last.position is not None else 0
+        )
 
     album.save()
 
@@ -407,21 +445,28 @@ def album_detail(request, pk):
     """
 
     album = get_object_or_404(
-        Album.objects.all(),
-        Q(pk=pk) & (Q(owner=request.user) | Q(is_public=True))
+        Album.objects.all(), Q(pk=pk) & (Q(owner=request.user) | Q(is_public=True))
     )
 
     # Annotate ratings for the album
     album = annotate_albums(Album.objects.filter(pk=album.pk)).first()
     is_owner = album.owner == request.user
 
-    # --- Handle POST (only add-track form here; other actions handled by AJAX views) ---
+    # --- Handle POST (only add-track form here;
+    # other actions handled by AJAX views) ---
     if is_owner and request.method == "POST":
-        if "name" in request.POST and ("source_url" in request.POST or "audio_file" in request.FILES):
+        if "name" in request.POST and (
+            "source_url" in request.POST or "audio_file" in request.FILES
+        ):
             form = TrackForm(request.POST, request.FILES, owner=request.user)
             if form.is_valid():
                 track = form.save()
-                last_pos = AlbumTrack.objects.filter(album=album).aggregate(m=Max("position"))["m"] or -1
+                last_pos = (
+                    AlbumTrack.objects.filter(album=album).aggregate(m=Max("position"))[
+                        "m"
+                    ]
+                    or -1
+                )
                 pos = last_pos + 1
                 AlbumTrack.objects.create(album=album, track=track, position=pos)
                 messages.success(request, "Track added to album.")
@@ -434,19 +479,21 @@ def album_detail(request, pk):
         form = TrackForm(owner=request.user) if is_owner else None
 
     # --- Tracks with annotations ---
-    items_qs  = (
+    items_qs = (
         AlbumTrack.objects.filter(album=album)
         .select_related("track")
         .annotate(
             track_avg=Avg("track__ratings__stars"),
             track_count=Count("track__ratings", distinct=True),
             is_favorited=Exists(
-                Favorite.objects.filter(owner=request.user, track_id=OuterRef("track_id"))
+                Favorite.objects.filter(
+                    owner=request.user, track_id=OuterRef("track_id")
+                )
             ),
         )
         .order_by("position", "id")
     )
-    
+
     # Evaluate once so downstream helpers (and the template include) see the
     # annotated attributes.
     items = list(items_qs)
@@ -459,8 +506,7 @@ def album_detail(request, pk):
     if request.user.is_authenticated:
         saved_ids = set(
             SavedTrack.objects.filter(
-                owner=request.user,
-                original_track__in=[it.track for it in items]
+                owner=request.user, original_track__in=[it.track for it in items]
             ).values_list("original_track_id", flat=True)
         )
     for it in items:
@@ -473,7 +519,9 @@ def album_detail(request, pk):
     album.album_tracks_annotated = items
 
     # Template choice
-    template_name = "album/album_detail.html" if is_owner else "album/public_album_detail.html"
+    template_name = (
+        "album/album_detail.html" if is_owner else "album/public_album_detail.html"
+    )
 
     # URLs for _album_card.html include
     context = {
@@ -484,7 +532,9 @@ def album_detail(request, pk):
         "has_storage": True,  # TODO: connect with storage plans
         "owner_url": reverse("user_tracks", args=[album.owner.username]),
         "rename_url": reverse("album:ajax_rename_album", args=[album.pk]),
-        "toggle_visibility_url": reverse("album:toggle_album_visibility", args=[album.pk]),
+        "toggle_visibility_url": reverse(
+            "album:toggle_album_visibility", args=[album.pk]
+        ),
         "delete_url": reverse("album:ajax_delete_album", args=[album.pk]),
         "delete_redirect_url": reverse("album:album_list"),
     }
@@ -513,8 +563,7 @@ def public_album_detail(request, slug):
     if request.user.is_authenticated:
         saved_ids = set(
             SavedTrack.objects.filter(
-                owner=request.user,
-                original_track__in=[it.track for it in tracks]
+                owner=request.user, original_track__in=[it.track for it in tracks]
             ).values_list("original_track_id", flat=True)
         )
     for it in tracks:
@@ -581,7 +630,7 @@ def track_create(request):
         form = TrackForm(request.user, request.POST)
         if form.is_valid():
             track = form.save()
-            messages.success(request, f'Added “{track.title}”.')
+            messages.success(request, f"Added “{track.title}”.")
             return redirect("recently_played")
     else:
         form = TrackForm(request.user)
@@ -597,11 +646,13 @@ def album_rename_track(request, pk, item_id):
     new_name = (request.POST.get("name") or "").strip()
     if not new_name:
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
-            return JsonResponse({"ok": False, "error": "Track name cannot be empty."}, status=400)
+            return JsonResponse(
+                {"ok": False, "error": "Track name cannot be empty."}, status=400
+            )
         messages.error(request, "Track name cannot be empty.")
         return redirect("album:album_detail", pk=pk)
 
-    is_owner = (item.track.owner_id == request.user.id)
+    is_owner = item.track.owner_id == request.user.id
 
     with transaction.atomic():
         if is_owner:
@@ -623,15 +674,17 @@ def album_rename_track(request, pk, item_id):
             ).update(custom_name=new_name)
 
     if request.headers.get("x-requested-with") == "XMLHttpRequest":
-        return JsonResponse({
-            "ok": True,
-            "album_item_id": item.id,
-            "name": item.custom_name or item.track.name,  # the label to show
-            "scope": "track",          # tells the UI to update all cards for this track
-            "track_id": item.track_id, # so JS can locate them
-        })
+        return JsonResponse(
+            {
+                "ok": True,
+                "album_item_id": item.id,
+                "name": item.custom_name or item.track.name,  # the label to show
+                "scope": "track",  # tells the UI to update all cards for this track
+                "track_id": item.track_id,  # so JS can locate them
+            }
+        )
 
-    messages.success(request, f'Name updated to “{new_name}”.')
+    messages.success(request, f"Name updated to “{new_name}”.")
     return redirect("album:album_detail", pk=pk)
 
 
@@ -648,7 +701,10 @@ def album_detach_track(request, pk, item_id):
 
     # Also clean up SavedTrack snapshot if it exists for this album+track
     from save_system.models import SavedTrack
-    SavedTrack.objects.filter(owner=request.user, album=album, original_track=track).delete()
+
+    SavedTrack.objects.filter(
+        owner=request.user, album=album, original_track=track
+    ).delete()
 
     messages.success(request, "Removed from album.")
     return redirect("album:album_detail", pk=pk)
@@ -682,7 +738,9 @@ def album_bulk_detach(request, pk):
     with transaction.atomic():
         qs.delete()
         # re-pack positions to keep list tidy (optional)
-        remaining = list(AlbumTrack.objects.filter(album=album).order_by("position", "id"))
+        remaining = list(
+            AlbumTrack.objects.filter(album=album).order_by("position", "id")
+        )
         for i, at in enumerate(remaining):
             if at.position != i:
                 AlbumTrack.objects.filter(pk=at.pk).update(position=i)
@@ -762,7 +820,9 @@ def album_reorder_tracks(request, pk):
     # Two-phase, collision-free update:
     with transaction.atomic():
         # Phase 1: bump everything away so UNIQUE(album, position) never collides
-        AlbumTrack.objects.filter(album=album).update(position=F("position") + 1_000_000)
+        AlbumTrack.objects.filter(album=album).update(
+            position=F("position") + 1_000_000
+        )
 
         # Phase 2: assign the real positions in one go with CASE
         whens = [When(id=aid, then=Value(pos)) for aid, pos in mapping.items()]
@@ -771,5 +831,3 @@ def album_reorder_tracks(request, pk):
         )
 
     return JsonResponse({"ok": True})
-
-

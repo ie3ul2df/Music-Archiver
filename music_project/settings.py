@@ -1,17 +1,18 @@
 # music_project/settings.py
-from pathlib import Path
 import os
-import environ
+from pathlib import Path
+
 import dj_database_url
-from dotenv import load_dotenv
+import environ
 from django.contrib.messages import constants as messages
+from dotenv import load_dotenv
 
 # --------------------------------------------------------------------------------------
 # Base paths & environment
 # --------------------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load .env via both python-dotenv and django-environ 
+# Load .env via both python-dotenv and django-environ
 load_dotenv()  # loads environment from .env into process env
 env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, ".env"))  # also parse .env file
@@ -21,11 +22,14 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env"))  # also parse .env file
 # --------------------------------------------------------------------------------------
 SECRET_KEY = env("SECRET_KEY", default="django-insecure-temp-key")  # override in .env
 
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[
-    "127.0.0.1",
-    "localhost",
-    "music-archiver-498e27441f42.herokuapp.com",
-])
+ALLOWED_HOSTS = env.list(
+    "ALLOWED_HOSTS",
+    default=[
+        "127.0.0.1",
+        "localhost",
+        "music-archiver-498e27441f42.herokuapp.com",
+    ],
+)
 CSRF_TRUSTED_ORIGINS = env.list(
     "CSRF_TRUSTED_ORIGINS",
     default=[
@@ -53,20 +57,16 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.sites",
     "django_countries",
-
     # Allauth
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
-
     # Forms
     "crispy_forms",
     "crispy_bootstrap5",
-
     # Cloudinary
     "cloudinary_storage",
     "cloudinary",
-
     # Local apps
     "tracks",
     "album.apps.AlbumConfig",
@@ -91,14 +91,17 @@ AUTHENTICATION_BACKENDS = (
 
 # Login/Logout redirects
 LOGIN_REDIRECT_URL = "home"
-LOGOUT_REDIRECT_URL = "home"                       # Django auth
-ACCOUNT_LOGOUT_REDIRECT_URL = "home"               # Allauth (kept alongside)
+LOGOUT_REDIRECT_URL = "home"  # Django auth
+ACCOUNT_LOGOUT_REDIRECT_URL = "home"  # Allauth (kept alongside)
 
 # ---------------- Google Auth config ---------------- #
 # OAuth config (dev URLs shown; change in prod)
 GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
 GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
-GOOGLE_OAUTH_REDIRECT_URI = os.environ.get("GOOGLE_OAUTH_REDIRECT_URI", "https://music-archiver-498e27441f42.herokuapp.com/cloud/callback/gdrive/")
+GOOGLE_OAUTH_REDIRECT_URI = os.environ.get(
+    "GOOGLE_OAUTH_REDIRECT_URI",
+    "https://music-archiver-498e27441f42.herokuapp.com/cloud/callback/gdrive/",
+)
 GOOGLE_OAUTH_SCOPES = [
     "https://www.googleapis.com/auth/drive.readonly",
 ]
@@ -156,7 +159,9 @@ WSGI_APPLICATION = "music_project.wsgi.application"
 # Password validation
 # --------------------------------------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -210,7 +215,7 @@ STRIPE_WH_SECRET = os.environ.get("STRIPE_WH_SECRET")
 # Security hardening toggled by DEBUG
 # --------------------------------------------------------------------------------------
 # Debug only locally
-DEBUG = 'DEVELOPMENT' in os.environ
+DEBUG = "DEVELOPMENT" in os.environ
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
@@ -230,16 +235,15 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # --------------------------------------------------------------------------------------
 
 # Database: always use DATABASE_URL if it exists
-DB_URL = os.environ.get('DATABASE_URL')
+DB_URL = os.environ.get("DATABASE_URL")
 if DB_URL:
     DATABASES = {
-        'default': dj_database_url.parse(DB_URL, conn_max_age=600, ssl_require=True)
+        "default": dj_database_url.parse(DB_URL, conn_max_age=600, ssl_require=True)
     }
 else:
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
         }
     }
-

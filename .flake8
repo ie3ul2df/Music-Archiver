@@ -1,0 +1,18 @@
+[flake8]
+max-line-length = 88
+ignore = E203, W503
+exclude =
+    .git,
+    __pycache__,
+    migrations,
+    env,
+    venv,
+    .venv
+per-file-ignores =
+    # Admin files often import admin but don’t use it
+    */admin.py:F401
+    # Django apps.py are small
+    */apps.py:E302
+    # Settings/urls can be long
+    */settings.py:E501
+    */urls.py:E501

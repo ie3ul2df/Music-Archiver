@@ -1,6 +1,7 @@
 # playlist/context_processors.py
 from playlist.models import Playlist, PlaylistItem
 
+
 def playlist_membership(request):
     """
     Make the current user's playlist membership available on every page.

@@ -1,10 +1,11 @@
 # ----------------------- album/models.py ----------------------- #
-from django.db import models
+import uuid
+
 from django.conf import settings
-from django.utils.text import slugify
+from django.db import models
 from django.db.models import Q
 from django.db.models.deletion import ProtectedError
-import uuid
+from django.utils.text import slugify
 
 
 class Album(models.Model):
@@ -56,12 +57,11 @@ class Album(models.Model):
         if not self.slug:
             self.slug = self._make_unique_slug()
         super().save(*args, **kwargs)
-        
+
     def delete(self, *args, **kwargs):
         if self.is_default:
             raise ProtectedError("Default albums cannot be deleted.", [self])
         return super().delete(*args, **kwargs)
-
 
     def __str__(self):
         return f"{self.name} ({self.owner.username})"
@@ -82,7 +82,8 @@ class AlbumTrack(models.Model):
     )
     position = models.PositiveIntegerField(default=0, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    # Users can rename other users track on their own album only without changing the original track name
+    # Users can rename other users track on their own album
+    # only without changing the original track name
     custom_name = models.CharField(max_length=200, blank=True, null=True)
 
     class Meta:
@@ -113,5 +114,9 @@ class AlbumTrack(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        track_label = getattr(self.track, "title", None) or getattr(self.track, "name", None) or str(self.track)
+        track_label = (
+            getattr(self.track, "title", None)
+            or getattr(self.track, "name", None)
+            or str(self.track)
+        )
         return f"{self.album.name} → {track_label} (#{self.position})"

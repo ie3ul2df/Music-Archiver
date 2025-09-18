@@ -1,23 +1,27 @@
 # cloud_connect/views.py
-import json, re, requests
+import json
+import re
+
+import requests
 from django.conf import settings
-from django.shortcuts import get_object_or_404, redirect
-from django.http import JsonResponse, HttpResponseBadRequest, StreamingHttpResponse, HttpResponseForbidden
 from django.contrib.auth.decorators import login_required
+from django.http import (HttpResponseBadRequest, HttpResponseForbidden,
+                         JsonResponse, StreamingHttpResponse)
+from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
-from google_auth_oauthlib.flow import Flow
-from google.oauth2.credentials import Credentials
+from django.views.decorators.http import require_GET, require_POST
 from google.auth.transport.requests import Request
-from django.views.decorators.http import require_POST, require_GET
-from .providers.gdrive import GoogleDriveProvider
-from django.views.decorators.csrf import csrf_exempt
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import Flow
 
 from album.models import Album, AlbumTrack
 from tracks.models import Track
-from .models import CloudAccount, CloudFolderLink, CloudFileMap
 
+from .models import CloudAccount, CloudFileMap, CloudFolderLink
+from .providers.gdrive import GoogleDriveProvider
 
 # ---------- OAuth: connect & callback ----------
+
 
 @login_required
 def connect(request, provider: str):
@@ -25,13 +29,15 @@ def connect(request, provider: str):
         return HttpResponseBadRequest("Unsupported provider")
 
     flow = Flow.from_client_config(
-        {"web": {
-            "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
-            "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [settings.GOOGLE_OAUTH_REDIRECT_URI],
-        }},
+        {
+            "web": {
+                "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
+                "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": [settings.GOOGLE_OAUTH_REDIRECT_URI],
+            }
+        },
         scopes=settings.GOOGLE_OAUTH_SCOPES,
     )
     flow.redirect_uri = settings.GOOGLE_OAUTH_REDIRECT_URI
@@ -54,13 +60,15 @@ def callback(request, provider: str):
         return HttpResponseBadRequest("Missing state")
 
     flow = Flow.from_client_config(
-        {"web": {
-            "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
-            "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [settings.GOOGLE_OAUTH_REDIRECT_URI],
-        }},
+        {
+            "web": {
+                "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
+                "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": [settings.GOOGLE_OAUTH_REDIRECT_URI],
+            }
+        },
         scopes=settings.GOOGLE_OAUTH_SCOPES,
         state=state,
     )
@@ -84,6 +92,7 @@ def callback(request, provider: str):
 @login_required
 def link_album_folder(request, album_id: int):
     """Link an album to a cloud folder. Always respond with JSON."""
+
     def jerr(msg, code=400):
         return JsonResponse({"ok": False, "error": msg}, status=code)
 
@@ -121,12 +130,15 @@ def link_album_folder(request, album_id: int):
             folder = m.group(1)
 
     CloudFolderLink.objects.update_or_create(
-        album=album,
-        defaults={"account": account, "folder_id": folder}
+        album=album, defaults={"account": account, "folder_id": folder}
     )
-    return JsonResponse({"ok": True, "album": album.id, "account": account.id, "folder_id": folder})
+    return JsonResponse(
+        {"ok": True, "album": album.id, "account": account.id, "folder_id": folder}
+    )
+
 
 # ---------- Sync files into the album ----------
+
 
 @login_required
 def sync_album(request, album_id: int):
@@ -137,7 +149,9 @@ def sync_album(request, album_id: int):
 
     acc = link.account
     if acc.provider != "gdrive":
-        return JsonResponse({"ok": False, "error": "Provider not implemented"}, status=400)
+        return JsonResponse(
+            {"ok": False, "error": "Provider not implemented"}, status=400
+        )
 
     # Ensure valid token (refresh if needed)
     info = json.loads(acc.token_json)
@@ -150,24 +164,47 @@ def sync_album(request, album_id: int):
     provider = GoogleDriveProvider(acc.token_json, settings.GOOGLE_OAUTH_SCOPES)
     files = list(provider.list_audio_files(link.folder_id))
 
-    existing = {m.file_id: m for m in CloudFileMap.objects.filter(link=link).select_related("track")}
+    existing = {
+        m.file_id: m
+        for m in CloudFileMap.objects.filter(link=link).select_related("track")
+    }
     imported = updated = 0
 
     for f in files:
-        fid, name, mime, size, etag = f["id"], f["name"], f["mime"], f["size"], f.get("etag") or ""
+        fid, name, mime, size, etag = (
+            f["id"],
+            f["name"],
+            f["mime"],
+            f["size"],
+            f.get("etag") or "",
+        )
         if fid in existing:
             m = existing[fid]
             changed = False
-            if m.name != name: m.name, changed = name, True
-            if m.mime != mime: m.mime, changed = mime, True
-            if m.size != size: m.size, changed = size, True
-            if m.etag != etag: m.etag, changed = etag, True
-            if changed: m.save(); updated += 1
+            if m.name != name:
+                m.name, changed = name, True
+            if m.mime != mime:
+                m.mime, changed = mime, True
+            if m.size != size:
+                m.size, changed = size, True
+            if m.etag != etag:
+                m.etag, changed = etag, True
+            if changed:
+                m.save()
+                updated += 1
             track = m.track
         else:
-            track = Track.objects.create(owner=request.user, name=name, source_url=provider.stream_url(fid))
+            track = Track.objects.create(
+                owner=request.user, name=name, source_url=provider.stream_url(fid)
+            )
             CloudFileMap.objects.create(
-                link=link, file_id=fid, track=track, name=name, mime=mime, size=size, etag=etag
+                link=link,
+                file_id=fid,
+                track=track,
+                name=name,
+                mime=mime,
+                size=size,
+                etag=etag,
             )
             imported += 1
 
@@ -175,7 +212,9 @@ def sync_album(request, album_id: int):
 
     link.last_sync = timezone.now()
     link.save(update_fields=["last_sync"])
-    return JsonResponse({"ok": True, "imported": imported, "updated": updated, "total": len(files)})
+    return JsonResponse(
+        {"ok": True, "imported": imported, "updated": updated, "total": len(files)}
+    )
 
 
 # ---------- Stream proxy (supports Range for scrubbing) ----------
@@ -277,8 +316,7 @@ def stream_file(request, provider: str, file_id: str):
 
     # Which file is this, and who owns the token?
     mapping = (
-        CloudFileMap.objects
-        .select_related("link__account", "track")
+        CloudFileMap.objects.select_related("link__account", "track")
         .filter(file_id=file_id)
         .first()
     )
@@ -352,4 +390,3 @@ def stream_file(request, provider: str, file_id: str):
     resp["Accept-Ranges"] = "bytes"
     resp["Cache-Control"] = "public, max-age=3600"  # safe for public assets
     return resp
-

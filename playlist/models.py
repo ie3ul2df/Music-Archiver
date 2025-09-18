@@ -1,6 +1,8 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
+
 from tracks.models import Track
+
 
 class Playlist(models.Model):
     owner = models.ForeignKey(

@@ -1,11 +1,12 @@
 # checkout/models.py
 import uuid
-from django.db import models
+
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.db import models
+from django_countries.fields import CountryField
+
 from plans.models import Plan
 from profile_page.models import UserProfile
-from django_countries.fields import CountryField
 
 
 class Order(models.Model):
@@ -34,13 +35,13 @@ class Order(models.Model):
     email = models.EmailField(max_length=254)
 
     # delivery fields (optional, match Profile defaults)
-    phone_number    = models.CharField(max_length=20, null=True, blank=True)
-    country         = CountryField(blank_label="(select country)", null=True, blank=True)
-    postcode        = models.CharField(max_length=20, null=True, blank=True)
-    town_or_city    = models.CharField(max_length=40, null=True, blank=True)
+    phone_number = models.CharField(max_length=20, null=True, blank=True)
+    country = CountryField(blank_label="(select country)", null=True, blank=True)
+    postcode = models.CharField(max_length=20, null=True, blank=True)
+    town_or_city = models.CharField(max_length=40, null=True, blank=True)
     street_address1 = models.CharField(max_length=80, null=True, blank=True)
     street_address2 = models.CharField(max_length=80, null=True, blank=True)
-    county          = models.CharField(max_length=80, null=True, blank=True)
+    county = models.CharField(max_length=80, null=True, blank=True)
 
     date = models.DateTimeField(auto_now_add=True)
 

@@ -1,5 +1,6 @@
-from django.db import models
 from django.contrib.auth.models import User
+from django.db import models
+
 
 class Plan(models.Model):
     name = models.CharField(max_length=255)
@@ -10,7 +11,7 @@ class Plan(models.Model):
     # Features
     is_unlimited_tracks = models.BooleanField(default=False)
     is_unlimited_playlists = models.BooleanField(default=False)
-    is_unlimited_albums = models.BooleanField(default=False)   # ✅ add this
+    is_unlimited_albums = models.BooleanField(default=False)  # ✅ add this
 
     storage_gb = models.PositiveIntegerField(default=0)  # for storage plans
 
@@ -20,7 +21,10 @@ class Plan(models.Model):
 
 class UserSubscription(models.Model):
     """Which plan a user has subscribed to"""
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="subscription")
+
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="subscription"
+    )
     plan = models.ForeignKey(Plan, on_delete=models.SET_NULL, null=True)
     start_date = models.DateTimeField(auto_now_add=True)
     active = models.BooleanField(default=True)

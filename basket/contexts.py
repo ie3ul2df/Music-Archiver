@@ -1,8 +1,10 @@
 from decimal import Decimal
+
 from plans.models import Plan
 
+
 def basket_contents(request):
-    basket = request.session.get('basket', {})
+    basket = request.session.get("basket", {})
     basket_items = []
     total = Decimal("0")
     count = 0
@@ -23,11 +25,13 @@ def basket_contents(request):
         total += subtotal
         count += qty
 
-        basket_items.append({
-            "plan": plan,
-            "qty": qty,
-            "subtotal": subtotal,
-        })
+        basket_items.append(
+            {
+                "plan": plan,
+                "qty": qty,
+                "subtotal": subtotal,
+            }
+        )
 
     return {
         "basket_items": basket_items,

@@ -11,56 +11,127 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('plans', '0001_initial'),
-        ('profile_page', '0001_initial'),
+        ("plans", "0001_initial"),
+        ("profile_page", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Order',
+            name="Order",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('order_number', models.CharField(editable=False, max_length=32, unique=True)),
-                ('full_name', models.CharField(max_length=50)),
-                ('email', models.EmailField(max_length=254)),
-                ('phone_number', models.CharField(blank=True, max_length=20, null=True)),
-                ('country', django_countries.fields.CountryField(blank=True, max_length=2, null=True)),
-                ('postcode', models.CharField(blank=True, max_length=20, null=True)),
-                ('town_or_city', models.CharField(blank=True, max_length=40, null=True)),
-                ('street_address1', models.CharField(blank=True, max_length=80, null=True)),
-                ('street_address2', models.CharField(blank=True, max_length=80, null=True)),
-                ('county', models.CharField(blank=True, max_length=80, null=True)),
-                ('date', models.DateTimeField(auto_now_add=True)),
-                ('order_total', models.DecimalField(decimal_places=2, default=0, max_digits=10)),
-                ('stripe_pid', models.CharField(default='', max_length=254)),
-                ('original_basket', models.TextField(default='{}')),
-                ('user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='orders', to=settings.AUTH_USER_MODEL)),
-                ('user_profile', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='orders', to='profile_page.userprofile')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "order_number",
+                    models.CharField(editable=False, max_length=32, unique=True),
+                ),
+                ("full_name", models.CharField(max_length=50)),
+                ("email", models.EmailField(max_length=254)),
+                (
+                    "phone_number",
+                    models.CharField(blank=True, max_length=20, null=True),
+                ),
+                (
+                    "country",
+                    django_countries.fields.CountryField(
+                        blank=True, max_length=2, null=True
+                    ),
+                ),
+                ("postcode", models.CharField(blank=True, max_length=20, null=True)),
+                (
+                    "town_or_city",
+                    models.CharField(blank=True, max_length=40, null=True),
+                ),
+                (
+                    "street_address1",
+                    models.CharField(blank=True, max_length=80, null=True),
+                ),
+                (
+                    "street_address2",
+                    models.CharField(blank=True, max_length=80, null=True),
+                ),
+                ("county", models.CharField(blank=True, max_length=80, null=True)),
+                ("date", models.DateTimeField(auto_now_add=True)),
+                (
+                    "order_total",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=10),
+                ),
+                ("stripe_pid", models.CharField(default="", max_length=254)),
+                ("original_basket", models.TextField(default="{}")),
+                (
+                    "user",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="orders",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "user_profile",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="orders",
+                        to="profile_page.userprofile",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-date'],
+                "ordering": ["-date"],
             },
         ),
         migrations.CreateModel(
-            name='OrderItem',
+            name="OrderItem",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('quantity', models.PositiveIntegerField(default=1)),
-                ('price', models.DecimalField(decimal_places=2, max_digits=10)),
-                ('order', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='items', to='checkout.order')),
-                ('plan', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='plans.plan')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("quantity", models.PositiveIntegerField(default=1)),
+                ("price", models.DecimalField(decimal_places=2, max_digits=10)),
+                (
+                    "order",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="items",
+                        to="checkout.order",
+                    ),
+                ),
+                (
+                    "plan",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, to="plans.plan"
+                    ),
+                ),
             ],
             options={
-                'ordering': ['id'],
+                "ordering": ["id"],
             },
         ),
         migrations.AddIndex(
-            model_name='order',
-            index=models.Index(fields=['order_number'], name='checkout_or_order_n_88fdbf_idx'),
+            model_name="order",
+            index=models.Index(
+                fields=["order_number"], name="checkout_or_order_n_88fdbf_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='order',
-            index=models.Index(fields=['-date'], name='checkout_or_date_ab4f50_idx'),
+            model_name="order",
+            index=models.Index(fields=["-date"], name="checkout_or_date_ab4f50_idx"),
         ),
     ]

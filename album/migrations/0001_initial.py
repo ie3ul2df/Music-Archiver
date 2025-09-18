@@ -10,60 +10,110 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('tracks', '0001_initial'),
+        ("tracks", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Album',
+            name="Album",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=150)),
-                ('description', models.TextField(blank=True)),
-                ('is_public', models.BooleanField(default=False)),
-                ('is_default', models.BooleanField(default=False)),
-                ('slug', models.SlugField(blank=True, max_length=180, unique=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('order', models.PositiveIntegerField(default=0)),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='albums', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=150)),
+                ("description", models.TextField(blank=True)),
+                ("is_public", models.BooleanField(default=False)),
+                ("is_default", models.BooleanField(default=False)),
+                ("slug", models.SlugField(blank=True, max_length=180, unique=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("order", models.PositiveIntegerField(default=0)),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="albums",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['order', 'id'],
+                "ordering": ["order", "id"],
             },
         ),
         migrations.CreateModel(
-            name='AlbumTrack',
+            name="AlbumTrack",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('position', models.PositiveIntegerField(db_index=True, default=0)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('custom_name', models.CharField(blank=True, max_length=200, null=True)),
-                ('album', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='album_tracks', to='album.album')),
-                ('track', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='track_albums', to='tracks.track')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("position", models.PositiveIntegerField(db_index=True, default=0)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "custom_name",
+                    models.CharField(blank=True, max_length=200, null=True),
+                ),
+                (
+                    "album",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="album_tracks",
+                        to="album.album",
+                    ),
+                ),
+                (
+                    "track",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="track_albums",
+                        to="tracks.track",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['position', 'id'],
+                "ordering": ["position", "id"],
             },
         ),
         migrations.AddIndex(
-            model_name='album',
-            index=models.Index(fields=['owner', 'order'], name='album_album_owner_i_4d2877_idx'),
+            model_name="album",
+            index=models.Index(
+                fields=["owner", "order"], name="album_album_owner_i_4d2877_idx"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='album',
-            constraint=models.UniqueConstraint(condition=models.Q(('is_default', True)), fields=('owner',), name='uniq_default_album_per_owner'),
+            model_name="album",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("is_default", True)),
+                fields=("owner",),
+                name="uniq_default_album_per_owner",
+            ),
         ),
         migrations.AddIndex(
-            model_name='albumtrack',
-            index=models.Index(fields=['album', 'position'], name='album_album_album_i_c302e4_idx'),
+            model_name="albumtrack",
+            index=models.Index(
+                fields=["album", "position"], name="album_album_album_i_c302e4_idx"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='albumtrack',
-            constraint=models.UniqueConstraint(fields=('album', 'position'), name='uniq_album_position'),
+            model_name="albumtrack",
+            constraint=models.UniqueConstraint(
+                fields=("album", "position"), name="uniq_album_position"
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='albumtrack',
-            unique_together={('album', 'track')},
+            name="albumtrack",
+            unique_together={("album", "track")},
         ),
     ]

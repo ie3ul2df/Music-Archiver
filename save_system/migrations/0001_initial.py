@@ -11,42 +11,111 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('album', '0001_initial'),
-        ('tracks', '0001_initial'),
+        ("album", "0001_initial"),
+        ("tracks", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SavedAlbum',
+            name="SavedAlbum",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name_snapshot', models.CharField(max_length=200)),
-                ('description_snapshot', models.TextField(blank=True)),
-                ('saved_at', models.DateTimeField(default=django.utils.timezone.now)),
-                ('original_album', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='saves', to='album.album')),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='saved_albums', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name_snapshot", models.CharField(max_length=200)),
+                ("description_snapshot", models.TextField(blank=True)),
+                ("saved_at", models.DateTimeField(default=django.utils.timezone.now)),
+                (
+                    "original_album",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="saves",
+                        to="album.album",
+                    ),
+                ),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="saved_albums",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-saved_at'],
-                'indexes': [models.Index(fields=['owner', 'saved_at'], name='save_system_owner_i_8e2423_idx')],
-                'unique_together': {('owner', 'original_album')},
+                "ordering": ["-saved_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["owner", "saved_at"],
+                        name="save_system_owner_i_8e2423_idx",
+                    )
+                ],
+                "unique_together": {("owner", "original_album")},
             },
         ),
         migrations.CreateModel(
-            name='SavedTrack',
+            name="SavedTrack",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name_snapshot', models.CharField(max_length=200)),
-                ('saved_at', models.DateTimeField(default=django.utils.timezone.now)),
-                ('album', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='saved_tracks', to='album.album')),
-                ('original_track', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='saves', to='tracks.track')),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='saved_tracks', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name_snapshot", models.CharField(max_length=200)),
+                ("saved_at", models.DateTimeField(default=django.utils.timezone.now)),
+                (
+                    "album",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="saved_tracks",
+                        to="album.album",
+                    ),
+                ),
+                (
+                    "original_track",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="saves",
+                        to="tracks.track",
+                    ),
+                ),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="saved_tracks",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-saved_at'],
-                'indexes': [models.Index(fields=['owner', 'saved_at'], name='save_system_owner_i_adb4a2_idx'), models.Index(fields=['album', 'saved_at'], name='save_system_album_i_bffefe_idx')],
-                'unique_together': {('owner', 'original_track', 'album')},
+                "ordering": ["-saved_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["owner", "saved_at"],
+                        name="save_system_owner_i_adb4a2_idx",
+                    ),
+                    models.Index(
+                        fields=["album", "saved_at"],
+                        name="save_system_album_i_bffefe_idx",
+                    ),
+                ],
+                "unique_together": {("owner", "original_track", "album")},
             },
         ),
     ]
