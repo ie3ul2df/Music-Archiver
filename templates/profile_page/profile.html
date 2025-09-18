@@ -23,7 +23,7 @@
             {% csrf_token %}
             <div class="text-center mb-4">
               {% if profile.profile_image %}
-              <img src="{{ profile.profile_image.url }}" alt="Profile image" class="rounded-circle shadow-sm" style="width: 120px; height: 120px; object-fit: cover"/>
+              <img src="{{ profile.profile_image.url }}" alt="Profile image" class="rounded-circle shadow-sm" style="width: 120px; height: 120px; object-fit: cover">
               {% else %}
               <span class="display-1 text-muted">🖼️</span>
               {% endif %}
@@ -96,7 +96,7 @@
                 <li class="list-group-item d-flex align-items-center justify-content-between">
                   <div class="d-flex align-items-center gap-2">
                     {% if u.userprofile and u.userprofile.profile_image %}
-                      <img src="{{ u.userprofile.profile_image.url }}" class="rounded-circle" style="width:32px;height:32px;object-fit:cover" alt=""/>
+                      <img src="{{ u.userprofile.profile_image.url }}" class="rounded-circle" style="width:32px;height:32px;object-fit:cover" alt="">
                     {% else %}
                       <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width:32px;height:32px"><span class="text-muted small">@</span></div>
                     {% endif %}
@@ -113,7 +113,7 @@
                 {% for u in followers %}
                 <li class="list-group-item d-flex align-items-center gap-2">
                   {% if u.userprofile and u.userprofile.profile_image %}
-                    <img src="{{ u.userprofile.profile_image.url }}" class="rounded-circle" style="width:32px;height:32px;object-fit:cover" alt=""/>
+                    <img src="{{ u.userprofile.profile_image.url }}" class="rounded-circle" style="width:32px;height:32px;object-fit:cover" alt="">
                   {% else %}
                     <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width:32px;height:32px"><span class="text-muted small">@</span></div>
                   {% endif %}
@@ -157,7 +157,7 @@
 
                       <div class="col-12">
                         <select class="form-select" name="album_id" required>
-                          <option value="">Choose album…</option>
+                          <option value="" disabled selected>Choose album…</option>
                           {% for a in my_albums %}
                             <option value="{{ a.id }}">{{ a.name }}</option>
                           {% endfor %}
@@ -166,7 +166,7 @@
 
                       <div class="col-12">
                         <select class="form-select" name="account_id" required>
-                          <option value="">Choose account…</option>
+                          <option value="" disabled selected>Choose account…</option>
                           {% for acc in cloud_accounts %}
                             <option value="{{ acc.id }}">{{ acc.get_provider_display }} — {{ acc.label }}</option>
                           {% endfor %}
@@ -176,7 +176,7 @@
                       <div class="col-12">
                         <input type="text" name="folder_url" id="cloud-folder-url"
                               class="form-control mb-2"
-                              placeholder="Paste Google Drive folder URL" required />
+                              placeholder="Paste Google Drive folder URL" required >
                         <button type="submit" class="btn btn-primary w-100">Link Folder</button>
                         <div id="link-folder-status" class="mt-2 small text-muted"></div>
                       </div>

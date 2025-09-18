@@ -9,10 +9,10 @@
   <form method="post" enctype="multipart/form-data" class="row g-2 my-3">
     {% csrf_token %}
     <div class="col-md-4">
-      <input name="name" class="form-control" placeholder="Track name" required />
+      <input name="name" class="form-control" placeholder="Track name" required >
     </div>
     <div class="col-md-6">
-      <input name="source_url" class="form-control" placeholder="https://audio-link.mp3" />
+      <input name="source_url" class="form-control" placeholder="https://audio-link.mp3" >
     </div>
     <div class="col-md-2 d-grid">
       <button class="btn btn-primary">Add Track</button>

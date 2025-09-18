@@ -29,14 +29,21 @@
     </span>
 
     {% if album %}
-      <a class="text-decoration-none small text-muted" href="{% url 'album:album_detail' album.id %}">· {{ album.name }}</a>
+      <div class="small text-muted">
+        <a class="text-decoration-none small text-muted"
+          href="{% url 'album:album_detail' album.id %}">
+          · {{ album.name }}
+        </a>
+      </div>
     {% endif %}
 
-    <a class="text-decoration-none small text-muted"
-      href="{% url 'profile:public_profile' track.owner.username %}">
-      🔗 by <span class="fw-bold"> {{ track.owner.username }} </span>
-    </a>
-    <!-------------- Actions -------------->
+    <div class="small text-muted">
+      <a class="text-decoration-none small text-muted"
+        href="{% url 'profile:public_profile' track.owner.username %}">
+        🔗 by <span class="fw-bold">{{ track.owner.username }}</span>
+      </a>
+    </div>
+    <!-- Actions -->
     <div class="d-flex align-items-center gap-1 flex-sm-nowrap flex-wrap w-100">
 
       {# ★ Rankings #}
@@ -82,8 +89,12 @@
         </div>
 
         <div class="dropdown ms-sm-auto mt-2 mt-sm-0">
-          <button class="btn btn-sm dropdown-toggle action-dropdown-menu rotate-dropdown-btn" type="button" id="dropdownMenu2" data-bs-toggle="dropdown" aria-expanded="false"></button>
-          <ul class="dropdown-menu action-dropdown-menu" aria-labelledby="dropdownMenu2">
+          <button id="dropdownMenu-track-{{ track.id }}-{% if album_item_id %}{{ album_item_id }}{% else %}{{ forloop.counter }}{% endif %}" 
+                  class="btn btn-sm dropdown-toggle action-dropdown-menu rotate-dropdown-btn" 
+                  type="button" 
+                  data-bs-toggle="dropdown" 
+                  aria-expanded="false"></button>
+          <ul class="dropdown-menu action-dropdown-menu" aria-labelledby="dropdownMenu-track-{{ track.id }}-{% if album_item_id %}{{ album_item_id }}{% else %}{{ forloop.counter }}{% endif %}">
             {% if request.user.is_authenticated %}  
               {# ♥ Favourite #}
               {% with fav=is_favorited %}

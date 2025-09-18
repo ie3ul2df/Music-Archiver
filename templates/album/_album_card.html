@@ -32,7 +32,7 @@
             <div class="small text-muted">
               <a class="text-decoration-none small text-warning"
                 href="{% url 'profile:public_profile' album.owner.username %}">
-                🔗 by <span class="fw-bold">{{ album.owner.username }}<span>
+                🔗 by <span class="fw-bold">{{ album.owner.username }}</span>
               </a>
             </div>
           {% endif %}
@@ -53,10 +53,14 @@
               {% if request.resolver_match.url_name != "home" %}
                 <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group">
                   <div class="dropdown">
-                    <button class="btn btn-sm dropdown-toggle text-warning" type="button" id="dropdownMenu2" data-bs-toggle="dropdown" aria-expanded="false">
-                    Album Actions
+                    <button id="dropdownMenu-{{ album.id }}" 
+                            class="btn btn-sm dropdown-toggle text-warning" 
+                            type="button" 
+                            data-bs-toggle="dropdown" 
+                            aria-expanded="false">
+                      Album Actions
                     </button>
-                    <ul class="dropdown-menu action-dropdown-menu" aria-labelledby="dropdownMenu2">
+                    <ul class="dropdown-menu action-dropdown-menu" aria-labelledby="dropdownMenu-{{ album.id }}">
                       <li class="m-2">
                         <a href="{% url 'album:album_detail' album.pk %}" class="btn btn-outline-primary">👁 View</a>
                       </li>
@@ -193,5 +197,6 @@
         <div class="small text-muted mt-2">No tracks in this album yet.</div>
       {% endif %}
     {% endwith %}
-
+    
+  </div>
 </li>
