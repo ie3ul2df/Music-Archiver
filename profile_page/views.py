@@ -2,7 +2,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.db.models import Count, Q
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 
@@ -12,6 +12,7 @@ from cloud_connect.models import CloudAccount, CloudFolderLink
 from follow_system.models import Follow
 from ratings.utils import annotate_albums, annotate_tracks
 from tracks.models import Track
+from ratings.models import TrackRating
 
 from .forms import ProfileDefaultDeliveryForm, UserForm, UserProfileForm
 from .models import UserProfile
@@ -117,6 +118,7 @@ def order_history(request, order_number):
     )
 
 
+
 def public_profile(request, username: str):
     """
     Public-facing profile page for a given user (no login required).
@@ -139,27 +141,62 @@ def public_profile(request, username: str):
         )
     ).order_by("-created_at")
 
+    # NEW: normalise album track ratings
+    for album in public_albums:
+        for at in album.album_tracks.all():
+            avg = float(getattr(at, "track_avg", 0) or 0.0)
+            count = int(getattr(at, "track_count", 0) or 0)
+
+            user_rating = (
+                TrackRating.objects.filter(user=view_user, track=at.track)
+                .values_list("stars", flat=True)
+                .first()
+            )
+
+            at.track.rating_avg = avg
+            at.track.rating_count = count
+            at.track.user_rating = int(user_rating) if user_rating else None
+            at.track.rating_html = render_to_string(
+                "ratings/_stars.html",
+                {
+                    "type": "track",
+                    "id": at.track.id,
+                    "avg": avg,
+                    "count": count,
+                    "user_rating": at.track.user_rating,
+                },
+                request=request,
+            )
+
+    # Handle public tracks (independent of albums)
+    user_rating_subquery = TrackRating.objects.filter(
+        user=view_user, track=OuterRef("pk")
+    ).values("stars")[:1]
+
     public_tracks_qs = annotate_tracks(
-        Track.objects.filter(
-            track_albums__album__owner=view_user,
-            track_albums__album__is_public=True,
-        ).distinct()
-    ).order_by("-created_at")
-    
+        Track.objects.filter(track_albums__album__is_public=True)
+        .filter(
+            Q(track_albums__album__owner=view_user)
+            | Q(ratings__user=view_user)
+        )
+        .annotate(user_rating=Subquery(user_rating_subquery))
+        .select_related("owner")
+        .distinct()
+    ).order_by("-user_rating", "-rating_avg", "-created_at")
+
     public_tracks = []
     for track in public_tracks_qs:
         raw_avg = getattr(track, "rating_avg", None)
         raw_count = getattr(track, "rating_count", None)
+        raw_user_rating = getattr(track, "user_rating", None)
 
         avg = float(raw_avg) if raw_avg else 0.0
         count = int(raw_count) if raw_count else 0
+        user_rating = int(raw_user_rating) if raw_user_rating else None
 
-        # Normalise the annotated values so templates receive primitives instead
-        # of Django's Decimal objects. Without this, some template code may treat
-        # the value as a string which prevents the star widget from adding the
-        # "is-selected" class to the filled buttons.
         track.rating_avg = avg
         track.rating_count = count
+        track.user_rating = user_rating
         track.rating_html = render_to_string(
             "ratings/_stars.html",
             {
@@ -167,7 +204,7 @@ def public_profile(request, username: str):
                 "id": track.id,
                 "avg": avg,
                 "count": count,
-                "user_rating": None,
+                "user_rating": user_rating,
             },
             request=request,
         )
@@ -186,3 +223,4 @@ def public_profile(request, username: str):
             "is_following": is_following,
         },
     )
+
