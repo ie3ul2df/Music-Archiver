@@ -1,11 +1,13 @@
 # Music-Archiver
 
-[![Build Status](https://img.shields.io/badge/build-pending-lightgrey.svg)](#) [![Coverage](https://img.shields.io/badge/coverage-tbc-lightgrey.svg)](#) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](#license)
+[![Build Status](https://img.shields.io/badge/build-pending-lightgrey.svg)](#)
+[![Coverage](https://img.shields.io/badge/coverage-tbc-lightgrey.svg)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Save, organise, and play web music links with albums, playlists, ratings, favourites, and social saving.**
+> Save, organise, and play web music links with albums, playlists, ratings, favourites, and social sharing.
 
-- **Live Demo:** [https://music-archiver-498e27441f42.herokuapp.com/](https://music-archiver-498e27441f42.herokuapp.com/)
-- **Repository:** [https://github.com/ie3ul2df/Music-Archiver](https://github.com/ie3ul2df/Music-Archiver)
+- 🎵 **Live Demo**: [music-archiver-498e27441f42.herokuapp.com](https://music-archiver-498e27441f42.herokuapp.com/)
+- 💻 **Repository**: [github.com/ie3ul2df/Music-Archiver](https://github.com/ie3ul2df/Music-Archiver)
 
 ---
 
@@ -19,7 +21,6 @@
 - [Getting Started](#getting-started)
   - [Quickstart](#quickstart)
   - [Configuration](#configuration)
-- [Testing](#testing)
 - [Deployment on Heroku](#deployment-on-heroku)
 - [Testing](#testing)
 - [Accessibility & Security](#accessibility--security)
